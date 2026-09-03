@@ -173,6 +173,27 @@
           </div>
 
 
+          <!-- Section 10: Deterministic Multi-Factor Risk Assessment Card -->
+          <div class="info-card risk-card">
+            <div class="card-title">
+              <span>⚡ SECTION 10: OPERATIONAL THREAT</span>
+              <span class="priority-tag" id="drawer-priority-rank">PRIORITY #01</span>
+            </div>
+            <div class="risk-score-row">
+              <div class="risk-gauge-circle">
+                <span class="risk-score-num" id="drawer-risk-score">80</span>
+                <span class="risk-score-max">/100</span>
+              </div>
+              <div class="risk-tier-info">
+                <span class="risk-tier-badge" id="drawer-risk-tier">HIGH THREAT</span>
+                <p class="risk-action-rec" id="drawer-risk-action">ELEVATED SURVEILLANCE & VERIFICATION</p>
+              </div>
+            </div>
+            <div class="risk-factor-list" id="drawer-risk-factors">
+              <!-- Dynamically populated factor bars -->
+            </div>
+          </div>
+
           <!-- Launch Full Investigation Button (Section 7) -->
           <button class="btn btn-investigate-hero" id="btn-launch-investigation">
             <span>⚡ OPEN FORENSIC INVESTIGATION SCREEN</span>
@@ -203,6 +224,7 @@
         <div class="modal-title-group">
           <div class="modal-tags">
             <span class="badge-case" id="modal-case-id">CASE_001</span>
+            <span class="badge-risk" id="modal-risk-badge">PRIORITY #01 · SCORE 80</span>
             <span class="badge-status-triage" id="modal-triage-badge">UNREVIEWED</span>
             <span class="badge-frp-alert" id="modal-frp-alert">FRP: 9.08 MW</span>
           </div>
@@ -307,6 +329,27 @@
             <p class="reasoning-text" id="modal-reasoning-text"></p>
           </div>
 
+
+          <!-- SECTION 10: Deterministic Multi-Factor Risk & Priority Audit Card -->
+          <div class="forensic-card risk-audit-card">
+            <div class="card-subtitle">
+              <span>⚡ SECTION 10: DETERMINISTIC RISK & PRIORITY AUDIT</span>
+              <span class="audit-badge" id="modal-audit-tier">HIGH RISK · 80/100</span>
+            </div>
+            <div class="modal-risk-grid">
+              <div class="modal-risk-meter">
+                <span class="modal-meter-num" id="modal-risk-score">80</span>
+                <span class="modal-meter-sub">THREAT INDEX</span>
+              </div>
+              <div class="modal-risk-rec">
+                <strong>OPERATIONAL DISPATCH DIRECTIVE:</strong>
+                <p id="modal-risk-recommendation">ELEVATED SURVEILLANCE & FACILITY OPERATOR VERIFICATION</p>
+              </div>
+            </div>
+            <div class="modal-factor-breakdown" id="modal-factor-breakdown">
+              <!-- Dynamically populated 5-factor progress bars -->
+            </div>
+          </div>
 
           <!-- Telemetry & Proximity Split Grid -->
           <div class="split-telemetry-grid">

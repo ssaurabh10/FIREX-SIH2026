@@ -177,14 +177,18 @@ function renderSidebarList() {
     else if (aiCls.includes("mining")) badgeClass = "badge-mining";
     else if (aiCls.includes("wildfire")) badgeClass = "badge-wildfire";
 
+    const riskTier = (inc.risk_tier || "medium").toLowerCase();
+    const riskScore = inc.risk_score || 50;
+    const priorityRank = inc.priority_rank ? `#${inc.priority_rank}` : "";
+
     card.innerHTML = `
       <div class="incident-card-top">
         <span class="incident-id">${inc.id.toUpperCase()}</span>
-        <span class="incident-class-badge ${badgeClass}">${inc.ai_classification}</span>
+        <span class="risk-pill tier-${riskTier}">RANK ${priorityRank} · ${riskScore}/100</span>
       </div>
       <div class="incident-title">${inc.location_name.split("(")[0].trim()}</div>
       <div class="incident-meta-row">
-        <span>${inc.satellite} (${inc.instrument})</span>
+        <span class="incident-class-badge ${badgeClass}">${inc.ai_classification}</span>
         <span class="frp-tag">${inc.frp} MW</span>
       </div>
     `;
@@ -195,6 +199,26 @@ function renderSidebarList() {
 
     listEl.appendChild(card);
   });
+}
+
+// Render Section 10 Risk Factors progress bars
+function renderRiskFactorsHTML(factors) {
+  if (!factors || factors.length === 0) return "";
+  return factors.map(f => {
+    const pct = Math.min(100, Math.round((f.score / f.max) * 100));
+    return `
+      <div class="risk-factor-item">
+        <div class="factor-header">
+          <span class="factor-name">${f.factor}</span>
+          <span class="factor-val">${f.score} / ${f.max} pts</span>
+        </div>
+        <div class="factor-bar-bg">
+          <div class="factor-bar-fill" style="width: ${pct}%"></div>
+        </div>
+        <div class="factor-detail">${f.detail}</div>
+      </div>
+    `;
+  }).join("");
 }
 
 // Open detailed dossier drawer and pan map to coordinate
@@ -241,6 +265,21 @@ function openIncidentDetails(id) {
     li.innerText = ev;
     evidenceList.appendChild(li);
   });
+
+  // Section 10: Operational Threat & Priority Card
+  const rankEl = document.getElementById("drawer-priority-rank");
+  if (rankEl) rankEl.innerText = `PRIORITY #${inc.priority_rank || 1}`;
+  const scoreEl = document.getElementById("drawer-risk-score");
+  if (scoreEl) scoreEl.innerText = inc.risk_score || 50;
+  const tierEl = document.getElementById("drawer-risk-tier");
+  if (tierEl) {
+    tierEl.innerText = `${inc.risk_tier || 'MEDIUM'} THREAT`;
+    tierEl.style.color = inc.risk_color || '#ff7700';
+  }
+  const actionEl = document.getElementById("drawer-risk-action");
+  if (actionEl) actionEl.innerText = inc.action_recommendation || 'MONITOR THERMAL ACTIVITY';
+  const factorsEl = document.getElementById("drawer-risk-factors");
+  if (factorsEl) factorsEl.innerHTML = renderRiskFactorsHTML(inc.risk_factors);
 
   // Sensor metrics
   document.getElementById("drawer-frp").innerText = `${inc.frp} MW`;
@@ -364,6 +403,14 @@ function openInvestigationModal(id) {
   document.getElementById("modal-case-id").innerText = inc.id.toUpperCase();
   document.getElementById("modal-frp-alert").innerText = `FRP: ${inc.frp} MW`;
 
+  // Section 10 Risk Badge in Top Bar
+  const modalRiskBadge = document.getElementById("modal-risk-badge");
+  if (modalRiskBadge) {
+    modalRiskBadge.innerText = `PRIORITY #${inc.priority_rank || 1} · THREAT ${inc.risk_score || 50}/100`;
+    modalRiskBadge.style.color = inc.risk_color || "#ff7700";
+    modalRiskBadge.style.borderColor = inc.risk_color || "rgba(255,119,0,0.4)";
+  }
+
   // Triage status from localStorage
   const savedTriage = localStorage.getItem(`firex_triage_${inc.id}`) || "UNREVIEWED";
   updateTriageBadge(savedTriage);
@@ -442,6 +489,20 @@ function openInvestigationModal(id) {
 
   // Chain of Thought Analytical Reasoning
   document.getElementById("modal-reasoning-text").innerText = inc.ai_reasoning || "Analytical reasoning complete.";
+
+  // Section 10: Deterministic Risk & Priority Audit Card in Modal
+  const auditTierEl = document.getElementById("modal-audit-tier");
+  if (auditTierEl) {
+    auditTierEl.innerText = `${inc.risk_tier || 'MEDIUM'} RISK · ${inc.risk_score || 50}/100`;
+    auditTierEl.style.color = inc.risk_color || "#ff7700";
+    auditTierEl.style.borderColor = inc.risk_color || "rgba(255,119,0,0.4)";
+  }
+  const modalRiskScore = document.getElementById("modal-risk-score");
+  if (modalRiskScore) modalRiskScore.innerText = inc.risk_score || 50;
+  const modalRiskRec = document.getElementById("modal-risk-recommendation");
+  if (modalRiskRec) modalRiskRec.innerText = inc.action_recommendation || 'MONITOR INCIDENT';
+  const modalBreakdown = document.getElementById("modal-factor-breakdown");
+  if (modalBreakdown) modalBreakdown.innerHTML = renderRiskFactorsHTML(inc.risk_factors);
 
   // Sensor Telemetry
   document.getElementById("modal-metric-frp").innerText = `${inc.frp} MW`;
