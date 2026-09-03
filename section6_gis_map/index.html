@@ -1,529 +1,375 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FIREX — Autonomous Satellite Thermal Intelligence Platform</title>
-  
+  <title>FIREX — AI Thermal Intelligence | Section 6 GIS Map</title>
+
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono (Agency-Tier Typography) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <!-- Ambient Atmospheric Mesh Lighting -->
-  <div class="ambient-glow glow-top-left"></div>
-  <div class="ambient-glow glow-top-right"></div>
-  <div class="ambient-glow glow-bottom-center"></div>
 
-  <!-- Header Bar: Floating Frosted Tactical Command Deck -->
+<body>
+  <!-- Header Bar -->
   <header class="app-header">
     <div class="brand">
-      <div class="brand-shell">
-        <div class="brand-logo">
-          <svg class="flame-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
-          </svg>
-        </div>
+      <div class="brand-logo">
+        <span class="flame-icon">🔥</span>
       </div>
       <div class="brand-text">
-        <div class="brand-title-row">
-          <h1>FIREX</h1>
-          <span class="agency-badge">NTRO · PS 162</span>
-          <span class="status-live-pill"><span class="live-dot"></span> LIVE SATELLITE</span>
-        </div>
-        <p class="brand-subtitle">AI-Assisted Satellite Thermal Anomaly & Persistent Fire Classifier</p>
+        <h1>FIREX <span class="badge">GIS MAP v1.0</span></h1>
+        <p>AI-Based Industrial Thermal Source Detection & Classification</p>
       </div>
     </div>
-    
-    <!-- Central Double-Bezel Telemetry Capsule -->
-    <div class="stats-capsule-shell">
-      <div class="stats-capsule-core">
-        <div class="stat-item">
-          <span class="stat-label">NATIONWIDE HOTSPOTS</span>
-          <span class="stat-value font-mono" id="total-firms-count">451</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-label">VISION AI EVALUATED</span>
-          <span class="stat-value font-mono highlight" id="ai-cases-count">7</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-label">MAX RADIATIVE POWER</span>
-          <span class="stat-value font-mono alert">48.9 <small>MW</small></span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-label">MULTIMODAL MODEL</span>
-          <span class="stat-value font-mono cyan-tag">MiniMax M3</span>
-        </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">TOTAL FIRMS DETECTIONS</span>
+        <span class="stat-value" id="total-firms-count">451</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-label">AI BENCHMARK CASES</span>
+        <span class="stat-value highlight" id="ai-cases-count">7</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-label">PEAK FRP</span>
+        <span class="stat-value alert">48.9 MW</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-label">AI ENGINE</span>
+        <span class="stat-value">MiniMax M3</span>
       </div>
     </div>
-    
-    <!-- Header Interactive Actions (Button-in-Button Architecture) -->
+
     <div class="header-actions">
-      <button class="btn btn-secondary-haptic" id="btn-fit-bounds">
-        <span>Fit Subcontinent</span>
-        <div class="btn-icon-wrapper">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 3v3m0 12v3M3 12h3m12 0h3"/>
-          </svg>
-        </div>
-      </button>
-      <button class="btn btn-primary-haptic" id="btn-toggle-ambient">
-        <span>Ambient FIRMS: <b id="ambient-status">ON</b></span>
-        <div class="btn-icon-wrapper">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
-        </div>
-      </button>
+      <button class="btn btn-secondary" id="btn-fit-bounds">Fit India</button>
+      <button class="btn btn-primary" id="btn-toggle-ambient">Ambient FIRMS: <span
+          id="ambient-status">ON</span></button>
     </div>
   </header>
 
-  <!-- Main Viewport Grid -->
+  <!-- Main Viewport -->
   <div class="main-container">
-    
-    <!-- Left Sidebar: Tactical Incident Explorer -->
+    <!-- Left Sidebar: Incident Explorer -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div>
-          <span class="eyebrow-tag">SURVEILLANCE DOSSIER</span>
-          <h2>Target Directory</h2>
-        </div>
-        <span class="filter-count font-mono" id="filter-count">7 Incidents</span>
+        <h2>Incidents Directory</h2>
+        <span class="filter-count" id="filter-count">7 Incidents</span>
       </div>
-      
-      <!-- Tactile Sliding Filter Segment Control -->
-      <div class="filter-tabs-wrapper">
-        <div class="filter-tabs">
-          <button class="tab-btn active" data-filter="all">All Targets</button>
-          <button class="tab-btn" data-filter="industrial">Industrial</button>
-          <button class="tab-btn" data-filter="flare">Gas Flare</button>
-          <button class="tab-btn" data-filter="mining">Coal / Mine</button>
-          <button class="tab-btn" data-filter="wildfire">Wildfire</button>
-        </div>
+
+      <!-- Filter Tabs -->
+      <div class="filter-tabs">
+        <button class="tab-btn active" data-filter="all">All</button>
+        <button class="tab-btn" data-filter="industrial">Industrial</button>
+        <button class="tab-btn" data-filter="flare">Flare</button>
+        <button class="tab-btn" data-filter="mining">Mining</button>
+        <button class="tab-btn" data-filter="wildfire">Wildfire</button>
       </div>
-      
-      <!-- Incident Directory List -->
+
+      <!-- Incident List -->
       <div class="incident-list" id="incident-list">
-        <!-- Injected via app.js -->
+        <!-- Injected via JavaScript -->
       </div>
     </aside>
 
-    <!-- Center: High-Precision Map Viewport -->
+    <!-- Center: Interactive GIS Map -->
     <main class="map-viewport">
       <div id="map"></div>
-      
-      <!-- Map Layer Switcher: Glass Segment Pill -->
-      <div class="map-controls-shell">
-        <div class="map-controls-core">
-          <button class="layer-btn active" id="layer-dark">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-            Dark Vector
-          </button>
-          <button class="layer-btn" id="layer-satellite">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            True Satellite
-          </button>
-        </div>
+
+      <!-- Map Layer Selector Overlay -->
+      <div class="map-controls">
+        <button class="layer-btn active" id="layer-dark">🗺️ Esri Dark Canvas</button>
+        <button class="layer-btn" id="layer-satellite">🛰️ High-Res Satellite</button>
       </div>
 
-      <!-- Tactical Legend: Frosted HUD Anchor -->
-      <div class="map-legend-shell">
-        <div class="map-legend-core">
-          <div class="legend-header">
-            <span class="legend-pulse"></span>
-            <h4>SPECTRAL CLASSIFICATION</h4>
-          </div>
-          <div class="legend-item"><span class="marker-dot flare"></span> Gas Flare / Extreme Thermal (&gt;30 MW)</div>
-          <div class="legend-item"><span class="marker-dot industrial"></span> Structural Industrial Fire Candidate</div>
-          <div class="legend-item"><span class="marker-dot mining"></span> Coal Pit / Overburden Combustion</div>
-          <div class="legend-item"><span class="marker-dot wildfire"></span> Biomass / Wildland Forest Burning</div>
-          <div class="legend-item"><span class="marker-dot ambient"></span> NASA Ambient FIRMS Hotspot (451 pts)</div>
-        </div>
+
+      <!-- Legend -->
+      <div class="map-legend">
+        <h4>Incident Severity & Classification</h4>
+        <div class="legend-item"><span class="marker-dot flare"></span> Gas Flare / Persistent (>30 MW)</div>
+        <div class="legend-item"><span class="marker-dot industrial"></span> Industrial Fire Candidate</div>
+        <div class="legend-item"><span class="marker-dot mining"></span> Mining / Coal Anomaly</div>
+        <div class="legend-item"><span class="marker-dot wildfire"></span> Wildfire / Forest Burning</div>
+        <div class="legend-item"><span class="marker-dot ambient"></span> Ambient FIRMS Hotspot (451 pts)</div>
       </div>
     </main>
 
-    <!-- Right Drawer: Incident Dossier (Double-Bezel Architecture) -->
+    <!-- Right Drawer: Incident Dossier (Collapsible) -->
     <aside class="detail-drawer" id="detail-drawer">
       <div class="drawer-empty" id="drawer-empty">
-        <div class="empty-reticle-shell">
-          <div class="empty-reticle-core">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="12" cy="12" r="8"/>
-              <path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>
-            </svg>
-          </div>
-        </div>
-        <h3>Select a Thermal Target</h3>
-        <p>Select any tactical node on the map or left directory to inspect 1-meter optical imagery and AI chain-of-thought analysis.</p>
+        <div class="empty-icon">📍</div>
+        <h3>Select a Thermal Incident</h3>
+        <p>Click any map marker or sidebar item to view high-resolution satellite imagery and AI analysis.</p>
       </div>
 
       <div class="drawer-content hidden" id="drawer-content">
         <div class="drawer-header">
           <div>
-            <div class="case-header-pill-row">
-              <span class="case-tag font-mono" id="drawer-case-id">CASE_001</span>
-              <span class="satellite-tag font-mono" id="drawer-sat">NOAA-20 VIIRS</span>
-            </div>
+            <span class="case-tag" id="drawer-case-id">CASE_001</span>
             <h3 id="drawer-title">Hazira Industrial Complex</h3>
           </div>
-          <button class="btn-close-haptic" id="btn-close-drawer" title="Close Panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          <button class="btn-close" id="btn-close-drawer">✕</button>
         </div>
 
         <div class="drawer-body">
-          <!-- Satellite Crop Preview with Tactical Reticle Framing -->
-          <div class="satellite-preview-shell">
-            <div class="satellite-preview-core">
-              <img id="drawer-satellite-img" src="" alt="Satellite View">
-              <div class="corner-reticle top-left"></div>
-              <div class="corner-reticle top-right"></div>
-              <div class="corner-reticle bottom-left"></div>
-              <div class="corner-reticle bottom-right"></div>
-              <span class="img-badge font-mono">1.2 km FOV · ~1m/px</span>
+          <!-- Satellite Crop Preview -->
+          <div class="satellite-preview-container">
+            <img id="drawer-satellite-img" src="" alt="Satellite View">
+            <span class="img-badge">1.2 km Field of View</span>
+          </div>
+
+          <!-- AI Assessment Card -->
+          <div class="info-card ai-card">
+            <div class="card-title">
+              <span>🤖 AI MULTIMODAL ASSESSMENT</span>
+              <span class="model-badge">MiniMax M3</span>
+            </div>
+            <div class="ai-classification-row">
+              <span class="ai-class-pill" id="drawer-ai-class">industrial_fire</span>
+              <span class="ai-conf-pill" id="drawer-ai-conf">72% Confidence</span>
+            </div>
+            <p class="ai-reasoning" id="drawer-ai-reasoning">Dense industrial complex with large factory roofs...</p>
+
+            <div class="evidence-box">
+              <strong>Key Visual Evidence:</strong>
+              <ul id="drawer-ai-evidence"></ul>
             </div>
           </div>
 
-          <!-- AI Multimodal Assessment (Double-Bezel Glass Card) -->
-          <div class="double-bezel-card ai-card">
-            <div class="card-inner">
-              <div class="card-title">
-                <span class="title-with-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="card-title-svg"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                  VISION AI ASSESSMENT
-                </span>
-                <span class="model-badge font-mono">MiniMax M3</span>
+          <!-- Sensor & Thermal Metrics -->
+          <div class="info-card">
+            <div class="card-title">📡 SENSOR METRICS (FIRMS)</div>
+            <div class="metrics-grid">
+              <div class="metric">
+                <span class="metric-lbl">Fire Radiative Power</span>
+                <span class="metric-val" id="drawer-frp">9.08 MW</span>
               </div>
-              <div class="ai-classification-row">
-                <span class="ai-class-pill" id="drawer-ai-class">industrial_fire</span>
-                <span class="ai-conf-pill font-mono" id="drawer-ai-conf">72% Confidence</span>
+              <div class="metric">
+                <span class="metric-lbl">Sensor / Satellite</span>
+                <span class="metric-val" id="drawer-sat">NOAA-20 VIIRS</span>
               </div>
-              <p class="ai-reasoning" id="drawer-ai-reasoning">Dense industrial complex with large factory roofs...</p>
-              
-              <div class="evidence-box">
-                <strong class="evidence-title">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-svg"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                  Key Visual Findings:
-                </strong>
-                <ul id="drawer-ai-evidence"></ul>
+              <div class="metric">
+                <span class="metric-lbl">Detection Confidence</span>
+                <span class="metric-val" id="drawer-conf">nominal</span>
               </div>
-            </div>
-          </div>
-
-          <!-- Sensor & Thermal Metrics Card -->
-          <div class="double-bezel-card">
-            <div class="card-inner">
-              <div class="card-title">
-                <span class="title-with-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="card-title-svg"><path d="M12 2a10 10 0 0 0-7.07 17.07l1.41-1.41A8 8 0 1 1 12 4z"/><circle cx="12" cy="12" r="2"/></svg>
-                  NASA FIRMS TELEMETRY
-                </span>
-              </div>
-              <div class="metrics-grid">
-                <div class="metric-cell">
-                  <span class="metric-lbl">RADIATIVE POWER</span>
-                  <span class="metric-val font-mono frp-val" id="drawer-frp">9.08 MW</span>
-                </div>
-                <div class="metric-cell">
-                  <span class="metric-lbl">SENSOR PRODUCT</span>
-                  <span class="metric-val font-mono" id="drawer-sat">VIIRS_NOAA20</span>
-                </div>
-                <div class="metric-cell">
-                  <span class="metric-lbl">CONFIDENCE</span>
-                  <span class="metric-val font-mono" id="drawer-conf">nominal</span>
-                </div>
-                <div class="metric-cell">
-                  <span class="metric-lbl">TIMESTAMP</span>
-                  <span class="metric-val font-mono" id="drawer-time">2026-09-02 08:10</span>
-                </div>
+              <div class="metric">
+                <span class="metric-lbl">Observation Time</span>
+                <span class="metric-val" id="drawer-time">2026-09-02 08:10 UTC</span>
               </div>
             </div>
           </div>
 
-          <!-- Primary Launch Button (Button-in-Button Hardware Architecture) -->
+
+          <!-- Launch Full Investigation Button (Section 7) -->
           <button class="btn btn-investigate-hero" id="btn-launch-investigation">
-            <div class="hero-btn-content">
-              <span class="btn-headline">OPEN FORENSIC INVESTIGATION</span>
-              <span class="btn-subheadline">Section 7 High-Resolution Satellite Reticle & Triage</span>
-            </div>
-            <div class="hero-btn-icon-shell">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-              </svg>
-            </div>
+            <span>⚡ OPEN FORENSIC INVESTIGATION SCREEN</span>
+            <small>Section 7 Deep-Dive Dossier</small>
           </button>
 
-          <!-- Geospatial Footprint Card -->
-          <div class="double-bezel-card">
-            <div class="card-inner">
-              <div class="card-title">
-                <span class="title-with-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="card-title-svg"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20z"/><path d="M2 12h20"/></svg>
-                  GEODETIC COORDINATES
-                </span>
-              </div>
-              <div class="coord-bar">
-                <span class="font-mono" id="drawer-coords">21.1029° N, 72.6485° E</span>
-                <a href="#" target="_blank" class="ext-link" id="drawer-gmaps-link">
-                  <span>Google Earth</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="link-arrow"><path d="M7 17l9.2-9.2M17 17V8H8"/></svg>
-                </a>
-              </div>
-              <p class="osm-location" id="drawer-osm-name"></p>
+
+          <!-- Geographic Coordinates -->
+          <div class="info-card">
+            <div class="card-title">🌍 GEOSPATIAL LOCATION</div>
+            <div class="coord-bar">
+              <span id="drawer-coords">21.1029° N, 72.6485° E</span>
+              <a href="#" target="_blank" class="ext-link" id="drawer-gmaps-link">Open in Google Earth ↗</a>
             </div>
+            <p class="osm-location" id="drawer-osm-name"></p>
           </div>
         </div>
       </div>
     </aside>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════════
-       SECTION 7: FULL-SCREEN FORENSIC INVESTIGATION SCREEN MODAL
-       ═══════════════════════════════════════════════════════════════ -->
+  <!-- SECTION 7: FULL-SCREEN INCIDENT INVESTIGATION MODAL -->
   <div class="investigation-modal-backdrop hidden" id="investigation-modal">
-    <div class="investigation-modal-shell">
-      <div class="investigation-modal-core">
-        
-        <!-- Modal Top Command Header -->
-        <div class="modal-top-bar">
-          <div class="modal-title-group">
-            <div class="modal-tags">
-              <span class="badge-case font-mono" id="modal-case-id">CASE_001</span>
-              <span class="badge-status-triage font-mono" id="modal-triage-badge">UNREVIEWED</span>
-              <span class="badge-frp-alert font-mono" id="modal-frp-alert">FRP: 9.08 MW</span>
+    <div class="investigation-modal-container">
+
+      <!-- Top Tactical Bar -->
+      <div class="modal-top-bar">
+        <div class="modal-title-group">
+          <div class="modal-tags">
+            <span class="badge-case" id="modal-case-id">CASE_001</span>
+            <span class="badge-status-triage" id="modal-triage-badge">UNREVIEWED</span>
+            <span class="badge-frp-alert" id="modal-frp-alert">FRP: 9.08 MW</span>
+          </div>
+          <h2 id="modal-title">Hazira Industrial Complex, Surat, Gujarat</h2>
+          <p id="modal-subtitle">Petrochemical & Gas Flaring Zone // Analyzed by MiniMax M3 Vision</p>
+        </div>
+
+        <div class="modal-nav-actions">
+          <button class="btn btn-nav" id="btn-prev-case">◀ Prev Case</button>
+          <button class="btn btn-nav" id="btn-next-case">Next Case ▶</button>
+          <button class="btn-modal-close" id="btn-close-modal" title="Close (Esc)">✕</button>
+        </div>
+      </div>
+
+      <!-- Main Two-Column Investigation Content -->
+      <div class="modal-grid-body">
+
+        <!-- Left: High-Res Satellite Forensic Imagery Suite -->
+        <div class="forensic-left-column">
+          <div class="imagery-card">
+            <div class="imagery-header">
+              <div class="view-toggle-pills">
+                <button class="pill-btn active" id="btn-view-annotated">🎯 Thermal Reticle</button>
+                <button class="pill-btn" id="btn-view-raw">📷 Optical Basemap</button>
+              </div>
+              <span class="fov-tag">1.2 km² FOV (Zoom 16)</span>
             </div>
-            <h2 id="modal-title">Hazira Industrial Complex, Surat, Gujarat</h2>
-            <p id="modal-subtitle">Petrochemical & Gas Flaring Zone // Analyzed by MiniMax M3 Vision</p>
+
+            <!-- Hero Image Frame with Pan/Zoom container -->
+            <div class="hero-image-frame" id="hero-image-frame">
+              <img id="modal-satellite-img" src="" alt="Forensic Satellite Inspection">
+              <div class="target-crosshair-overlay" id="target-crosshair-overlay"></div>
+            </div>
+
+            <!-- Image Metadata & Coordinate Footprint -->
+            <div class="imagery-footer">
+              <div class="geo-box">
+                <span class="geo-lbl">HOTSPOT COORDINATES:</span>
+                <span class="geo-val" id="modal-coords">21.10291° N, 72.64852° E</span>
+              </div>
+              <div class="imagery-links">
+                <a href="#" target="_blank" class="link-btn" id="modal-gmaps-link">Google Maps ↗</a>
+                <a href="#" target="_blank" class="link-btn" id="modal-osm-link">OpenStreetMap ↗</a>
+              </div>
+            </div>
           </div>
 
-          <div class="modal-nav-actions">
-            <button class="btn btn-nav-haptic" id="btn-prev-case">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-              <span>Prev Case</span>
-            </button>
-            <button class="btn btn-nav-haptic" id="btn-next-case">
-              <span>Next Case</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-            <button class="btn-modal-close-haptic" id="btn-close-modal" title="Close (Esc)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+          <!-- Operational Triage Actions (Section 7 Feature) -->
+          <div class="triage-card">
+            <div class="triage-header">
+              <span>🛡️ INCIDENT TRIAGE & DISPOSITION WORKFLOW</span>
+              <small>Operator Decision Log</small>
+            </div>
+            <div class="triage-buttons">
+              <button class="triage-btn btn-confirm" data-status="VERIFIED_FIRE">✅ Confirm Active Fire</button>
+              <button class="triage-btn btn-flare" data-status="ROUTINE_FLARE">🔥 Routine Flaring</button>
+              <button class="triage-btn btn-escalate" data-status="ESCALATED_CRITICAL">🚨 Escalate Alert</button>
+              <button class="triage-btn btn-false" data-status="FALSE_ALARM">❌ False Alarm</button>
+            </div>
           </div>
         </div>
 
-        <!-- Main Forensic Grid Body -->
-        <div class="modal-grid-body">
-          
-          <!-- Left Column: High-Res Satellite Imagery Suite -->
-          <div class="forensic-left-column">
-            <div class="imagery-card double-bezel-card">
-              <div class="card-inner">
-                <div class="imagery-header">
-                  <div class="view-toggle-shell">
-                    <button class="pill-btn active" id="btn-view-annotated">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-svg"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/></svg>
-                      Thermal Reticle
-                    </button>
-                    <button class="pill-btn" id="btn-view-raw">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mini-svg"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>
-                      Optical Basemap
-                    </button>
-                  </div>
-                  <span class="fov-tag font-mono">1.2 km² FOV (Zoom 16)</span>
-                </div>
+        <!-- Right: AI Intelligence Verdict & Evidence -->
+        <div class="forensic-right-column">
 
-                <!-- Hero Image Frame -->
-                <div class="hero-image-frame" id="hero-image-frame">
-                  <img id="modal-satellite-img" src="" alt="Forensic Satellite Inspection">
-                  <div class="target-crosshair-overlay" id="target-crosshair-overlay"></div>
-                </div>
-
-                <!-- Imagery Coordinates Footer -->
-                <div class="imagery-footer">
-                  <div class="geo-box">
-                    <span class="geo-lbl">HOTSPOT GEOLOCATION:</span>
-                    <span class="geo-val font-mono" id="modal-coords">21.10291° N, 72.64852° E</span>
-                  </div>
-                  <div class="imagery-links">
-                    <a href="#" target="_blank" class="link-btn-haptic" id="modal-gmaps-link">Google Maps ↗</a>
-                    <a href="#" target="_blank" class="link-btn-haptic" id="modal-osm-link">OpenStreetMap ↗</a>
-                  </div>
-                </div>
-              </div>
+          <!-- AI Master Verdict Banner -->
+          <div class="verdict-banner" id="modal-verdict-banner">
+            <div class="verdict-main">
+              <span class="verdict-caption">AI CLASSIFICATION VERDICT</span>
+              <div class="verdict-class" id="modal-ai-class">INDUSTRIAL FIRE</div>
+              <p class="verdict-sub" id="modal-ai-alt">Primary Alternative: gas_flare</p>
             </div>
-
-            <!-- Triage & Disposition Action Workflow Card -->
-            <div class="triage-card double-bezel-card">
-              <div class="card-inner">
-                <div class="triage-header">
-                  <span class="title-with-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="card-title-svg"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    OPERATOR INCIDENT TRIAGE & DISPOSITION
-                  </span>
-                  <small class="font-mono">Local State Sync</small>
-                </div>
-                <div class="triage-buttons">
-                  <button class="triage-btn btn-confirm" data-status="VERIFIED_FIRE">
-                    <span class="triage-icon">✓</span> Confirm Fire
-                  </button>
-                  <button class="triage-btn btn-flare" data-status="ROUTINE_FLARE">
-                    <span class="triage-icon">⚡</span> Routine Flare
-                  </button>
-                  <button class="triage-btn btn-escalate" data-status="ESCALATED_CRITICAL">
-                    <span class="triage-icon">▲</span> Escalate Alert
-                  </button>
-                  <button class="triage-btn btn-false" data-status="FALSE_ALARM">
-                    <span class="triage-icon">✕</span> False Alarm
-                  </button>
-                </div>
+            <div class="verdict-stats">
+              <div class="stat-gauge">
+                <div class="gauge-number" id="modal-ai-confidence">72%</div>
+                <div class="gauge-lbl">CONFIDENCE</div>
+              </div>
+              <div class="stat-gauge">
+                <div class="gauge-badge" id="modal-ai-uncertainty">MEDIUM</div>
+                <div class="gauge-lbl">UNCERTAINTY</div>
               </div>
             </div>
           </div>
 
-          <!-- Right Column: AI Verdict & Telemetry Matrix -->
-          <div class="forensic-right-column">
-            
-            <!-- AI Master Verdict Banner -->
-            <div class="verdict-banner-shell" id="modal-verdict-banner">
-              <div class="verdict-banner-core">
-                <div class="verdict-main">
-                  <span class="verdict-caption font-mono">VISION AI CLASSIFICATION VERDICT</span>
-                  <div class="verdict-class" id="modal-ai-class">INDUSTRIAL FIRE</div>
-                  <p class="verdict-sub" id="modal-ai-alt">Primary Alternative: gas_flare</p>
+          <!-- Forensic Evidence Findings -->
+          <div class="forensic-card">
+            <div class="card-subtitle">
+              <span>🔍 VISUAL EVIDENCE FINDINGS (0–1200 METERS)</span>
+              <span class="sensor-tag">Satellite Resolution ~1m</span>
+            </div>
+            <ul class="evidence-checklist" id="modal-evidence-list">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+
+          <!-- Expert AI Reasoning -->
+          <div class="forensic-card">
+            <div class="card-subtitle">
+              <span>🧠 CHAIN-OF-THOUGHT ANALYTICAL REASONING</span>
+              <span class="ai-tag">MiniMax M3</span>
+            </div>
+            <p class="reasoning-text" id="modal-reasoning-text"></p>
+          </div>
+
+
+          <!-- Telemetry & Proximity Split Grid -->
+          <div class="split-telemetry-grid">
+
+
+            <!-- Sensor Telemetry -->
+            <div class="telemetry-card">
+              <div class="card-subtitle">📡 NASA FIRMS SENSOR METRICS</div>
+              <div class="telemetry-items">
+                <div class="t-row">
+                  <span>Fire Radiative Power (FRP):</span>
+                  <strong class="frp-highlight" id="modal-metric-frp">9.08 MW</strong>
                 </div>
-                <div class="verdict-stats">
-                  <div class="stat-gauge-shell">
-                    <div class="stat-gauge-core">
-                      <div class="gauge-number font-mono" id="modal-ai-confidence">72%</div>
-                      <div class="gauge-lbl font-mono">CONFIDENCE</div>
-                    </div>
-                  </div>
-                  <div class="stat-gauge-shell">
-                    <div class="stat-gauge-core">
-                      <div class="gauge-badge font-mono" id="modal-ai-uncertainty">MEDIUM</div>
-                      <div class="gauge-lbl font-mono">UNCERTAINTY</div>
-                    </div>
-                  </div>
+                <div class="t-row">
+                  <span>Satellite & Instrument:</span>
+                  <strong id="modal-metric-sat">NOAA-20 (VIIRS)</strong>
+                </div>
+                <div class="t-row">
+                  <span>Detection Confidence:</span>
+                  <strong id="modal-metric-conf">nominal</strong>
+                </div>
+                <div class="t-row">
+                  <span>Acquisition Timestamp:</span>
+                  <strong id="modal-metric-time">2026-09-02 08:10 UTC</strong>
                 </div>
               </div>
             </div>
 
-            <!-- Visual Evidence Checklist -->
-            <div class="double-bezel-card forensic-card">
-              <div class="card-inner">
-                <div class="card-subtitle">
-                  <span class="title-with-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="card-title-svg"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                    HIGH-RESOLUTION VISUAL EVIDENCE (0–1200m)
-                  </span>
-                  <span class="sensor-tag font-mono">Optical 1.0m</span>
+            <!-- Industrial Proximity Context -->
+            <div class="telemetry-card">
+              <div class="card-subtitle">🏭 INDUSTRIAL & TERRAIN PROXIMITY</div>
+              <div class="telemetry-items">
+                <div class="t-row">
+                  <span>Infrastructure Zone:</span>
+                  <strong id="modal-prox-facility">Petrochemical Complex</strong>
                 </div>
-                <ul class="evidence-checklist" id="modal-evidence-list">
-                  <!-- Populated via JavaScript -->
-                </ul>
-              </div>
-            </div>
-
-            <!-- Chain of Thought Reasoning -->
-            <div class="double-bezel-card forensic-card">
-              <div class="card-inner">
-                <div class="card-subtitle">
-                  <span class="title-with-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="card-title-svg"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z"/></svg>
-                    CHAIN-OF-THOUGHT ANALYTICAL REASONING
-                  </span>
-                  <span class="ai-tag font-mono">MiniMax M3</span>
+                <div class="t-row">
+                  <span>Distance to Nearest Plant:</span>
+                  <strong class="prox-highlight" id="modal-prox-dist">&lt; 250 m</strong>
                 </div>
-                <p class="reasoning-text" id="modal-reasoning-text"></p>
-              </div>
-            </div>
-
-            <!-- Telemetry & Proximity Dual Grid -->
-            <div class="split-telemetry-grid">
-              
-              <!-- NASA FIRMS Telemetry Card -->
-              <div class="double-bezel-card telemetry-card">
-                <div class="card-inner">
-                  <div class="card-subtitle">
-                    <span class="title-with-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="card-title-svg"><path d="M12 2a10 10 0 0 0-7.07 17.07l1.41-1.41A8 8 0 1 1 12 4z"/></svg>
-                      FIRMS METRICS
-                    </span>
-                  </div>
-                  <div class="telemetry-items">
-                    <div class="t-row">
-                      <span>Radiative Power:</span>
-                      <strong class="frp-highlight font-mono" id="modal-metric-frp">9.08 MW</strong>
-                    </div>
-                    <div class="t-row">
-                      <span>Satellite Platform:</span>
-                      <strong class="font-mono" id="modal-metric-sat">NOAA-20 (VIIRS)</strong>
-                    </div>
-                    <div class="t-row">
-                      <span>FIRMS Confidence:</span>
-                      <strong class="font-mono" id="modal-metric-conf">nominal</strong>
-                    </div>
-                    <div class="t-row">
-                      <span>Acquisition Time:</span>
-                      <strong class="font-mono" id="modal-metric-time">2026-09-02 08:10 UTC</strong>
-                    </div>
-                  </div>
+                <div class="t-row">
+                  <span>Land Cover Context:</span>
+                  <strong id="modal-prox-landuse">Heavy Industry / Logistics</strong>
+                </div>
+                <div class="t-row">
+                  <span>Administrative Area:</span>
+                  <strong id="modal-prox-admin">Surat, Gujarat</strong>
                 </div>
               </div>
-
-              <!-- Industrial Proximity Context Card -->
-              <div class="double-bezel-card telemetry-card">
-                <div class="card-inner">
-                  <div class="card-subtitle">
-                    <span class="title-with-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="card-title-svg"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                      TERRAIN PROXIMITY
-                    </span>
-                  </div>
-                  <div class="telemetry-items">
-                    <div class="t-row">
-                      <span>Infrastructure:</span>
-                      <strong id="modal-prox-facility">Petrochemical Complex</strong>
-                    </div>
-                    <div class="t-row">
-                      <span>Plant Proximity:</span>
-                      <strong class="prox-highlight font-mono" id="modal-prox-dist">&lt; 250 m</strong>
-                    </div>
-                    <div class="t-row">
-                      <span>Land Cover:</span>
-                      <strong id="modal-prox-landuse">Heavy Industry</strong>
-                    </div>
-                    <div class="t-row">
-                      <span>Administrative:</span>
-                      <strong id="modal-prox-admin">Surat, Gujarat</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
             </div>
 
           </div>
 
         </div>
+
       </div>
     </div>
   </div>
 
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
+
 </html>

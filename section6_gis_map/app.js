@@ -31,12 +31,18 @@ function initMap() {
   // Zoom control in top right
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
-  // 1. CartoDB Dark Matter Basemap
-  baseLayers.dark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; OpenStreetMap',
-    subdomains: "abcd",
-    maxZoom: 19
-  }).addTo(map);
+  // 1. Esri Military Dark Gray Canvas (Defense/Intelligence Grade)
+  const esriDarkBase = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ",
+    maxZoom: 16
+  });
+
+  const esriDarkRef = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", {
+    attribution: "",
+    maxZoom: 16
+  });
+
+  baseLayers.dark = L.layerGroup([esriDarkBase, esriDarkRef]).addTo(map);
 
   // 2. Esri World Imagery (Satellite)
   baseLayers.satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
@@ -53,7 +59,7 @@ async function loadData() {
       fetch("data/incidents.json"),
       fetch("data/ambient_firms.json")
     ]);
-    
+
     incidents = await incidentsRes.json();
     ambientPoints = await ambientRes.json();
 
@@ -77,7 +83,7 @@ function renderIncidentMarkers() {
   incidents.forEach(inc => {
     let clsType = "industrial";
     const aiCls = (inc.ai_classification || "").toLowerCase();
-    
+
     if (aiCls.includes("flare") || inc.frp > 30) clsType = "flare";
     else if (aiCls.includes("mining")) clsType = "mining";
     else if (aiCls.includes("wildfire")) clsType = "wildfire";
@@ -102,14 +108,12 @@ function renderIncidentMarkers() {
 
     // Marker Popup
     const popupContent = `
-      <div style="font-family: 'Plus Jakarta Sans', sans-serif; min-width: 190px; color: #f8fafc; padding: 4px 2px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 11px; color: #ff9d47;">${inc.id.toUpperCase()}</span>
-          <span style="font-size: 9px; font-weight: 700; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 4px;">${inc.satellite}</span>
-        </div>
-        <div style="font-size: 12.5px; font-weight: 700; margin: 3px 0; color: #fff;">${inc.ai_classification.toUpperCase().replace(/_/g, ' ')}</div>
-        <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">FRP: <b style="color: #ff9d47; font-family: 'JetBrains Mono';">${inc.frp} MW</b></div>
-        <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-family: 'JetBrains Mono';">${inc.latitude.toFixed(4)}°N, ${inc.longitude.toFixed(4)}°E</div>
+      <div style="font-family: 'Inter', sans-serif; min-width: 180px; color: #111;">
+        <div style="font-weight: 700; font-size: 13px; color: #ff5500;">${inc.id.toUpperCase()}</div>
+        <div style="font-size: 12px; font-weight: 600; margin: 3px 0;">${inc.ai_classification.toUpperCase()}</div>
+        <div style="font-size: 11px; color: #444;">FRP: <b>${inc.frp} MW</b></div>
+        <div style="font-size: 11px; color: #666;">Satellite: ${inc.satellite}</div>
+        <div style="font-size: 10px; color: #888; margin-top: 4px;">Coord: ${inc.latitude.toFixed(4)}, ${inc.longitude.toFixed(4)}</div>
       </div>
     `;
     marker.bindPopup(popupContent);
@@ -164,37 +168,24 @@ function renderSidebarList() {
 
   filtered.forEach(inc => {
     const card = document.createElement("div");
-    card.className = `incident-card-shell ${activeIncidentId === inc.id ? "active" : ""}`;
+    card.className = `incident-card ${activeIncidentId === inc.id ? "active" : ""}`;
     card.id = `card-${inc.id}`;
 
     let badgeClass = "badge-industrial";
-    let pipType = "industrial";
     const aiCls = (inc.ai_classification || "").toLowerCase();
-    if (aiCls.includes("flare") || inc.frp > 30) {
-      badgeClass = "badge-flare";
-      pipType = "flare";
-    } else if (aiCls.includes("mining")) {
-      badgeClass = "badge-mining";
-      pipType = "mining";
-    } else if (aiCls.includes("wildfire")) {
-      badgeClass = "badge-wildfire";
-      pipType = "wildfire";
-    }
+    if (aiCls.includes("flare")) badgeClass = "badge-flare";
+    else if (aiCls.includes("mining")) badgeClass = "badge-mining";
+    else if (aiCls.includes("wildfire")) badgeClass = "badge-wildfire";
 
     card.innerHTML = `
-      <div class="incident-card-core">
-        <div class="incident-card-top">
-          <div class="incident-id-badge">
-            <span class="card-status-pip ${pipType}"></span>
-            <span>${inc.id.toUpperCase()}</span>
-          </div>
-          <span class="incident-class-badge ${badgeClass}">${inc.ai_classification.replace(/_/g, ' ')}</span>
-        </div>
-        <div class="incident-title">${inc.location_name.split("(")[0].trim()}</div>
-        <div class="incident-meta-row">
-          <span>${inc.satellite} (${inc.instrument})</span>
-          <span class="frp-tag">${inc.frp} MW</span>
-        </div>
+      <div class="incident-card-top">
+        <span class="incident-id">${inc.id.toUpperCase()}</span>
+        <span class="incident-class-badge ${badgeClass}">${inc.ai_classification}</span>
+      </div>
+      <div class="incident-title">${inc.location_name.split("(")[0].trim()}</div>
+      <div class="incident-meta-row">
+        <span>${inc.satellite} (${inc.instrument})</span>
+        <span class="frp-tag">${inc.frp} MW</span>
       </div>
     `;
 
@@ -223,7 +214,7 @@ function openIncidentDetails(id) {
   if (item) item.marker.openPopup();
 
   // Highlight card in sidebar
-  document.querySelectorAll(".incident-card-shell").forEach(c => c.classList.remove("active"));
+  document.querySelectorAll(".incident-card").forEach(c => c.classList.remove("active"));
   const activeCard = document.getElementById(`card-${id}`);
   if (activeCard) {
     activeCard.classList.add("active");
@@ -241,7 +232,7 @@ function openIncidentDetails(id) {
   document.getElementById("drawer-ai-class").innerText = inc.ai_classification;
   document.getElementById("drawer-ai-conf").innerText = `${Math.round(inc.ai_confidence * 100)}% Confidence (${inc.ai_uncertainty} uncertainty)`;
   document.getElementById("drawer-ai-reasoning").innerText = inc.ai_reasoning || "AI assessment completed.";
-  
+
   // Evidence list
   const evidenceList = document.getElementById("drawer-ai-evidence");
   evidenceList.innerHTML = "";
@@ -256,7 +247,7 @@ function openIncidentDetails(id) {
   document.getElementById("drawer-sat").innerText = `${inc.satellite} (${inc.instrument})`;
   document.getElementById("drawer-conf").innerText = inc.confidence;
   document.getElementById("drawer-time").innerText = `${inc.acq_date} ${inc.acq_time} UTC`;
-  
+
   // Coordinates
   document.getElementById("drawer-coords").innerText = `${inc.latitude.toFixed(4)}° N, ${inc.longitude.toFixed(4)}° E`;
   document.getElementById("drawer-gmaps-link").href = `https://www.google.com/maps?q=${inc.latitude},${inc.longitude}&t=k`;
@@ -325,7 +316,7 @@ function setupUIEventListeners() {
   document.getElementById("btn-close-drawer").addEventListener("click", () => {
     document.getElementById("drawer-content").classList.add("hidden");
     document.getElementById("drawer-empty").style.display = "flex";
-    document.querySelectorAll(".incident-card-shell").forEach(c => c.classList.remove("active"));
+    document.querySelectorAll(".incident-card").forEach(c => c.classList.remove("active"));
     activeIncidentId = null;
   });
 
@@ -372,7 +363,7 @@ function openInvestigationModal(id) {
   // Header tags
   document.getElementById("modal-case-id").innerText = inc.id.toUpperCase();
   document.getElementById("modal-frp-alert").innerText = `FRP: ${inc.frp} MW`;
-  
+
   // Triage status from localStorage
   const savedTriage = localStorage.getItem(`firex_triage_${inc.id}`) || "UNREVIEWED";
   updateTriageBadge(savedTriage);
@@ -413,7 +404,7 @@ function openInvestigationModal(id) {
   const aiClass = (inc.ai_classification || "uncertain").toUpperCase().replace(/_/g, ' ');
   document.getElementById("modal-ai-class").innerText = aiClass;
   document.getElementById("modal-ai-confidence").innerText = `${Math.round(inc.ai_confidence * 100)}%`;
-  
+
   const uncEl = document.getElementById("modal-ai-uncertainty");
   uncEl.innerText = (inc.ai_uncertainty || "MODERATE").toUpperCase();
   if (inc.ai_uncertainty === "low") uncEl.style.color = "#10b981";
@@ -506,7 +497,7 @@ function updateModalSatelliteImage() {
 function updateTriageBadge(status) {
   const badge = document.getElementById("modal-triage-badge");
   badge.className = "badge-status-triage";
-  
+
   if (status === "VERIFIED_FIRE") {
     badge.innerText = "VERIFIED FIRE";
     badge.classList.add("status-verified");
@@ -533,11 +524,11 @@ function navigateIncident(direction) {
   if (!modalActiveIncident) return;
   const currIdx = incidents.findIndex(i => i.id === modalActiveIncident.id);
   if (currIdx === -1) return;
-  
+
   let newIdx = currIdx + direction;
   if (newIdx < 0) newIdx = incidents.length - 1;
   if (newIdx >= incidents.length) newIdx = 0;
-  
+
   openInvestigationModal(incidents[newIdx].id);
 }
 
