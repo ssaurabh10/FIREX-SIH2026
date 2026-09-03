@@ -102,12 +102,14 @@ function renderIncidentMarkers() {
 
     // Marker Popup
     const popupContent = `
-      <div style="font-family: 'Inter', sans-serif; min-width: 180px; color: #111;">
-        <div style="font-weight: 700; font-size: 13px; color: #ff5500;">${inc.id.toUpperCase()}</div>
-        <div style="font-size: 12px; font-weight: 600; margin: 3px 0;">${inc.ai_classification.toUpperCase()}</div>
-        <div style="font-size: 11px; color: #444;">FRP: <b>${inc.frp} MW</b></div>
-        <div style="font-size: 11px; color: #666;">Satellite: ${inc.satellite}</div>
-        <div style="font-size: 10px; color: #888; margin-top: 4px;">Coord: ${inc.latitude.toFixed(4)}, ${inc.longitude.toFixed(4)}</div>
+      <div style="font-family: 'Plus Jakarta Sans', sans-serif; min-width: 190px; color: #f8fafc; padding: 4px 2px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 11px; color: #ff9d47;">${inc.id.toUpperCase()}</span>
+          <span style="font-size: 9px; font-weight: 700; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 4px;">${inc.satellite}</span>
+        </div>
+        <div style="font-size: 12.5px; font-weight: 700; margin: 3px 0; color: #fff;">${inc.ai_classification.toUpperCase().replace(/_/g, ' ')}</div>
+        <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">FRP: <b style="color: #ff9d47; font-family: 'JetBrains Mono';">${inc.frp} MW</b></div>
+        <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-family: 'JetBrains Mono';">${inc.latitude.toFixed(4)}°N, ${inc.longitude.toFixed(4)}°E</div>
       </div>
     `;
     marker.bindPopup(popupContent);
@@ -162,24 +164,37 @@ function renderSidebarList() {
 
   filtered.forEach(inc => {
     const card = document.createElement("div");
-    card.className = `incident-card ${activeIncidentId === inc.id ? "active" : ""}`;
+    card.className = `incident-card-shell ${activeIncidentId === inc.id ? "active" : ""}`;
     card.id = `card-${inc.id}`;
 
     let badgeClass = "badge-industrial";
+    let pipType = "industrial";
     const aiCls = (inc.ai_classification || "").toLowerCase();
-    if (aiCls.includes("flare")) badgeClass = "badge-flare";
-    else if (aiCls.includes("mining")) badgeClass = "badge-mining";
-    else if (aiCls.includes("wildfire")) badgeClass = "badge-wildfire";
+    if (aiCls.includes("flare") || inc.frp > 30) {
+      badgeClass = "badge-flare";
+      pipType = "flare";
+    } else if (aiCls.includes("mining")) {
+      badgeClass = "badge-mining";
+      pipType = "mining";
+    } else if (aiCls.includes("wildfire")) {
+      badgeClass = "badge-wildfire";
+      pipType = "wildfire";
+    }
 
     card.innerHTML = `
-      <div class="incident-card-top">
-        <span class="incident-id">${inc.id.toUpperCase()}</span>
-        <span class="incident-class-badge ${badgeClass}">${inc.ai_classification}</span>
-      </div>
-      <div class="incident-title">${inc.location_name.split("(")[0].trim()}</div>
-      <div class="incident-meta-row">
-        <span>${inc.satellite} (${inc.instrument})</span>
-        <span class="frp-tag">${inc.frp} MW</span>
+      <div class="incident-card-core">
+        <div class="incident-card-top">
+          <div class="incident-id-badge">
+            <span class="card-status-pip ${pipType}"></span>
+            <span>${inc.id.toUpperCase()}</span>
+          </div>
+          <span class="incident-class-badge ${badgeClass}">${inc.ai_classification.replace(/_/g, ' ')}</span>
+        </div>
+        <div class="incident-title">${inc.location_name.split("(")[0].trim()}</div>
+        <div class="incident-meta-row">
+          <span>${inc.satellite} (${inc.instrument})</span>
+          <span class="frp-tag">${inc.frp} MW</span>
+        </div>
       </div>
     `;
 
@@ -208,7 +223,7 @@ function openIncidentDetails(id) {
   if (item) item.marker.openPopup();
 
   // Highlight card in sidebar
-  document.querySelectorAll(".incident-card").forEach(c => c.classList.remove("active"));
+  document.querySelectorAll(".incident-card-shell").forEach(c => c.classList.remove("active"));
   const activeCard = document.getElementById(`card-${id}`);
   if (activeCard) {
     activeCard.classList.add("active");
@@ -310,7 +325,7 @@ function setupUIEventListeners() {
   document.getElementById("btn-close-drawer").addEventListener("click", () => {
     document.getElementById("drawer-content").classList.add("hidden");
     document.getElementById("drawer-empty").style.display = "flex";
-    document.querySelectorAll(".incident-card").forEach(c => c.classList.remove("active"));
+    document.querySelectorAll(".incident-card-shell").forEach(c => c.classList.remove("active"));
     activeIncidentId = null;
   });
 
