@@ -69,6 +69,10 @@ async function loadData() {
     renderIncidentMarkers();
     renderAmbientFirms();
     renderSidebarList();
+    renderOverview();
+    renderInvestigationsGrid();
+    renderIndustrialFacilities();
+    renderAnalyticsCharts();
   } catch (err) {
     console.error("Failed to load map data:", err);
   }
@@ -369,6 +373,14 @@ function setupUIEventListeners() {
   // Section 7 Modal Close
   document.getElementById("btn-close-modal").addEventListener("click", closeInvestigationModal);
 
+  // Section 12 Navigation Tabs
+  document.querySelectorAll(".nav-tab").forEach(tab => {
+    tab.addEventListener("click", (e) => {
+      const targetTab = e.currentTarget.getAttribute("data-tab");
+      switchAppTab(targetTab);
+    });
+  });
+
   // Section 7 Modal Navigation
   document.getElementById("btn-prev-case").addEventListener("click", () => navigateIncident(-1));
   document.getElementById("btn-next-case").addEventListener("click", () => navigateIncident(1));
@@ -591,6 +603,308 @@ function navigateIncident(direction) {
   if (newIdx >= incidents.length) newIdx = 0;
 
   openInvestigationModal(incidents[newIdx].id);
+}
+
+// ==========================================================================
+// SECTION 12: Multi-View Platform Renderers & Tab Switcher
+// ==========================================================================
+
+function switchAppTab(tabName) {
+  document.querySelectorAll(".nav-tab").forEach(t => {
+    t.classList.toggle("active", t.getAttribute("data-tab") === tabName);
+  });
+  document.querySelectorAll(".view-panel").forEach(p => {
+    p.classList.toggle("active", p.id === `view-${tabName}`);
+  });
+
+  if (tabName === "map") {
+    setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 100);
+  }
+}
+
+// 1. Render Overview Tab
+function renderOverview() {
+  const queueEl = document.getElementById("overview-queue-list");
+  if (!queueEl) return;
+  queueEl.innerHTML = "";
+
+  // Update counts
+  const criticalCount = incidents.filter(i => (i.risk_score || 0) >= 70).length;
+  const indCount = incidents.filter(i => (i.ai_classification || "").includes("industrial")).length;
+  const flareCount = incidents.filter(i => (i.ai_classification || "").includes("flare")).length;
+  const miningCount = incidents.filter(i => (i.ai_classification || "").includes("mining")).length;
+
+  const critEl = document.getElementById("overview-critical-count");
+  if (critEl) critEl.innerText = criticalCount;
+  const indEl = document.getElementById("overview-industrial-count");
+  if (indEl) indEl.innerText = indCount;
+  const flareEl = document.getElementById("overview-flare-count");
+  if (flareEl) flareEl.innerText = flareCount;
+  const miningEl = document.getElementById("overview-mining-count");
+  if (miningEl) miningEl.innerText = miningCount;
+
+  // Render sorted priority queue
+  incidents.forEach(inc => {
+    const item = document.createElement("div");
+    item.className = "queue-item";
+    const tier = (inc.risk_tier || "medium").toLowerCase();
+
+    item.innerHTML = `
+      <div class="queue-left">
+        <span class="queue-rank">#${inc.priority_rank || 1}</span>
+        <div class="queue-info">
+          <h4>${inc.location_name.split("(")[0].trim()}</h4>
+          <p>${inc.ai_classification.toUpperCase().replace(/_/g, ' ')} • ${inc.frp} MW • ${inc.satellite}</p>
+        </div>
+      </div>
+      <div class="queue-right">
+        <span class="risk-pill tier-${tier}">THREAT ${inc.risk_score || 50}/100</span>
+        <button class="queue-action-btn btn-inspect" data-id="${inc.id}">Inspect Map 🗺️</button>
+        <button class="queue-action-btn btn-dossier" data-id="${inc.id}">Dossier ⚡</button>
+      </div>
+    `;
+
+    item.querySelector(".btn-inspect").addEventListener("click", (e) => {
+      e.stopPropagation();
+      switchAppTab("map");
+      openIncidentDetails(inc.id);
+    });
+
+    item.querySelector(".btn-dossier").addEventListener("click", (e) => {
+      e.stopPropagation();
+      openInvestigationModal(inc.id);
+    });
+
+    item.addEventListener("click", () => {
+      switchAppTab("map");
+      openIncidentDetails(inc.id);
+    });
+
+    queueEl.appendChild(item);
+  });
+}
+
+// 2. Render Investigations Grid Tab
+function renderInvestigationsGrid() {
+  const gridEl = document.getElementById("investigations-grid");
+  if (!gridEl) return;
+  gridEl.innerHTML = "";
+
+  incidents.forEach(inc => {
+    const card = document.createElement("div");
+    card.className = "inv-card";
+    const tier = (inc.risk_tier || "medium").toLowerCase();
+
+    card.innerHTML = `
+      <div class="inv-card-thumb">
+        <img src="${inc.image_url}" alt="Satellite View" loading="lazy">
+        <div class="inv-thumb-overlay">
+          <span class="case-tag">${inc.id.toUpperCase()}</span>
+          <span class="risk-pill tier-${tier}">THREAT ${inc.risk_score || 50}/100</span>
+        </div>
+      </div>
+      <div class="inv-card-body">
+        <h4 class="inv-card-title">${inc.location_name.split("(")[0].trim()}</h4>
+        <div class="inv-card-meta">
+          <span>${inc.ai_classification.replace(/_/g, ' ')}</span>
+          <span class="frp-highlight">${inc.frp} MW</span>
+        </div>
+        <p class="ai-reasoning" style="font-size:11px; line-height:1.4; margin:0; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">
+          ${inc.ai_reasoning || "AI assessment completed."}
+        </p>
+        <div class="inv-btn-suite">
+          <button class="btn btn-primary btn-open-modal" data-id="${inc.id}">⚡ Launch Dossier</button>
+          <button class="btn btn-secondary btn-locate" data-id="${inc.id}">📍 Locate</button>
+        </div>
+      </div>
+    `;
+
+    card.querySelector(".btn-open-modal").addEventListener("click", () => {
+      openInvestigationModal(inc.id);
+    });
+
+    card.querySelector(".btn-locate").addEventListener("click", () => {
+      switchAppTab("map");
+      openIncidentDetails(inc.id);
+    });
+
+    gridEl.appendChild(card);
+  });
+}
+
+// 3. Render Industrial Facilities Catalog Tab
+function renderIndustrialFacilities() {
+  const catalogEl = document.getElementById("industrial-facilities-list");
+  if (!catalogEl) return;
+  catalogEl.innerHTML = "";
+
+  const facilities = [
+    {
+      name: "HMEL Guru Gobind Singh Refinery",
+      zone: "Talwandi Sabo, Bathinda, Punjab",
+      type: "Petroleum Refinery & Tank Farm",
+      caseId: "case_004",
+      coords: "29.9098° N, 74.9519° E",
+      frp: "48.91 MW",
+      hazard: "HIGH FLARING OUTPUT",
+      buffer: "< 180 m to crude storage tanks"
+    },
+    {
+      name: "Hazira Petrochemical & LNG Complex",
+      zone: "Chorasi Taluka, Surat, Gujarat",
+      type: "ONGC / AM-NS Heavy Industry Hub",
+      caseId: "case_001",
+      coords: "21.1234° N, 72.6789° E",
+      frp: "9.08 MW",
+      hazard: "STRUCTURAL ANOMALY",
+      buffer: "< 250 m to manufacturing core"
+    },
+    {
+      name: "NTPC Ramagundam Super Thermal Power",
+      zone: "Peddapalli, Telangana",
+      type: "Coal-Fired Power Station (2,600 MW)",
+      caseId: "case_006",
+      coords: "18.7562° N, 79.5143° E",
+      frp: "10.97 MW",
+      hazard: "TURBINE/ASH HEAT DISCHARGE",
+      buffer: "< 350 m to power generator blocks"
+    },
+    {
+      name: "Talcher Open-Cast Coal Belt",
+      zone: "MCL Concession, Angul, Odisha",
+      type: "Extensive Surface Coal Extraction",
+      caseId: "case_002",
+      coords: "20.9521° N, 85.2145° E",
+      frp: "8.87 MW",
+      hazard: "COAL SEAM HEAT ANOMALY",
+      buffer: "Inside operational extraction void"
+    },
+    {
+      name: "Korba Coal Mining & Smelter Complex",
+      zone: "SECL Belt, Korba, Chhattisgarh",
+      type: "Coal Extraction & Aluminum Smelting",
+      caseId: "case_003",
+      coords: "22.3596° N, 82.7501° E",
+      frp: "16.09 MW",
+      hazard: "OVERBURDEN HEAT ACCUMULATION",
+      buffer: "Active coal pit boundary"
+    },
+    {
+      name: "Singrauli Energy & Mining Corridor",
+      zone: "NCL / NTPC Hub, MP-UP Border",
+      type: "Mega Power & Coal Mining Belt",
+      caseId: "case_007",
+      coords: "24.1994° N, 82.6651° E",
+      frp: "8.24 MW",
+      hazard: "COAL STORAGE PYROLYSIS",
+      buffer: "< 400 m to thermal conveyor system"
+    },
+    {
+      name: "Bastar Southern Forest Reserve Interface",
+      zone: "Bastar Plateau, Chhattisgarh",
+      type: "Deciduous Wildland Forest Canopy",
+      caseId: "case_005",
+      coords: "19.0741° N, 81.9612° E",
+      frp: "11.23 MW",
+      hazard: "CANOPY BIOMASS COMBUSTION",
+      buffer: "> 5.4 km to nearest industrial facility"
+    }
+  ];
+
+  facilities.forEach(fac => {
+    const card = document.createElement("div");
+    card.className = "ind-facility-card";
+
+    card.innerHTML = `
+      <div class="ind-facility-header">
+        <div>
+          <h4 class="ind-facility-title">${fac.name}</h4>
+          <span class="ind-facility-zone">${fac.zone}</span>
+        </div>
+        <span class="ind-facility-type-badge">${fac.type.split(" ")[0]}</span>
+      </div>
+      <div class="ind-metrics-row">
+        <div><span>COORDINATES</span><strong>${fac.coords}</strong></div>
+        <div><span>ACTIVE THERMAL</span><strong class="frp-highlight">${fac.frp}</strong></div>
+        <div><span>HAZARD PROFILE</span><strong>${fac.hazard}</strong></div>
+        <div><span>PROXIMITY BUFFER</span><strong>${fac.buffer}</strong></div>
+      </div>
+      <button class="btn-locate-map" data-id="${fac.caseId}">
+        🗺️ Inspect on Live GIS Map
+      </button>
+    `;
+
+    card.querySelector(".btn-locate-map").addEventListener("click", () => {
+      switchAppTab("map");
+      openIncidentDetails(fac.caseId);
+    });
+
+    catalogEl.appendChild(card);
+  });
+}
+
+// 4. Render Analytics Tab
+function renderAnalyticsCharts() {
+  // Classification Bars
+  const classBarsEl = document.getElementById("analytics-class-bars");
+  if (classBarsEl) {
+    const classes = [
+      { name: "Gas Flare / Flaring Stack", count: 1, pct: 14, color: "#ef4444" },
+      { name: "Industrial Fire Candidate", count: 2, pct: 29, color: "#ff9500" },
+      { name: "Mining / Coal Anomaly", count: 3, pct: 43, color: "#f59e0b" },
+      { name: "Wildfire / Forest Burning", count: 1, pct: 14, color: "#10b981" }
+    ];
+
+    classBarsEl.innerHTML = classes.map(c => `
+      <div class="stat-bar-item">
+        <div class="stat-bar-header">
+          <span>${c.name}</span>
+          <strong style="color:${c.color}">${c.count} cases (${c.pct}%)</strong>
+        </div>
+        <div class="factor-bar-bg">
+          <div class="factor-bar-fill" style="width:${c.pct}%; background:${c.color}"></div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  // FRP Bars
+  const frpBarsEl = document.getElementById("analytics-frp-bars");
+  if (frpBarsEl) {
+    const maxFRP = 50.0;
+    frpBarsEl.innerHTML = incidents.map(inc => {
+      const pct = Math.min(100, Math.round((inc.frp / maxFRP) * 100));
+      return `
+        <div class="stat-bar-item">
+          <div class="stat-bar-header">
+            <span>${inc.id.toUpperCase()}: ${inc.location_name.split("(")[0].trim()}</span>
+            <strong class="frp-highlight">${inc.frp} MW</strong>
+          </div>
+          <div class="factor-bar-bg">
+            <div class="factor-bar-fill" style="width:${pct}%; background:linear-gradient(90deg, #ff7700, #ef4444)"></div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  // Threat Scores Bars
+  const threatBarsEl = document.getElementById("analytics-threat-bars");
+  if (threatBarsEl) {
+    threatBarsEl.innerHTML = incidents.map(inc => `
+      <div class="stat-bar-item">
+        <div class="stat-bar-header">
+          <span>RANK #${inc.priority_rank || 1} • ${inc.location_name.split("(")[0].trim()}</span>
+          <strong style="color:${inc.risk_color || '#ff7700'}">${inc.risk_score || 50}/100 (${inc.risk_tier || 'MEDIUM'})</strong>
+        </div>
+        <div class="factor-bar-bg">
+          <div class="factor-bar-fill" style="width:${inc.risk_score || 50}%; background:${inc.risk_color || '#ff7700'}"></div>
+        </div>
+      </div>
+    `).join("");
+  }
 }
 
 
