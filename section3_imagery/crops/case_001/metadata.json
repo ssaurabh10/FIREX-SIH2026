@@ -1,0 +1,23 @@
+{
+  "id": "case_001",
+  "category_target": "industrial_candidate",
+  "latitude": 21.10291,
+  "longitude": 72.64852,
+  "acq_date": "2026-09-02",
+  "acq_time": "08:10",
+  "satellite": "NOAA-20",
+  "instrument": "VIIRS",
+  "frp": 9.08,
+  "confidence": "nominal",
+  "product": "VIIRS_NOAA20_NRT",
+  "expected_ground_truth": "Hazira Industrial Area, Surat, Gujarat (Major petrochemical, ONGC gas, AM/NS steel, and LNG terminal hub)",
+  "osm_display_name": "Hazira, Chorasi Taluka, Surat, Gujarat, 394270, India",
+  "map_url": "https://www.google.com/maps?q=21.10291,72.64852&t=k",
+  "osm_url": "https://www.openstreetmap.org/?mlat=21.10291&mlon=72.64852#map=15/21.10291/72.64852",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_001\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_001\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

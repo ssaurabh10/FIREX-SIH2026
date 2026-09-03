@@ -1,0 +1,23 @@
+{
+  "id": "case_002",
+  "category_target": "industrial_candidate",
+  "latitude": 20.96492,
+  "longitude": 85.17074,
+  "acq_date": "2026-09-02",
+  "acq_time": "07:29",
+  "satellite": "Suomi-NPP",
+  "instrument": "VIIRS",
+  "frp": 7.94,
+  "confidence": "low",
+  "product": "VIIRS_SNPP_NRT",
+  "expected_ground_truth": "Angul - Talcher Industrial Belt, Odisha (NTPC Thermal Power Station, Coal Mines & Heavy Metal Smelters)",
+  "osm_display_name": "Talcher Sadar, Angul, Odisha, India",
+  "map_url": "https://www.google.com/maps?q=20.96492,85.17074&t=k",
+  "osm_url": "https://www.openstreetmap.org/?mlat=20.96492&mlon=85.17074#map=15/20.96492/85.17074",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_002\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_002\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

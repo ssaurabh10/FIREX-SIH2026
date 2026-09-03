@@ -1,0 +1,23 @@
+{
+  "id": "case_005",
+  "category_target": "forest_candidate",
+  "latitude": 12.09725,
+  "longitude": 77.06553,
+  "acq_date": "2026-09-02",
+  "acq_time": "08:12",
+  "satellite": "Aqua",
+  "instrument": "MODIS",
+  "frp": 11.21,
+  "confidence": "54%",
+  "product": "MODIS_NRT",
+  "expected_ground_truth": "BR Hills / Chamarajanagar Forest & Wildlife Sanctuary, Karnataka (Western Ghats deciduous forest zone)",
+  "osm_display_name": "Shivakalli, Yalanduru taluk, Chamarajanagar, Karnataka, 571485, India",
+  "map_url": "https://www.google.com/maps?q=12.09725,77.06553&t=k",
+  "osm_url": "https://www.openstreetmap.org/?mlat=12.09725&mlon=77.06553#map=15/12.09725/77.06553",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_005\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_005\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "case_004",
+  "category_target": "likely_flare_or_persistent",
+  "latitude": 29.9098,
+  "longitude": 74.95193,
+  "acq_date": "2026-09-03",
+  "acq_time": "09:39",
+  "satellite": "Aqua",
+  "instrument": "MODIS",
+  "frp": 48.91,
+  "confidence": "60%",
+  "product": "MODIS_NRT",
+  "expected_ground_truth": "Talwandi Sabo / Bathinda, Punjab (Repeated detections by Aqua & Terra; HMEL Refinery / Thermal Power complex)",
+  "osm_display_name": "Rattangarh Kanakwal, Talwandi Sabo Tahsil, Bathinda, Punjab, India",
+  "map_url": "https://www.google.com/maps?q=29.9098,74.95193&t=k",
+  "osm_url": "https://www.openstreetmap.org/?mlat=29.9098&mlon=74.95193#map=15/29.9098/74.95193",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_004\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_004\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

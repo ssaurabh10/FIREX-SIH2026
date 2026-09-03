@@ -1,0 +1,33 @@
+{
+  "incident_id": "case_005",
+  "processed_at": "2026-09-03T16:37:42Z",
+  "status": "SUCCESS",
+  "firms_observation": {
+    "latitude": 12.09725,
+    "longitude": 77.06553,
+    "frp": 11.21,
+    "confidence": "54%",
+    "satellite": "Aqua",
+    "instrument": "MODIS",
+    "acq_date": "2026-09-02",
+    "acq_time": "08:12"
+  },
+  "ground_truth_context": "BR Hills / Chamarajanagar Forest & Wildlife Sanctuary, Karnataka (Western Ghats deciduous forest zone)",
+  "ai_assessment": {
+    "classification": "wildfire",
+    "confidence": 0.62,
+    "alternative_classification": "agricultural_burning",
+    "visual_evidence": [
+      "Mixed dry scrubland and sparse tree cover at the target location, characteristic of deciduous dry forest or degraded woodland",
+      "No visible industrial infrastructure (no flare stacks, tanks, pipelines, or factories) within the 1 km radius",
+      "Agricultural field parcels visible to the east and southeast of the target, with geometric field boundaries",
+      "Bare/brown patches and dry-looking vegetation suggest dry season conditions favorable to fire spread",
+      "No evidence of mining pits, quarry scars, or open-pit excavations",
+      "Access tracks/paths visible crossing the landscape"
+    ],
+    "uncertainty": "moderate",
+    "detailed_reasoning": "The target is situated in a patch of mixed dry scrubland with scattered trees, consistent with degraded deciduous forest or dry grassland typical of the Mysore region in Karnataka. The system label 'forest_candidate' supports this. No industrial thermal sources (flare stacks, tanks, pipelines) or mining activity are visible in the ~1 km field of view. The moderate FRP of 11.21 MW is consistent with a small-to-moderate surface fire rather than the very high FRP signature typical of gas flares (>50 MW). However, the proximity to agricultural parcels to the east means agricultural burning (post-harvest stubble or field clearance) cannot be excluded. Confidence is moderate because no active smoke plume or burn scar is visible in the still image to confirm fire behavior."
+  },
+  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section5_pipeline\\incidents\\case_005\\satellite_annotated.jpg",
+  "key_used": "Key #1 (sk-or-v1-7dd6d...)"
+}

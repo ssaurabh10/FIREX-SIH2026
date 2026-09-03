@@ -1,0 +1,23 @@
+{
+  "id": "case_003",
+  "category_target": "industrial_candidate",
+  "latitude": 23.8012,
+  "longitude": 86.33105,
+  "acq_date": "2026-09-02",
+  "acq_time": "08:08",
+  "satellite": "Aqua",
+  "instrument": "MODIS",
+  "frp": 8.56,
+  "confidence": "62%",
+  "product": "MODIS_NRT",
+  "expected_ground_truth": "Dhanbad - Bokaro Coal & Steel Industrial Belt, Jharkhand",
+  "osm_display_name": "Sijua, Baghmara-Cum-Katras, Dhanbad, Jharkhand, 828103, India",
+  "map_url": "https://www.google.com/maps?q=23.8012,86.33105&t=k",
+  "osm_url": "https://www.openstreetmap.org/?mlat=23.8012&mlon=86.33105#map=15/23.8012/86.33105",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_003\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_003\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

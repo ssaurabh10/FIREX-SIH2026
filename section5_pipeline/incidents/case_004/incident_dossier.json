@@ -1,0 +1,34 @@
+{
+  "incident_id": "case_004",
+  "processed_at": "2026-09-03T16:37:26Z",
+  "status": "SUCCESS",
+  "firms_observation": {
+    "latitude": 29.9098,
+    "longitude": 74.95193,
+    "frp": 48.91,
+    "confidence": "60%",
+    "satellite": "Aqua",
+    "instrument": "MODIS",
+    "acq_date": "2026-09-03",
+    "acq_time": "09:39"
+  },
+  "ground_truth_context": "Talwandi Sabo / Bathinda, Punjab (Repeated detections by Aqua & Terra; HMEL Refinery / Thermal Power complex)",
+  "ai_assessment": {
+    "classification": "gas_flare",
+    "confidence": 0.78,
+    "alternative_classification": "industrial_fire",
+    "visual_evidence": [
+      "Extensive petroleum tank farm visible with dozens of large circular oil storage tanks arranged in containment berms",
+      "Industrial refinery infrastructure including processing units, pipe manifolds, and handling facilities",
+      "Dark water bodies visible in lower right consistent with effluent treatment or cooling ponds",
+      "Railway line running through the facility for tank car loading",
+      "Target crosshair located near processing equipment between tank clusters, consistent with a flare stack location",
+      "Surrounding agricultural fields visible on western edge, confirming this is an isolated industrial zone",
+      "No wildland vegetation or forest cover near the thermal anomaly"
+    ],
+    "uncertainty": "medium",
+    "detailed_reasoning": "The image unambiguously shows a large petroleum refinery / tank farm complex, with characteristic circular storage tanks, containment berms, and processing infrastructure. The FRP of 48.91 MW is very high and persistent, strongly suggesting a gas flare stack associated with refinery operations (a routine, persistent thermal feature rather than an accidental fire). The system label 'likely_flare_or_persistent' corroborates this interpretation. Coordinates place this in northern India (Haryana/Punjab region), an area with multiple oil refineries. An industrial fire cannot be ruled out given the high FRP, but flare stacks are more commonly associated with such persistent high-FRP detections at refinery complexes."
+  },
+  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section5_pipeline\\incidents\\case_004\\satellite_annotated.jpg",
+  "key_used": "Key #4 (sk-or-v1-1f851...)"
+}

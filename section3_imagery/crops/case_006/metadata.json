@@ -1,0 +1,23 @@
+{
+  "id": "case_006",
+  "category_target": "agricultural_candidate",
+  "latitude": 22.36557,
+  "longitude": 87.30296,
+  "acq_date": "2026-09-02",
+  "acq_time": "07:50",
+  "satellite": "NOAA-20",
+  "instrument": "VIIRS",
+  "frp": 9.64,
+  "confidence": "nominal",
+  "product": "VIIRS_NOAA20_NRT",
+  "expected_ground_truth": "Paschim Medinipur, West Bengal (Agricultural plain / rural farmland)",
+  "osm_display_name": "Kharagpur, Kharagpur-I, Paschim Medinipur, West Bengal, 721301, India",
+  "map_url": "https://www.google.com/maps?q=22.36557,87.30296&t=k",
+  "osm_url": "https://www.openstreetmap.org/?mlat=22.36557&mlon=87.30296#map=15/22.36557/87.30296",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_006\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_006\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "incident_id": "case_001",
+  "processed_at": "2026-09-03T16:36:41Z",
+  "status": "SUCCESS",
+  "firms_observation": {
+    "latitude": 21.10291,
+    "longitude": 72.64852,
+    "frp": 9.08,
+    "confidence": "nominal",
+    "satellite": "NOAA-20",
+    "instrument": "VIIRS",
+    "acq_date": "2026-09-02",
+    "acq_time": "08:10"
+  },
+  "ground_truth_context": "Hazira Industrial Area, Surat, Gujarat (Major petrochemical, ONGC gas, AM/NS steel, and LNG terminal hub)",
+  "ai_assessment": {
+    "classification": "industrial_fire",
+    "confidence": 0.72,
+    "alternative_classification": "gas_flare",
+    "visual_evidence": [
+      "Target located at the southern boundary of a large industrial complex with extensive built structures visible to the north",
+      "Multiple large rectangular industrial buildings, warehouses, and processing facilities dominate the area north and east of the target",
+      "Possible cylindrical storage tanks or processing units visible within the industrial complex",
+      "Bright/reflective patches near the target suggest possible active thermal source or combustion activity",
+      "Surrounding landscape shows mix of agricultural fields to the south and densely built urban/industrial zones elsewhere",
+      "Target sits near an access road between industrial facility and agricultural/residential zone to the south"
+    ],
+    "uncertainty": "moderate",
+    "detailed_reasoning": "The thermal anomaly is detected within an extensive industrial complex characteristic of Gujarat's petrochemical/manufacturing corridor (coordinates near Surat, India). The 9.08 MW FRP is moderate, consistent with an active industrial fire or gas flaring event at a processing facility. Visible large industrial buildings, possible storage tanks, and the target's position right at the edge of the industrial zone strongly support an industrial origin rather than wildfire or agricultural burning. The classification leans toward industrial_fire rather than gas_flare because the surrounding structures suggest a manufacturing/processing facility rather than dedicated oil & gas extraction infrastructure, though flare activity at such facilities cannot be ruled out. Confidence is moderate due to inability to clearly resolve a specific flame or flare stack at this resolution."
+  },
+  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section5_pipeline\\incidents\\case_001\\satellite_annotated.jpg",
+  "key_used": "Key #1 (sk-or-v1-7dd6d...)"
+}

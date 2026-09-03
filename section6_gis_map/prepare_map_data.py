@@ -1,0 +1,90 @@
+# -*- coding: utf-8 -*-
+import os
+import json
+import glob
+import csv
+
+"""
+Prepares geospatial data for Section 6 GIS Map:
+  1. Detailed benchmark incidents with AI vision classification & satellite crops
+  2. Ambient FIRMS active thermal points for the national overlay
+"""
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# 1. Load AI classifications
+ai_file = os.path.join(BASE_DIR, "section4_vision_ai", "ai_classifications.json")
+ai_map = {}
+if os.path.exists(ai_file):
+    with open(ai_file, "r", encoding="utf-8") as f:
+        ai_data = json.load(f)
+        for item in ai_data:
+            ai_map[item["case_id"]] = item
+
+# 2. Load benchmark detections
+bench_file = os.path.join(BASE_DIR, "section2_selection", "test_detections.json")
+incidents = []
+if os.path.exists(bench_file):
+    with open(bench_file, "r", encoding="utf-8") as f:
+        bench_cases = json.load(f)
+        
+    for c in bench_cases:
+        cid = c["id"]
+        ai_info = ai_map.get(cid, {}).get("ai_assessment", {})
+        
+        incidents.append({
+            "id": cid,
+            "category_target": c.get("category_target"),
+            "latitude": c["latitude"],
+            "longitude": c["longitude"],
+            "frp": c.get("frp", 0.0),
+            "confidence": c.get("confidence", "n/a"),
+            "satellite": c.get("satellite", "unknown"),
+            "instrument": c.get("instrument", "unknown"),
+            "acq_date": c.get("acq_date", ""),
+            "acq_time": c.get("acq_time", ""),
+            "product": c.get("product", ""),
+            "location_name": c.get("expected_ground_truth", ""),
+            "display_name": c.get("osm_display_name", ""),
+            "ai_classification": ai_info.get("classification", "pending"),
+            "ai_confidence": ai_info.get("confidence", 0.0),
+            "ai_uncertainty": ai_info.get("uncertainty", "medium"),
+            "ai_evidence": ai_info.get("visual_evidence", []),
+            "ai_reasoning": ai_info.get("detailed_reasoning", ""),
+            "image_url": f"/crops/{cid}/satellite_annotated.jpg",
+            "raw_image_url": f"/crops/{cid}/satellite_raw.jpg"
+        })
+
+
+# Save curated incidents
+
+with open(os.path.join(DATA_DIR, "incidents.json"), "w", encoding="utf-8") as f:
+    json.dump(incidents, f, indent=2)
+
+# 3. Load all raw FIRMS detections as ambient background points
+raw_csvs = glob.glob(os.path.join(BASE_DIR, "section1_firms", "raw_responses", "*.csv"))
+ambient_points = []
+for csv_path in raw_csvs:
+    sat_name = "VIIRS" if "VIIRS" in csv_path else "MODIS"
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                ambient_points.append({
+                    "lat": float(row["latitude"]),
+                    "lon": float(row["longitude"]),
+                    "frp": float(row.get("frp", 0.0) or 0.0),
+                    "conf": row.get("confidence", ""),
+                    "sat": row.get("satellite", sat_name),
+                    "date": row.get("acq_date", ""),
+                    "time": row.get("acq_time", "")
+                })
+            except Exception:
+                continue
+
+with open(os.path.join(DATA_DIR, "ambient_firms.json"), "w", encoding="utf-8") as f:
+    json.dump(ambient_points, f, indent=2)
+
+print(f"Prepared {len(incidents)} AI-evaluated incidents and {len(ambient_points)} ambient FIRMS hotspots.")
