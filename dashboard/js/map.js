@@ -21,8 +21,8 @@ export const mapState = {
   ambientLayers: [],    // [{ marker, frp }]
   selected: null,
   error: "",            // why there is no map, when there is no map
-  onSelect: () => {},
-  onViewChange: () => {},
+  onSelect: () => { },
+  onViewChange: () => { },
 };
 
 function getAmbientRadius(frp, zoom = 5) {
@@ -171,36 +171,9 @@ export function drawAmbient(points, visible) {
   if (!visible) { mapState.onViewChange(countInView()); return; }
 
   const currentZoom = mapState.map.getZoom();
-  // Canvas-optimized batch rendering with dynamic zoom-scaled radius & interactive tooltips
+  // Canvas-optimized batch rendering with dynamic zoom-scaled radius & previous clean tooltip
   points.forEach((p) => {
     const r = getAmbientRadius(p.frp, currentZoom);
-    const satName = p.sat === "N20" ? "VIIRS NOAA-20" : p.sat === "NPP" ? "VIIRS Suomi-NPP" : p.sat === "MOD" ? "MODIS Aqua/Terra" : (p.sat || "NASA FIRMS");
-    const confLabel = p.conf === "h" ? "High" : p.conf === "n" ? "Nominal" : p.conf === "l" ? "Low" : (p.conf ? String(p.conf) : "Unreported");
-    const timeFormatted = p.time ? `${String(p.time).padStart(4, "0").slice(0, 2)}:${String(p.time).padStart(4, "0").slice(2)} UTC` : "";
-    const dateFormatted = p.date || "";
-
-    const tipContent = `
-      <div class="pop amb-pop">
-        <div class="pop__top">
-          <span class="pop__id">RAW DETECTION</span>
-          <span class="tag tag--tier" style="--tier:var(--signal);font-weight:600">FIRMS HOTSPOT</span>
-        </div>
-        <div class="amb-pop__title">
-          <span class="amb-pop__dot"></span>
-          <span>Thermal Anomaly (${p.lat.toFixed(3)}°, ${p.lon.toFixed(3)}°)</span>
-        </div>
-        <dl class="pop__grid">
-          <div class="pop__cell"><dt>FRP Output</dt><dd style="color:#ffaa00;font-weight:600">${p.frp} MW</dd></div>
-          <div class="pop__cell"><dt>Sensor</dt><dd>${escapeHtml(satName)}</dd></div>
-          <div class="pop__cell"><dt>Confidence</dt><dd>${escapeHtml(confLabel)}</dd></div>
-        </dl>
-        <div class="amb-pop__foot">
-          <span class="amb-pop__meta">${dateFormatted ? `${escapeHtml(dateFormatted)} · ${escapeHtml(timeFormatted)}` : "Live telemetry"}</span>
-          <span class="amb-pop__badge">UNCLASSIFIED PIXEL</span>
-        </div>
-      </div>
-    `;
-
     const marker = L.circleMarker([p.lat, p.lon], {
       radius: r,
       stroke: true,
@@ -212,17 +185,10 @@ export function drawAmbient(points, visible) {
       interactive: true,
     }).addTo(mapState.ambient);
 
-    marker.bindTooltip(tipContent, {
+    marker.bindTooltip(`FIRMS Hotspot: ${p.frp} MW (${p.sat || "FIRMS"})`, {
       direction: "top",
       offset: [0, -r],
-      sticky: true,
-      className: "ambient-firms-tooltip"
-    });
-
-    marker.bindPopup(tipContent, {
-      className: "ambient-firms-popup",
-      closeButton: false,
-      offset: [0, -r]
+      className: "tactical-tooltip"
     });
 
     mapState.ambientLayers.push({ marker, frp: p.frp });

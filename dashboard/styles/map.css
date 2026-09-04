@@ -23,7 +23,10 @@
   display: grid;
   place-items: center;
 }
-.mapdown .state__body { max-width: 46ch; }
+
+.mapdown .state__body {
+  max-width: 46ch;
+}
 
 .leaflet-container {
   background: var(--ink-800);
@@ -71,10 +74,14 @@
   background: rgba(255, 255, 255, 0.85) !important;
   color: rgba(15, 23, 42, 0.55) !important;
 }
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+
+backdrop-filter: blur(8px);
+-webkit-backdrop-filter: blur(8px);
 }
-.leaflet-control-attribution a { color: var(--t-tertiary) !important; }
+
+.leaflet-control-attribution a {
+  color: var(--t-tertiary) !important;
+}
 
 /* --- Incident marker -----------------------------------------------------
    Classification is carried by the glyph, severity by the ring colour. Two
@@ -95,7 +102,10 @@
   transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out);
   cursor: pointer;
 }
-.mk:hover { transform: scale(1.14); }
+
+.mk:hover {
+  transform: scale(1.14);
+}
 
 /* An unconfirmed source gets a dashed ring. The brief requires that
    uncertainty survive the visualisation. */
@@ -122,18 +132,33 @@
 }
 
 @keyframes mk-pulse {
-  0%   { opacity: 0.5; transform: scale(0.82); }
-  70%  { opacity: 0;   transform: scale(1.5); }
-  100% { opacity: 0;   transform: scale(1.5); }
+  0% {
+    opacity: 0.5;
+    transform: scale(0.82);
+  }
+
+  70% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mk[data-lead="1"]::after { animation: none; opacity: 0.35; }
+  .mk[data-lead="1"]::after {
+    animation: none;
+    opacity: 0.35;
+  }
 }
 
 .mk__rank {
   position: absolute;
-  top: -5px; right: -7px;
+  top: -5px;
+  right: -7px;
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
@@ -176,139 +201,56 @@
   white-space: nowrap;
 }
 
-.leaflet-tooltip.amb-tip { font-family: var(--font-mono); letter-spacing: 0; }
+.leaflet-tooltip.amb-tip {
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+}
 
-/* Ambient FIRMS Tactical HUD Tooltip & Popup */
-.ambient-firms-tooltip,
-.ambient-firms-popup .leaflet-popup-content-wrapper {
-  padding: 0 !important;
-  border: 1px solid var(--line) !important;
-  border-radius: var(--r-md) !important;
+/* Clean single-line tactical tooltip for ambient FIRMS dots */
+.tactical-tooltip,
+.leaflet-tooltip.tactical-tooltip {
+  padding: 4px 8px !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: var(--r-sm) !important;
   background: rgba(10, 13, 15, 0.92) !important;
   color: var(--t-primary) !important;
-  box-shadow: var(--lift-3), var(--bezel) !important;
-  backdrop-filter: blur(16px) saturate(118%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(118%) !important;
-  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
-  pointer-events: none;
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  white-space: nowrap !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  pointer-events: none !important;
 }
 
-[data-theme="light"] .ambient-firms-tooltip,
-[data-theme="light"] .ambient-firms-popup .leaflet-popup-content-wrapper {
+[data-theme="light"] .tactical-tooltip,
+[data-theme="light"] .leaflet-tooltip.tactical-tooltip {
   background: rgba(255, 255, 255, 0.96) !important;
   color: #0f172a !important;
-  border-color: rgba(15, 23, 42, 0.12) !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14) !important;
-}
-
-.ambient-firms-popup .leaflet-popup-tip {
-  background: rgba(10, 13, 15, 0.92) !important;
-  border: 1px solid var(--line) !important;
-}
-
-[data-theme="light"] .ambient-firms-popup .leaflet-popup-tip {
-  background: rgba(255, 255, 255, 0.96) !important;
-  border-color: rgba(15, 23, 42, 0.12) !important;
-}
-
-.amb-pop {
-  width: 244px;
-  padding: var(--s-3);
-  display: grid;
-  gap: var(--s-2);
-  line-height: var(--lh-snug);
-  text-align: left;
-}
-
-.amb-pop .pop__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-}
-
-.amb-pop__title {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  font-size: var(--fs-label);
-  font-weight: 500;
-  color: var(--t-primary);
-  line-height: var(--lh-snug);
-  margin-top: 1px;
-}
-
-.amb-pop__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 99px;
-  background: #ff9900;
-  box-shadow: 0 0 6px rgba(255, 153, 0, 0.7);
-  flex-shrink: 0;
-}
-
-[data-theme="light"] .amb-pop__dot {
-  background: #d97706;
-  box-shadow: 0 0 5px rgba(217, 119, 6, 0.5);
-}
-
-.amb-pop .pop__grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s-2);
-  padding-top: var(--s-2);
-  border-top: 1px solid var(--line-hair);
-}
-
-.amb-pop .pop__cell dt {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--t-quiet);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.amb-pop .pop__cell dd {
-  margin: 2px 0 0;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--fs-label);
-  color: var(--t-secondary);
-}
-
-.amb-pop__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-  padding-top: var(--s-2);
-  border-top: 1px solid var(--line-hair);
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  color: var(--t-tertiary);
-}
-
-.amb-pop__meta {
-  color: var(--t-quiet);
-}
-
-.amb-pop__badge {
-  font-size: 8.5px;
-  letter-spacing: 0.06em;
-  color: var(--t-quiet);
-  background: var(--fill-2);
-  padding: 1px 5px;
-  border-radius: 3px;
-  text-transform: uppercase;
+  border-color: rgba(15, 23, 42, 0.15) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Leaflet draws the arrow as a border triangle and hard codes white, one
    direction per class. All four are answered because the library flips a
    tooltip that would fall off the edge of the map. */
-.leaflet-tooltip-top::before    { border-top-color: var(--tip-bg); }
-.leaflet-tooltip-bottom::before { border-bottom-color: var(--tip-bg); }
-.leaflet-tooltip-left::before   { border-left-color: var(--tip-bg); }
-.leaflet-tooltip-right::before  { border-right-color: var(--tip-bg); }
+.leaflet-tooltip-top::before {
+  border-top-color: var(--tip-bg);
+}
+
+.leaflet-tooltip-bottom::before {
+  border-bottom-color: var(--tip-bg);
+}
+
+.leaflet-tooltip-left::before {
+  border-left-color: var(--tip-bg);
+}
+
+.leaflet-tooltip-right::before {
+  border-right-color: var(--tip-bg);
+}
 
 /* --- Popup ---------------------------------------------------------------- */
 
@@ -340,11 +282,25 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.leaflet-popup-tip { border-radius: 2px; }
-.leaflet-popup-content { margin: 0; width: 244px !important; line-height: var(--lh-snug); }
-.leaflet-popup-close-button { display: none !important; }
+.leaflet-popup-tip {
+  border-radius: 2px;
+}
 
-.pop { display: grid; gap: var(--s-3); padding: var(--s-3); }
+.leaflet-popup-content {
+  margin: 0;
+  width: 244px !important;
+  line-height: var(--lh-snug);
+}
+
+.leaflet-popup-close-button {
+  display: none !important;
+}
+
+.pop {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-3);
+}
 
 .pop__top {
   display: flex;
@@ -359,7 +315,11 @@
   color: var(--t-quiet);
 }
 
-.pop__name { font-size: var(--fs-label); color: var(--t-primary); line-height: var(--lh-snug); }
+.pop__name {
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+  line-height: var(--lh-snug);
+}
 
 .pop__grid {
   display: grid;
@@ -369,7 +329,13 @@
   border-top: 1px solid var(--line-hair);
 }
 
-.pop__cell dt { font-size: 9px; color: var(--t-quiet); letter-spacing: 0.06em; text-transform: uppercase; }
+.pop__cell dt {
+  font-size: 9px;
+  color: var(--t-quiet);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .pop__cell dd {
   margin: 2px 0 0;
   font-family: var(--font-mono);
@@ -385,12 +351,31 @@
    the marker key bottom right. Everything else lives in the rail or the dock.
    These are the only blurred surfaces over the map. */
 
-.ovl { position: absolute; z-index: var(--z-map-overlay); }
+.ovl {
+  position: absolute;
+  z-index: var(--z-map-overlay);
+}
 
-.ovl--tl { top: var(--s-4); left: calc(335px + var(--s-3)); max-width: 44%; }
-.ovl--tr { top: var(--s-4); right: var(--s-3); }
-.ovl--bl { bottom: var(--s-3); left: calc(335px + var(--s-3)); }
-.ovl--br { bottom: var(--s-3); right: var(--s-3); }
+.ovl--tl {
+  top: var(--s-4);
+  left: calc(335px + var(--s-3));
+  max-width: 44%;
+}
+
+.ovl--tr {
+  top: var(--s-4);
+  right: var(--s-3);
+}
+
+.ovl--bl {
+  bottom: var(--s-3);
+  left: calc(335px + var(--s-3));
+}
+
+.ovl--br {
+  bottom: var(--s-3);
+  right: var(--s-3);
+}
 
 /* Three of the four clusters only do anything to a map: fit to markers, toggle
    ambient, switch base layer, zoom, recentre, and a key for marks that are not
@@ -400,10 +385,21 @@
    title cluster stays: it carries #map-sub, which is the line that says why. */
 .mapframe[data-down="1"] .ovl--tr,
 .mapframe[data-down="1"] .ovl--bl,
-.mapframe[data-down="1"] .ovl--br { display: none; }
+.mapframe[data-down="1"] .ovl--br {
+  display: none;
+}
 
-.maptitle { padding: var(--s-3) var(--s-4); }
-.maptitle__h { font-size: 1.125rem; font-weight: 300; letter-spacing: var(--tr-display); line-height: 1.2; }
+.maptitle {
+  padding: var(--s-3) var(--s-4);
+}
+
+.maptitle__h {
+  font-size: 1.125rem;
+  font-weight: 300;
+  letter-spacing: var(--tr-display);
+  line-height: 1.2;
+}
+
 .maptitle__sub {
   margin-top: 5px;
   font-family: var(--font-mono);
@@ -412,11 +408,28 @@
   letter-spacing: 0;
 }
 
-.mapctl { display: flex; gap: var(--s-2); }
+.mapctl {
+  display: flex;
+  gap: var(--s-2);
+}
 
-.zoombar { display: flex; flex-direction: column; gap: 1px; padding: 3px; }
-.zoombar .icon-btn { border: 0; background: none; width: 30px; height: 30px; }
-.zoombar .icon-btn:hover { background: var(--fill-2); }
+.zoombar {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px;
+}
+
+.zoombar .icon-btn {
+  border: 0;
+  background: none;
+  width: 30px;
+  height: 30px;
+}
+
+.zoombar .icon-btn:hover {
+  background: var(--fill-2);
+}
 
 /* Small readout that mirrors the reference weather chip slot, but carries
    real state: how many detections are inside the current viewport. */
@@ -431,7 +444,10 @@
   color: var(--t-secondary);
   white-space: nowrap;
 }
-.viewstat svg { color: var(--t-tertiary); }
+
+.viewstat svg {
+  color: var(--t-tertiary);
+}
 
 /* --- Marker key ----------------------------------------------------------
    The section 6 console keeps a legend on the map, which is right: a reader
@@ -460,11 +476,26 @@
   list-style: none;
   transition: color var(--d-fast) var(--ease-out);
 }
-.mapkey__btn::-webkit-details-marker { display: none; }
-.mapkey__btn:hover { color: var(--t-primary); }
-.mapkey[open] .mapkey__btn { color: var(--t-primary); }
-.mapkey__btn svg { transition: rotate var(--d-base) var(--ease-out); }
-.mapkey[open] .mapkey__btn svg { rotate: 180deg; }
+
+.mapkey__btn::-webkit-details-marker {
+  display: none;
+}
+
+.mapkey__btn:hover {
+  color: var(--t-primary);
+}
+
+.mapkey[open] .mapkey__btn {
+  color: var(--t-primary);
+}
+
+.mapkey__btn svg {
+  transition: rotate var(--d-base) var(--ease-out);
+}
+
+.mapkey[open] .mapkey__btn svg {
+  rotate: 180deg;
+}
 
 .mapkey__panel {
   position: absolute;
@@ -476,7 +507,10 @@
   gap: var(--s-3);
 }
 
-.mapkey__group { display: grid; gap: 7px; }
+.mapkey__group {
+  display: grid;
+  gap: 7px;
+}
 
 .mapkey__cols {
   display: grid;
@@ -511,16 +545,26 @@
   border-radius: 99px;
   background: rgba(6, 8, 10, 0.9);
 }
-.mapkey__mk--dashed { border-style: dashed; border-color: var(--line-strong); }
+
+.mapkey__mk--dashed {
+  border-style: dashed;
+  border-color: var(--line-strong);
+}
+
 .mapkey__mk--glyph {
   display: grid;
   place-items: center;
   border-color: var(--t-tertiary);
   color: var(--t-secondary);
 }
+
 /* The glyph is drawn inside a 13px ring, so it is sized here rather than by the
    markup that used to carry it inline. */
-.mapkey__mk--glyph .i { width: 8px; height: 8px; }
+.mapkey__mk--glyph .i {
+  width: 8px;
+  height: 8px;
+}
+
 .mapkey__mk--dot {
   width: 6px;
   height: 6px;
@@ -539,5 +583,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mapkey__btn svg { transition: none; }
+  .mapkey__btn svg {
+    transition: none;
+  }
 }
