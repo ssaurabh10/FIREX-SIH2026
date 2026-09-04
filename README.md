@@ -112,15 +112,21 @@ PS162/
 │   ├── run_pipeline.py       # Full pipeline orchestrator
 │   └── incidents/            # Generated incident dossiers
 │
-├── section6_gis_map/         # Interactive web dashboard
-│   ├── index.html            # Main dashboard layout
-│   ├── style.css             # Dark-mode tactical styling
-│   ├── app.js                # Leaflet map + incident interaction
-│   ├── server.py             # Local HTTP server
+├── section6_gis_map/         # Permanent Unified Command Platform (Default UI, Port 8000)
+│   ├── index.html            # Main command platform layout (Spotlight Navbar, Multi-view)
+│   ├── styles/               # Modular CSS design system (tokens, surfaces, layout, map, toggle, etc.)
+│   ├── js/                   # Vanilla ES modules (main, map, dossier, render, data, config)
+│   ├── server.py             # Local HTTP server with live crops mount
 │   ├── prepare_map_data.py   # Data bundler for frontend
 │   └── data/
 │       ├── incidents.json    # 7 AI-evaluated incidents
 │       └── ambient_firms.json # 637 nationwide FIRMS points
+│
+├── previous_ui/              # Archived Legacy GIS Dashboard (Port 8002)
+│   ├── index.html            # Original legacy dashboard layout
+│   ├── style.css             # Original stylesheet
+│   ├── app.js                # Original script
+│   └── server.py             # Dedicated server for legacy UI
 │
 ├── .gitignore
 └── README.md
