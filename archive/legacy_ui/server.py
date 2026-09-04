@@ -6,17 +6,17 @@ import socketserver
 
 PORT = int(os.environ.get("FIREX_LEGACY_PORT", "8002"))
 LEGACY_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.dirname(LEGACY_DIR)
-CROPS_DIR = os.path.join(BASE_DIR, "section3_imagery", "crops")
-DATA_DIR = os.path.join(BASE_DIR, "section6_gis_map", "data")
+BASE_DIR = os.path.dirname(os.path.dirname(LEGACY_DIR))
+CROPS_DIR = os.path.join(BASE_DIR, "pipeline", "03_imagery", "crops")
+DATA_DIR = os.path.join(BASE_DIR, "dashboard", "data")
 
 class FIREXLegacyMapHandler(http.server.SimpleHTTPRequestHandler):
     def translate_path(self, path):
-        # Route /crops/ to section3_imagery/crops/
+        # Route /crops/ to pipeline/03_imagery/crops/
         if path.startswith("/crops/"):
             rel_path = path[len("/crops/"):]
             return os.path.join(CROPS_DIR, rel_path.replace("/", os.sep))
-        # Route /data/ to section6_gis_map/data/
+        # Route /data/ to dashboard/data/
         if path.startswith("/data/"):
             rel_path = path[len("/data/"):]
             return os.path.join(DATA_DIR, rel_path.replace("/", os.sep))

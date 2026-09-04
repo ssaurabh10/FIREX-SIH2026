@@ -97,11 +97,9 @@ PS162/
 ├── archive/                   # Preserved Prototype Iterations
 │   └── legacy_ui/             # Initial GIS dashboard prototype (Port 8002)
 │
-├── docs/                      # Documentation & Architecture Specifications
-│   ├── PS162_FIREX_Project_Master_Brief.md
-│   └── assets/                # Design references & screenshots
-│
-└── section6_gis_map/          # Backward-compatibility shim (redirects to dashboard/)
+└── docs/                      # Documentation & Architecture Specifications
+    ├── PS162_FIREX_Project_Master_Brief.md
+    └── assets/                # Design references & screenshots
 ```
 
 ---
