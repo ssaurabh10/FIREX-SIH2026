@@ -15,8 +15,8 @@
   "map_url": "https://www.google.com/maps?q=22.36557,87.30296&t=k",
   "osm_url": "https://www.openstreetmap.org/?mlat=22.36557&mlon=87.30296#map=15/22.36557/87.30296",
   "image_files": {
-    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_006\\satellite_raw.jpg",
-    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section3_imagery\\crops\\case_006\\satellite_annotated.jpg",
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_006\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_006\\satellite_annotated.jpg",
     "crop_dimensions": "640x640 (~1.2 km coverage)",
     "zoom_level": 16
   }

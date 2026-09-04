@@ -28,6 +28,6 @@
     "uncertainty": "moderate",
     "detailed_reasoning": "The thermal anomaly is detected within an extensive industrial complex characteristic of Gujarat's petrochemical/manufacturing corridor (coordinates near Surat, India). The 9.08 MW FRP is moderate, consistent with an active industrial fire or gas flaring event at a processing facility. Visible large industrial buildings, possible storage tanks, and the target's position right at the edge of the industrial zone strongly support an industrial origin rather than wildfire or agricultural burning. The classification leans toward industrial_fire rather than gas_flare because the surrounding structures suggest a manufacturing/processing facility rather than dedicated oil & gas extraction infrastructure, though flare activity at such facilities cannot be ruled out. Confidence is moderate due to inability to clearly resolve a specific flame or flare stack at this resolution."
   },
-  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section5_pipeline\\incidents\\case_001\\satellite_annotated.jpg",
+  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\05_orchestrator\\incidents\\case_001\\satellite_annotated.jpg",
   "key_used": "Key #1 (sk-or-v1-7dd6d...)"
 }

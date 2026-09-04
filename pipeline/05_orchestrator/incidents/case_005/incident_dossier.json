@@ -28,6 +28,6 @@
     "uncertainty": "moderate",
     "detailed_reasoning": "The target is situated in a patch of mixed dry scrubland with scattered trees, consistent with degraded deciduous forest or dry grassland typical of the Mysore region in Karnataka. The system label 'forest_candidate' supports this. No industrial thermal sources (flare stacks, tanks, pipelines) or mining activity are visible in the ~1 km field of view. The moderate FRP of 11.21 MW is consistent with a small-to-moderate surface fire rather than the very high FRP signature typical of gas flares (>50 MW). However, the proximity to agricultural parcels to the east means agricultural burning (post-harvest stubble or field clearance) cannot be excluded. Confidence is moderate because no active smoke plume or burn scar is visible in the still image to confirm fire behavior."
   },
-  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section5_pipeline\\incidents\\case_005\\satellite_annotated.jpg",
+  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\05_orchestrator\\incidents\\case_005\\satellite_annotated.jpg",
   "key_used": "Key #1 (sk-or-v1-7dd6d...)"
 }

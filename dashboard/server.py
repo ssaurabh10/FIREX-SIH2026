@@ -53,7 +53,7 @@ class FIREXMapHandler(http.server.SimpleHTTPRequestHandler):
 def run_server():
     os.chdir(GIS_DIR)
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer((HOST, PORT), FIREXMapHandler) as httpd:
+    with socketserver.ThreadingTCPServer((HOST, PORT), FIREXMapHandler) as httpd:
         shown = "localhost" if HOST in ("", "0.0.0.0", "127.0.0.1") else HOST
         print("=" * 62)
         print("  FIREX UNIFIED COMMAND PLATFORM (PRIMARY)")

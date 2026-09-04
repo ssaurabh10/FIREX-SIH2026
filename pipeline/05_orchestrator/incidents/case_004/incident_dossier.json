@@ -29,6 +29,6 @@
     "uncertainty": "medium",
     "detailed_reasoning": "The image unambiguously shows a large petroleum refinery / tank farm complex, with characteristic circular storage tanks, containment berms, and processing infrastructure. The FRP of 48.91 MW is very high and persistent, strongly suggesting a gas flare stack associated with refinery operations (a routine, persistent thermal feature rather than an accidental fire). The system label 'likely_flare_or_persistent' corroborates this interpretation. Coordinates place this in northern India (Haryana/Punjab region), an area with multiple oil refineries. An industrial fire cannot be ruled out given the high FRP, but flare stacks are more commonly associated with such persistent high-FRP detections at refinery complexes."
   },
-  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section5_pipeline\\incidents\\case_004\\satellite_annotated.jpg",
+  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\05_orchestrator\\incidents\\case_004\\satellite_annotated.jpg",
   "key_used": "Key #4 (sk-or-v1-1f851...)"
 }

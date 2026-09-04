@@ -33,7 +33,7 @@ class FIREXLegacyMapHandler(http.server.SimpleHTTPRequestHandler):
 def run_server():
     os.chdir(LEGACY_DIR)
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), FIREXLegacyMapHandler) as httpd:
+    with socketserver.ThreadingTCPServer(("", PORT), FIREXLegacyMapHandler) as httpd:
         print(f"============================================================")
         print(f"  FIREX PREVIOUS / LEGACY UI (ARCHIVED)")
         print(f"============================================================")

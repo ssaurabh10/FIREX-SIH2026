@@ -29,6 +29,6 @@
     "uncertainty": "low",
     "detailed_reasoning": "The image displays unmistakable morphological signatures of large-scale open-pit coal mining: extensive terraced benches, exposed overburden, dark coal seam exposures, and a network of winding haul roads. The location coordinates (20.96\u00b0N, 85.17\u00b0E) fall squarely within the Talcher coalfield in Odisha, India \u2014 one of the largest coal mining regions in the country. The moderate FRP of 7.94 MW is consistent with either spontaneous combustion of exposed coal seams (a well-documented phenomenon in Indian coalfields) or thermal signatures from mining machinery/operations. The low detection confidence from FIRMS likely reflects sub-pixel detection in a complex industrial mining landscape rather than a true wildfire. No vegetation or agricultural features are present to support a wildfire or agricultural burning classification, and no flare infrastructure is visible to suggest gas flaring."
   },
-  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section5_pipeline\\incidents\\case_002\\satellite_annotated.jpg",
+  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\05_orchestrator\\incidents\\case_002\\satellite_annotated.jpg",
   "key_used": "Key #2 (sk-or-v1-4b05b...)"
 }

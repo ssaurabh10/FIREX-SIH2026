@@ -61,7 +61,7 @@ const ambientInWindow = () => store.ambient.filter((p) => inWindow(p, state.wind
    a layer that does not exist, and a non-boolean ambient flag drove an
    aria-checked attribute that read "1" to a screen reader. */
 const PREF_VALID = {
-  view: (v) => Object.prototype.hasOwnProperty.call(VIEWS, v),
+  view: (v) => ["map", "overview", "investigations", "industrial", "analytics", "settings"].includes(v),
   window: (v) => Object.prototype.hasOwnProperty.call(WINDOWS, v),
   filter: (v) => FILTERS.some((f) => f.id === v),
   base: (v) => Object.prototype.hasOwnProperty.call(BASES, v),
@@ -285,6 +285,7 @@ const VIEW_BODY = {
   investigations: "inv-grid",
   industrial: "industrial-body",
   analytics: "analytics-body",
+  settings: "settings-body",
 };
 
 const VIEWS = {

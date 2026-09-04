@@ -29,6 +29,6 @@
     "uncertainty": "medium",
     "detailed_reasoning": "The image shows a landscape dominated by dark, excavated-looking ground patches and multiple small water ponds characteristic of active or abandoned coal mining/open-pit quarrying areas. There are no visible industrial facilities (no flare stacks, chemical plants, factories, or storage tanks) that would strongly indicate an industrial fire or gas flare. The 8.56 MW FRP and 62% confidence suggest a moderate but not high-confidence thermal signal. The terrain lacks dense forest cover, ruling out a significant wildfire, and lacks organized agricultural field patterns for crop burning. The combination of dark mining-like terrain, nearby settlement structures, and the regional context (eastern Indian coal belt) points toward mining activity as the most plausible thermal source, though without a clearly active thermal feature visible at the pixel scale, some uncertainty remains."
   },
-  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\section5_pipeline\\incidents\\case_003\\satellite_annotated.jpg",
+  "satellite_image": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\05_orchestrator\\incidents\\case_003\\satellite_annotated.jpg",
   "key_used": "Key #3 (sk-or-v1-208fc...)"
 }
