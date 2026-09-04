@@ -8,34 +8,41 @@ dist/
 build/
 *.egg
 
-# API keys / secrets — NEVER commit these
+# API keys / secrets - NEVER commit active keys
+config.py
+**/config.py
+pipeline/01_firms/config.py
+pipeline/04_vision_ai/config.py
+pipeline/05_orchestrator/config.py
+pipeline/05_orchestrator/key_pool.py
+
+# Legacy paths (for backward safety)
 section1_firms/config.py
 section4_vision_ai/config.py
 section5_pipeline/config.py
 section5_pipeline/key_pool.py
 
-dist/
-build/
-*.egg
-
-# Virtual environments
+# Virtual environments & Local env files
 venv/
 env/
 .env
+.env.local
 
-# IDE
+# IDE & Editor caches
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS
+# Operating System Files
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Logs
+# Logs & Temporary Media
 *.log
+.tempmediaStorage/
+scratch/
 
 # Agents / AI tooling
 .agents/

@@ -15,7 +15,7 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # 1. Load AI classifications
-ai_file = os.path.join(BASE_DIR, "section4_vision_ai", "ai_classifications.json")
+ai_file = os.path.join(BASE_DIR, "pipeline", "04_vision_ai", "ai_classifications.json")
 ai_map = {}
 if os.path.exists(ai_file):
     with open(ai_file, "r", encoding="utf-8") as f:
@@ -24,7 +24,7 @@ if os.path.exists(ai_file):
             ai_map[item["case_id"]] = item
 
 # 2. Load benchmark detections
-bench_file = os.path.join(BASE_DIR, "section2_selection", "test_detections.json")
+bench_file = os.path.join(BASE_DIR, "pipeline", "02_selection", "test_detections.json")
 incidents = []
 if os.path.exists(bench_file):
     with open(bench_file, "r", encoding="utf-8") as f:
@@ -66,14 +66,15 @@ with open(os.path.join(DATA_DIR, "incidents.json"), "w", encoding="utf-8") as f:
 # 3. Load latest FIRMS detections as ambient background points
 products = ["VIIRS_NOAA20_NRT", "VIIRS_SNPP_NRT", "MODIS_NRT"]
 latest_csvs = []
+firms_dir = os.path.join(BASE_DIR, "pipeline", "01_firms", "raw_responses")
 for prod in products:
-    matches = sorted(glob.glob(os.path.join(BASE_DIR, "section1_firms", "raw_responses", f"{prod}_*.csv")))
+    matches = sorted(glob.glob(os.path.join(firms_dir, f"{prod}_*.csv")))
     if matches:
         latest_csvs.append(matches[-1])
 
 # If no specific matches, fallback to all CSVs
 if not latest_csvs:
-    latest_csvs = glob.glob(os.path.join(BASE_DIR, "section1_firms", "raw_responses", "*.csv"))
+    latest_csvs = glob.glob(os.path.join(firms_dir, "*.csv"))
 
 ambient_points = []
 seen_keys = set()
@@ -113,10 +114,10 @@ for c in latest_csvs:
     print(f"  - {os.path.basename(c)}")
 print(f"Prepared {len(incidents)} AI-evaluated incidents and {len(ambient_points)} latest ambient FIRMS hotspots.")
 
-# 4. Enrich incidents with Section 10 Risk Engine
+# 4. Enrich incidents with Risk Engine
 try:
     import sys
-    sys.path.append(os.path.join(BASE_DIR, "section10_risk_engine"))
+    sys.path.append(os.path.join(BASE_DIR, "pipeline", "06_risk_engine"))
     from risk_scorer import score_and_enrich_incidents
     score_and_enrich_incidents(os.path.join(DATA_DIR, "incidents.json"))
 except Exception as e:

@@ -33,7 +33,10 @@ except ImportError:
     sys.exit(1)
 
 
-CROPS_DIR = os.path.join(os.path.dirname(__file__), "..", "section3_imagery", "crops")
+_sec3_dir = os.path.join(os.path.dirname(__file__), "..", "03_imagery")
+if not os.path.exists(_sec3_dir):
+    _sec3_dir = os.path.join(os.path.dirname(__file__), "..", "section3_imagery")
+CROPS_DIR = os.path.join(_sec3_dir, "crops")
 OUTPUT_FILE = os.path.join(os.path.dirname(__file__), "ai_classifications.json")
 
 def encode_image(image_path):

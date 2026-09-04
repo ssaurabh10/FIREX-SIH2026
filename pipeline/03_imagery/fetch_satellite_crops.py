@@ -25,7 +25,10 @@ import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 
-INPUT_FILE = os.path.join(os.path.dirname(__file__), "..", "section2_selection", "test_detections.json")
+_sec2_dir = os.path.join(os.path.dirname(__file__), "..", "02_selection")
+if not os.path.exists(_sec2_dir):
+    _sec2_dir = os.path.join(os.path.dirname(__file__), "..", "section2_selection")
+INPUT_FILE = os.path.join(_sec2_dir, "test_detections.json")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "crops")
 
 HEADERS = {

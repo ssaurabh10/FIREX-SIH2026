@@ -1,0 +1,8 @@
+# FIREX — Satellite Thermal Intelligence Platform
+# Python 3.10+ Dependencies
+
+# Networking & API integrations (NASA FIRMS, OpenRouter Vision AI, Satellite Tiles)
+requests>=2.31.0
+
+# Satellite Imagery Processing & Thermal Annotation
+Pillow>=10.0.0

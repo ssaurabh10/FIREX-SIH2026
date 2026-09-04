@@ -27,11 +27,17 @@ import time
 from config import OPENROUTER_API_KEYS, MODEL_NAME, NUM_PIPELINE_CASES
 from key_pool import KeyPoolManager
 
-# Import satellite stitching and annotation from Section 3
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "section3_imagery"))
+# Import satellite stitching and annotation from imagery module
+_sec3_dir = os.path.join(os.path.dirname(__file__), "..", "03_imagery")
+if not os.path.exists(_sec3_dir):
+    _sec3_dir = os.path.join(os.path.dirname(__file__), "..", "section3_imagery")
+sys.path.append(_sec3_dir)
 from fetch_satellite_crops import get_stitched_crop, draw_thermal_annotation
 
-INPUT_BENCHMARK = os.path.join(os.path.dirname(__file__), "..", "section2_selection", "test_detections.json")
+_sec2_dir = os.path.join(os.path.dirname(__file__), "..", "02_selection")
+if not os.path.exists(_sec2_dir):
+    _sec2_dir = os.path.join(os.path.dirname(__file__), "..", "section2_selection")
+INPUT_BENCHMARK = os.path.join(_sec2_dir, "test_detections.json")
 INCIDENTS_DIR = os.path.join(os.path.dirname(__file__), "incidents")
 os.makedirs(INCIDENTS_DIR, exist_ok=True)
 

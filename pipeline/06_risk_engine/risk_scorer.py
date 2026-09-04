@@ -145,8 +145,10 @@ def compute_incident_risk(incident: dict) -> dict:
 def score_and_enrich_incidents(incidents_path: str = None) -> list:
     """Loads incidents JSON, scores each, sorts by priority, and writes back."""
     if incidents_path is None:
-        base_dir = Path(__file__).resolve().parent.parent
-        incidents_path = base_dir / "section6_gis_map" / "data" / "incidents.json"
+        base_dir = Path(__file__).resolve().parents[2]
+        incidents_path = base_dir / "dashboard" / "data" / "incidents.json"
+        if not incidents_path.exists():
+            incidents_path = base_dir / "section6_gis_map" / "data" / "incidents.json"
         
     incidents_path = Path(incidents_path)
     if not incidents_path.exists():
