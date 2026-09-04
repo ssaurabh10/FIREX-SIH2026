@@ -126,6 +126,21 @@ function detection(c) {
   ]);
 }
 
+function persistence(c) {
+  if (!c.persistence) return "";
+  const p = c.persistence;
+  const isIndustrial = p.pattern === "RECURRING_INDUSTRIAL_FLARE";
+  const isNew = p.pattern === "NEW_IGNITION";
+  const badgeClass = isIndustrial ? "tag--signal" : isNew ? "tag--unconfirmed" : "tag--muted";
+
+  return kv([
+    ["Multi-Pass Pattern", `<span class="tag ${badgeClass}">${escapeHtml(p.pattern.replace(/_/g, " "))}</span>`],
+    ["Overpass Profile", escapeHtml(p.dayNightStatus)],
+    ["Active Tracking", `${p.daysActive} day${p.daysActive > 1 ? "s" : ""} (${p.detections} satellite hits)`],
+    ["Persistence Intel", `<span class="u-micro">${escapeHtml(p.description)}</span>`],
+  ]);
+}
+
 function statusTag(c) {
   const status = getTriage(c.id);
   return status === "UNREVIEWED"
@@ -190,6 +205,7 @@ function drawerHtml(c) {
       ${shot(c.images.annotated || c.images.raw, c.images.annotated ? "Annotated" : "Raw crop")}
       ${sect("Classification", "", classification(c))}
       ${sect("Detection", `<span class="u-micro">As published by FIRMS</span>`, detection(c))}
+      ${c.persistence ? sect("Multi-Pass Persistence", `<span class="u-micro">Historical DB</span>`, persistence(c)) : ""}
       ${sect("Verify on the ground", "", links(c))}
       ${sect("Risk", `<span class="u-num u-micro">${c.risk.score} of 100</span>`, factors(c))}
       ${c.risk.action ? sect("Recommended action", "", `<p class="prose well">${escapeHtml(c.risk.action)}</p>`) : ""}
@@ -260,6 +276,7 @@ function modalHtml(c, mode) {
       <div class="modal__col">
         ${sect("Classification", "", classification(c))}
         ${sect("Detection", `<span class="u-micro">As published by FIRMS</span>`, detection(c))}
+        ${c.persistence ? sect("Multi-Pass Persistence", `<span class="u-micro">Historical DB</span>`, persistence(c)) : ""}
         ${sect("Risk", `<span class="u-num u-micro">${c.risk.score} of 100</span>`, factors(c))}
         ${c.risk.action ? sect("Recommended action", "", `<p class="prose well">${escapeHtml(c.risk.action)}</p>`) : ""}
         ${sect("Verify on the ground", "", links(c))}

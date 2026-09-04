@@ -145,6 +145,14 @@ function normaliseCase(raw) {
     evidence: Array.isArray(raw.ai_evidence) ? raw.ai_evidence : [],
     reasoning: raw.ai_reasoning || "",
     images: { annotated: raw.image_url || "", raw: raw.raw_image_url || "" },
+
+    persistence: {
+      pattern: raw.persistence_pattern || "NEW_IGNITION",
+      description: raw.persistence_description || "",
+      daysActive: raw.days_active || 1,
+      dayNightStatus: raw.day_night_status || "SINGLE PASS",
+      detections: raw.persistence_detections || 1,
+    },
   };
 }
 
