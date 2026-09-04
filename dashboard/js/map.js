@@ -180,13 +180,24 @@ export function drawAmbient(points, visible) {
     const dateFormatted = p.date || "";
 
     const tipContent = `
-      <div class="amb-tip">
-        <div class="amb-tip__title">NASA FIRMS HOTSPOT</div>
-        <div class="amb-tip__row"><span>FRP:</span> <b>${p.frp} MW</b></div>
-        <div class="amb-tip__row"><span>Satellite:</span> <b>${escapeHtml(satName)}</b></div>
-        <div class="amb-tip__row"><span>Confidence:</span> <b>${escapeHtml(confLabel)}</b></div>
-        ${dateFormatted ? `<div class="amb-tip__row"><span>Acquired:</span> <b>${escapeHtml(dateFormatted)} ${escapeHtml(timeFormatted)}</b></div>` : ""}
-        <div class="amb-tip__row"><span>Coord:</span> <b>${p.lat.toFixed(4)}°, ${p.lon.toFixed(4)}°</b></div>
+      <div class="pop amb-pop">
+        <div class="pop__top">
+          <span class="pop__id">RAW DETECTION</span>
+          <span class="tag tag--tier" style="--tier:var(--signal);font-weight:600">FIRMS HOTSPOT</span>
+        </div>
+        <div class="amb-pop__title">
+          <span class="amb-pop__dot"></span>
+          <span>Thermal Anomaly (${p.lat.toFixed(3)}°, ${p.lon.toFixed(3)}°)</span>
+        </div>
+        <dl class="pop__grid">
+          <div class="pop__cell"><dt>FRP Output</dt><dd style="color:#ffaa00;font-weight:600">${p.frp} MW</dd></div>
+          <div class="pop__cell"><dt>Sensor</dt><dd>${escapeHtml(satName)}</dd></div>
+          <div class="pop__cell"><dt>Confidence</dt><dd>${escapeHtml(confLabel)}</dd></div>
+        </dl>
+        <div class="amb-pop__foot">
+          <span class="amb-pop__meta">${dateFormatted ? `${escapeHtml(dateFormatted)} · ${escapeHtml(timeFormatted)}` : "Live telemetry"}</span>
+          <span class="amb-pop__badge">UNCLASSIFIED PIXEL</span>
+        </div>
       </div>
     `;
 
@@ -205,11 +216,11 @@ export function drawAmbient(points, visible) {
       direction: "top",
       offset: [0, -r],
       sticky: true,
-      className: "amb-tip-box"
+      className: "ambient-firms-tooltip"
     });
 
     marker.bindPopup(tipContent, {
-      className: "amb-popup-box",
+      className: "ambient-firms-popup",
       closeButton: false,
       offset: [0, -r]
     });

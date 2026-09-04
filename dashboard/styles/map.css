@@ -178,73 +178,128 @@
 
 .leaflet-tooltip.amb-tip { font-family: var(--font-mono); letter-spacing: 0; }
 
-/* Ambient FIRMS tooltip & popup HUD card */
-.amb-tip-box,
-.amb-popup-box .leaflet-popup-content-wrapper {
-  padding: 7px 11px !important;
-  border: 1px solid rgba(255, 194, 51, 0.45) !important;
-  border-radius: 6px !important;
-  background: rgba(10, 13, 15, 0.95) !important;
-  color: #fff !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 153, 0, 0.18) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
+/* Ambient FIRMS Tactical HUD Tooltip & Popup */
+.ambient-firms-tooltip,
+.ambient-firms-popup .leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--r-md) !important;
+  background: rgba(10, 13, 15, 0.92) !important;
+  color: var(--t-primary) !important;
+  box-shadow: var(--lift-3), var(--bezel) !important;
+  backdrop-filter: blur(16px) saturate(118%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(118%) !important;
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
   pointer-events: none;
 }
 
-[data-theme="light"] .amb-tip-box,
-[data-theme="light"] .amb-popup-box .leaflet-popup-content-wrapper {
-  background: rgba(255, 255, 255, 0.98) !important;
+[data-theme="light"] .ambient-firms-tooltip,
+[data-theme="light"] .ambient-firms-popup .leaflet-popup-content-wrapper {
+  background: rgba(255, 255, 255, 0.96) !important;
   color: #0f172a !important;
-  border-color: rgba(234, 88, 12, 0.45) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14) !important;
 }
 
-.amb-tip {
-  font-family: var(--font-mono, monospace);
-  font-size: 11px;
-  line-height: 1.45;
-  min-width: 175px;
+.ambient-firms-popup .leaflet-popup-tip {
+  background: rgba(10, 13, 15, 0.92) !important;
+  border: 1px solid var(--line) !important;
 }
 
-.amb-tip__title {
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: #ffaa00;
-  margin-bottom: 5px;
-  padding-bottom: 3px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+[data-theme="light"] .ambient-firms-popup .leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+.amb-pop {
+  width: 244px;
+  padding: var(--s-3);
+  display: grid;
+  gap: var(--s-2);
+  line-height: var(--lh-snug);
+  text-align: left;
+}
+
+.amb-pop .pop__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.amb-pop__title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  color: var(--t-primary);
+  line-height: var(--lh-snug);
+  margin-top: 1px;
+}
+
+.amb-pop__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: #ff9900;
+  box-shadow: 0 0 6px rgba(255, 153, 0, 0.7);
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .amb-pop__dot {
+  background: #d97706;
+  box-shadow: 0 0 5px rgba(217, 119, 6, 0.5);
+}
+
+.amb-pop .pop__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-hair);
+}
+
+.amb-pop .pop__cell dt {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--t-quiet);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-[data-theme="light"] .amb-tip__title {
-  color: #d97706;
-  border-bottom-color: rgba(15, 23, 42, 0.1);
+.amb-pop .pop__cell dd {
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--t-secondary);
 }
 
-.amb-tip__row {
+.amb-pop__foot {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin: 2px 0;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-hair);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
 }
 
-.amb-tip__row span {
-  color: #94a3b8;
+.amb-pop__meta {
+  color: var(--t-quiet);
 }
 
-.amb-tip__row b {
-  color: #f8fafc;
-  font-weight: 600;
-}
-
-[data-theme="light"] .amb-tip__row span {
-  color: #64748b;
-}
-
-[data-theme="light"] .amb-tip__row b {
-  color: #0f172a;
+.amb-pop__badge {
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  color: var(--t-quiet);
+  background: var(--fill-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
 }
 
 /* Leaflet draws the arrow as a border triangle and hard codes white, one
