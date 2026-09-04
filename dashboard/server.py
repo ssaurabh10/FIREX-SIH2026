@@ -40,7 +40,7 @@ class FIREXMapHandler(http.server.SimpleHTTPRequestHandler):
         path = posixpath.normpath(path)
 
         if path == "/crops" or path.startswith("/crops/"):
-            rel_path = path[len("/crops/"):]
+            rel_path = path.replace("/crops", "", 1).lstrip("/")
             return os.path.join(CROPS_DIR, *[p for p in rel_path.split("/") if p and p not in (os.curdir, os.pardir)])
 
         rel_path = path.lstrip("/")
@@ -127,10 +127,12 @@ class FIREXMapHandler(http.server.SimpleHTTPRequestHandler):
                 import prepare_map_data
                 importlib.reload(prepare_map_data)
 
-                send_event(0, 5, "Initializing Mission Orbit Pipeline", "Starting satellite telemetry sync and persistence engine...")
+                now = datetime.now()
+                current_pass = "DAY" if 6 <= now.hour < 18 else "NIGHT"
+                send_event(0, 5, "Initializing Mission Orbit Pipeline", f"Starting {current_pass} pass telemetry sync and persistence engine...")
                 time.sleep(0.3)
 
-                prepare_map_data.prepare_data(progress_cb=send_event)
+                prepare_map_data.prepare_data(pass_type=current_pass, progress_cb=send_event)
             except Exception as e:
                 send_event(5, 100, "Sync Error", str(e), {"error": True})
             return
@@ -142,7 +144,9 @@ class FIREXMapHandler(http.server.SimpleHTTPRequestHandler):
                     sys.path.insert(0, GIS_DIR)
                 import prepare_map_data
                 importlib.reload(prepare_map_data)
-                prepare_map_data.prepare_data()
+                now = datetime.now()
+                current_pass = "DAY" if 6 <= now.hour < 18 else "NIGHT"
+                prepare_map_data.prepare_data(pass_type=current_pass)
 
                 _pers_dir = os.path.join(BASE_DIR, "pipeline", "07_persistence")
                 if _pers_dir not in sys.path:

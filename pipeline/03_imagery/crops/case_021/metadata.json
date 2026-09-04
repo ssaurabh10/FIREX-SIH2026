@@ -1,9 +1,9 @@
 {
   "id": "case_021",
-  "latitude": 24.25894,
-  "longitude": 96.54393,
-  "frp": 9.92,
-  "satellite": "N",
+  "latitude": 27.9844,
+  "longitude": 95.93944,
+  "frp": 7.85,
+  "satellite": "N20",
   "instrument": "VIIRS",
   "category_target": "forest_candidate",
   "ai_classification": "wildfire",

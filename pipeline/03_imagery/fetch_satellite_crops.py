@@ -180,6 +180,17 @@ def fetch_crop_for_incident(case, output_dir=OUTPUT_DIR, force=False):
         except Exception:
             pass
 
+    # Normalize case keys for annotation banner
+    case_norm = {
+        "id": cid,
+        "latitude": lat,
+        "longitude": lon,
+        "frp": float(case.get("frp", 0.0) or 0.0),
+        "satellite": case.get("satellite", "VIIRS"),
+        "instrument": case.get("instrument", "VIIRS"),
+        "category_target": case.get("category_target", case.get("ai_classification", "thermal_anomaly"))
+    }
+
     # Check if another case folder already has high-res imagery for this exact coordinate
     if not force:
         try:
@@ -195,12 +206,14 @@ def fetch_crop_for_incident(case, output_dir=OUTPUT_DIR, force=False):
                     o_lat = float(other_meta.get("latitude", 0.0))
                     o_lon = float(other_meta.get("longitude", 0.0))
                     if abs(o_lat - lat) < 0.005 and abs(o_lon - lon) < 0.005:
-                        # Copy the matching tile images to this case directory
+                        # Copy the raw tile image and redraw annotation banner with current case metadata
                         import shutil
-                        other_ann_path = os.path.join(other_dir, "satellite_annotated.jpg")
                         shutil.copy2(other_raw_path, raw_path)
-                        if os.path.exists(other_ann_path):
-                            shutil.copy2(other_ann_path, annotated_path)
+                        raw_crop = Image.open(raw_path).convert("RGB")
+                        annotated_crop = draw_thermal_annotation(
+                            raw_crop, (raw_crop.width // 2, raw_crop.height // 2), case_norm
+                        )
+                        annotated_crop.save(annotated_path, quality=92)
                         meta = dict(case)
                         meta["image_files"] = {
                             "satellite_raw": os.path.abspath(raw_path),
@@ -220,17 +233,6 @@ def fetch_crop_for_incident(case, output_dir=OUTPUT_DIR, force=False):
                         }
         except Exception:
             pass
-
-    # Normalize case keys for annotation banner
-    case_norm = {
-        "id": cid,
-        "latitude": lat,
-        "longitude": lon,
-        "frp": float(case.get("frp", 0.0) or 0.0),
-        "satellite": case.get("satellite", "VIIRS"),
-        "instrument": case.get("instrument", "VIIRS"),
-        "category_target": case.get("category_target", case.get("ai_classification", "thermal_anomaly"))
-    }
 
     try:
         raw_crop, hotspot_xy = get_stitched_crop(lat, lon, zoom=16, crop_size=640)

@@ -42,31 +42,66 @@ def is_inside_india(lat: float, lon: float) -> bool:
     """
     Sovereign Indian Geospatial Filter.
     Excludes cross-border points captured by the rectangular NASA FIRMS bounding box:
-      - Sri Lanka (South of 10.0°N and East of 79.5°E)
-      - Pakistan (West of 74.2°E in north, West of 70.8°E in Gujarat)
-      - China / Tibet (North of 32.5°N or North of 28.2°N east of 88.5°E)
-      - Nepal (27.5°–30.5°N, 81.0°–88.2°E)
-      - Bangladesh (21.6°–26.0°N, 88.4°–92.4°E)
-      - Myanmar (East of 93.0°E below 24.0°N)
+      - Sri Lanka (South of Palk Strait: lat < 9.8 and lon > 79.5)
+      - Pakistan (Sector-calibrated across Kutch, Thar, Punjab, and J&K)
+      - Nepal & Bhutan (Himalayan kingdom bounding envelopes)
+      - Tibet / China (Calibrated north of 32.5°N, north of Sikkim/Bhutan, and north of Arunachal 29.5°N)
+      - Bangladesh (Excluding interior Bangladesh while preserving Indian Tripura, Meghalaya, and Bengal corridor)
+      - Myanmar (East of Indo-Myanmar mountain ridges in Manipur and below Mizoram)
     """
+    # Outer Indian Geographic Envelope
     if not (8.0 <= lat <= 37.2 and 68.0 <= lon <= 97.4):
         return False
-    if lat < 10.0 and lon > 79.5:
+
+    # Sri Lanka
+    if lat < 9.8 and lon > 79.5:
         return False
-    if lat > 32.5 and lon > 78.5:
+
+    # Pakistan Borders (Sector-calibrated)
+    if 23.5 <= lat < 27.0 and lon < 70.0:  # Kutch / Barmer
         return False
-    if lat > 28.2 and lon > 88.5:
+    if 27.0 <= lat < 29.0 and lon < 70.5:  # Jaisalmer / Bikaner
         return False
-    if lat >= 28.0 and lon < 74.2:
+    if 29.0 <= lat < 30.2 and lon < 73.0:  # Sri Ganganagar / Anupgarh
         return False
-    if lat >= 24.0 and lon < 70.8:
+    if 30.2 <= lat < 31.0 and lon < 74.0:  # Fazilka / Firozpur
         return False
-    if 27.5 <= lat <= 30.5 and 81.0 <= lon <= 88.2:
+    if 31.0 <= lat < 32.5 and lon < 74.55: # Amritsar / Wagah border
         return False
-    if 21.6 <= lat <= 26.0 and 88.4 <= lon <= 92.4:
+    if lat >= 32.5 and lon < 73.8:         # Jammu & Kashmir
         return False
-    if lat <= 24.0 and lon > 93.0:
+
+    # Nepal (Himalayan kingdom envelope)
+    if 27.5 <= lat <= 30.5 and 80.2 <= lon <= 88.2:
         return False
+
+    # Bhutan (Himalayan kingdom envelope)
+    if 26.7 <= lat <= 28.2 and 88.8 <= lon <= 92.1:
+        return False
+
+    # Tibet / China borders
+    if lat > 32.5 and lon > 79.5:
+        return False
+    if 88.5 <= lon <= 92.0 and lat > 28.1:
+        return False
+    if lon > 92.0 and lat > 29.5:
+        return False
+
+    # Bangladesh envelope (preserving Indian states of Tripura, Meghalaya, and North Bengal corridor)
+    if 21.6 <= lat < 25.0 and 88.9 <= lon <= 92.2:
+        # Protect Indian state of Tripura
+        if 22.9 <= lat <= 24.5 and lon >= 91.1:
+            return True
+        return False
+
+    # Myanmar border
+    if lat <= 22.0 and lon > 93.0:
+        return False
+    if 22.0 < lat <= 24.0 and lon > 93.4:
+        return False
+    if 24.0 < lat < 27.0 and lon > 95.3: # Manipur / Nagaland border
+        return False
+
     return True
 
 # Verified Ground Facilities & Industrial/Ecological Registry for Sovereign India Hotspots
@@ -150,7 +185,10 @@ def get_indian_location_label(lat: float, lon: float) -> tuple[str, str, str, st
 
 def prepare_data(pass_type=None, progress_cb=None):
     if pass_type is None:
-        pass_type = os.environ.get("FIREX_PASS_TYPE", "DAY")
+        from datetime import datetime
+        now = datetime.now()
+        default_pass = "DAY" if 6 <= now.hour < 18 else "NIGHT"
+        pass_type = os.environ.get("FIREX_PASS_TYPE", default_pass)
 
     print(f"[FIREX DATA] Initializing historical database & processing {pass_type} pass (Strict India Only)...")
     history_db.init_db()
@@ -441,7 +479,7 @@ def prepare_data(pass_type=None, progress_cb=None):
     scored = []
     try:
         scored = score_and_enrich_incidents(incidents_path)
-        history_db.record_incident_evaluations(run_id, scored)
+        history_db.record_incident_evaluations(run_id, scored, pass_type=pass_type)
     except Exception as e:
         print(f"  [WARN] Risk engine scoring skipped or error: {e}")
 

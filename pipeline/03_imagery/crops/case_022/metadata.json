@@ -1,71 +1,12 @@
 {
   "id": "case_022",
-  "category_target": "forest_candidate",
-  "latitude": 27.9844,
-  "longitude": 95.93944,
-  "frp": 7.85,
-  "confidence": "n",
+  "latitude": 28.49755,
+  "longitude": 97.02412,
+  "frp": 7.47,
   "satellite": "N20",
   "instrument": "VIIRS",
-  "acq_date": "2026-09-03",
-  "acq_time": "73:5",
-  "product": "VIIRS_NRT",
-  "location_name": "Lower Dibang Valley Himalayan Rainforest Wilderness, Roing, Arunachal Pradesh",
-  "display_name": "Roing Sub-division, Lower Dibang Valley, Arunachal Pradesh, India",
+  "category_target": "forest_candidate",
   "ai_classification": "wildfire",
-  "ai_confidence": 0.72,
-  "ai_uncertainty": "medium",
-  "ai_evidence": [
-    "Active N20 satellite detection with radiative output of 7.8 MW",
-    "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-    "Telemetry verified strictly inside sovereign Indian airspace at 27.9844\u00b0N, 95.9394\u00b0E"
-  ],
-  "ai_reasoning": "Forest vegetation fire anomaly (7.8 MW) detected in dense montane canopy in Roing Sub-division, Lower Dibang Valley, Arunachal Pradesh, India.",
-  "image_url": "",
-  "raw_image_url": "",
-  "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-  "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-  "persistence_detections": 42,
-  "days_active": 1,
-  "day_night_status": "DAY + NIGHT (Continuous 24h)",
-  "risk_adjustment": -15,
-  "risk_score": 49,
-  "risk_tier": "MEDIUM",
-  "risk_color": "#f59e0b",
-  "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-  "risk_factors": [
-    {
-      "factor": "Vision AI Certainty",
-      "score": 19.4,
-      "max": 30.0,
-      "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-    },
-    {
-      "factor": "Fire Radiative Power",
-      "score": 3.9,
-      "max": 25.0,
-      "detail": "7.8 MW (3.9/25.0 pts)"
-    },
-    {
-      "factor": "FIRMS Instrument Confidence",
-      "score": 14.0,
-      "max": 20.0,
-      "detail": "Nominal Satellite Confidence (14/20 pts)"
-    },
-    {
-      "factor": "Hazardous Proximity",
-      "score": 4.0,
-      "max": 15.0,
-      "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-    },
-    {
-      "factor": "Source Category Hazard",
-      "score": 8.0,
-      "max": 10.0,
-      "detail": "Wildland/Canopy Biomass Fire (8/10 pts)"
-    }
-  ],
-  "priority_rank": 16,
   "image_files": {
     "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_022\\satellite_raw.jpg",
     "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_022\\satellite_annotated.jpg",

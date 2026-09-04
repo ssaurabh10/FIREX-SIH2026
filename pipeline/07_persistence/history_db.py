@@ -229,11 +229,26 @@ def compute_persistence(lat, lon, threshold_km=2.0, lookback_days=30, db_path=DB
         "radius_km": threshold_km
     }
 
-def record_incident_evaluations(run_id, incidents, db_path=DB_PATH):
+def record_incident_evaluations(run_id, incidents, pass_type=None, db_path=DB_PATH):
     """Records scored incidents and their persistence patterns into history."""
     if not incidents:
         return 0
     
+    # Resolve pass_type if not provided
+    if not pass_type:
+        try:
+            with get_connection(db_path) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT pass_type FROM ingest_runs WHERE run_id = ?", (run_id,))
+                row = cur.fetchone()
+                if row and row["pass_type"]:
+                    pass_type = row["pass_type"]
+        except Exception:
+            pass
+    if not pass_type:
+        now = datetime.now()
+        pass_type = "DAY" if 6 <= now.hour < 18 else "NIGHT"
+
     rows = []
     for inc in incidents:
         cid = inc.get("id", "")
@@ -251,8 +266,16 @@ def record_incident_evaluations(run_id, incidents, db_path=DB_PATH):
         pattern = pers["pattern"]
         days = max(1, pers["distinct_days"])
         
-        pass_type = "DAY" if "day" in str(inc.get("acq_time", "")).lower() else "NIGHT"
-        rows.append((run_id, cid, lat, lon, frp, conf, ai_cls, ai_conf, risk_score, risk_tier, pattern, days, pass_type))
+        inc_pass = inc.get("pass_type") or pass_type
+        if not inc_pass:
+            time_str = str(inc.get("acq_time", "")).replace(":", "")
+            try:
+                utc_hour = int(time_str[:2])
+                inc_pass = "DAY" if 5 <= utc_hour <= 16 else "NIGHT"
+            except Exception:
+                inc_pass = "DAY"
+
+        rows.append((run_id, cid, lat, lon, frp, conf, ai_cls, ai_conf, risk_score, risk_tier, pattern, days, inc_pass))
         
     with get_connection(db_path) as conn:
         cursor = conn.cursor()

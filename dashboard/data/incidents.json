@@ -33,7 +33,7 @@
     "raw_image_url": "/crops/case_001/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 279,
+    "persistence_detections": 288,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -109,7 +109,7 @@
     "raw_image_url": "/crops/case_003/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 93,
+    "persistence_detections": 96,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -185,7 +185,7 @@
     "raw_image_url": "/crops/case_010/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 372,
+    "persistence_detections": 384,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -261,7 +261,7 @@
     "raw_image_url": "/crops/case_011/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 403,
+    "persistence_detections": 416,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -337,7 +337,7 @@
     "raw_image_url": "/crops/case_008/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 217,
+    "persistence_detections": 224,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -413,7 +413,7 @@
     "raw_image_url": "/crops/case_004/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
+    "persistence_detections": 32,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -489,7 +489,7 @@
     "raw_image_url": "/crops/case_002/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 93,
+    "persistence_detections": 96,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -565,7 +565,7 @@
     "raw_image_url": "/crops/case_007/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 62,
+    "persistence_detections": 64,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -641,7 +641,7 @@
     "raw_image_url": "/crops/case_006/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 558,
+    "persistence_detections": 576,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -717,7 +717,7 @@
     "raw_image_url": "/crops/case_005/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
+    "persistence_detections": 32,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -793,7 +793,7 @@
     "raw_image_url": "/crops/case_009/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
+    "persistence_detections": 32,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -869,7 +869,7 @@
     "raw_image_url": "/crops/case_012/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 186,
+    "persistence_detections": 192,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -945,7 +945,7 @@
     "raw_image_url": "/crops/case_013/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
+    "persistence_detections": 32,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1021,7 +1021,7 @@
     "raw_image_url": "/crops/case_016/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
+    "persistence_detections": 32,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1097,7 +1097,7 @@
     "raw_image_url": "/crops/case_017/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 93,
+    "persistence_detections": 96,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1173,7 +1173,7 @@
     "raw_image_url": "/crops/case_018/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 124,
+    "persistence_detections": 128,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1249,7 +1249,7 @@
     "raw_image_url": "/crops/case_019/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 93,
+    "persistence_detections": 96,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1324,7 +1324,7 @@
     "raw_image_url": "/crops/case_023/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
+    "persistence_detections": 32,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1399,7 +1399,7 @@
     "raw_image_url": "/crops/case_024/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 62,
+    "persistence_detections": 64,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1474,7 +1474,7 @@
     "raw_image_url": "/crops/case_025/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 62,
+    "persistence_detections": 64,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1517,81 +1517,6 @@
     "priority_rank": 20
   },
   {
-    "id": "case_021",
-    "category_target": "forest_candidate",
-    "latitude": 24.25894,
-    "longitude": 96.54393,
-    "frp": 9.92,
-    "cluster_total_frp": 9.9,
-    "cluster_pixel_count": 1,
-    "operational_triggers": [
-      "MONTANE_FOREST_CANOPY"
-    ],
-    "confidence": "n",
-    "satellite": "N",
-    "instrument": "VIIRS",
-    "acq_date": "2026-09-04",
-    "acq_time": "65:7",
-    "product": "VIIRS_NRT",
-    "location_name": "Indo-Myanmar Mountain Forest Ridge, Chandel District, Manipur",
-    "display_name": "Chandel Forest Division, Manipur, India",
-    "ai_classification": "wildfire",
-    "ai_confidence": 0.72,
-    "ai_uncertainty": "medium",
-    "ai_evidence": [
-      "Active N satellite detection (Peak: 9.9 MW, Cluster Total: 9.9 MW across 1 sensor pixels)",
-      "Operational qualification: MONTANE_FOREST_CANOPY",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 24.2589\u00b0N, 96.5439\u00b0E"
-    ],
-    "ai_reasoning": "Forest vegetation fire anomaly (9.9 MW, Cluster Total: 9.9 MW across 1 pixels) detected in dense montane canopy in Chandel Forest Division, Manipur, India.",
-    "image_url": "/crops/case_021/satellite_annotated.jpg",
-    "raw_image_url": "/crops/case_021/satellite_raw.jpg",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
-    "days_active": 1,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 50,
-    "risk_tier": "MEDIUM",
-    "risk_color": "#f59e0b",
-    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 19.4,
-        "max": 30.0,
-        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 5.0,
-        "max": 25.0,
-        "detail": "9.9 MW (5.0/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 14.0,
-        "max": 20.0,
-        "detail": "Nominal Satellite Confidence (14/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 8.0,
-        "max": 10.0,
-        "detail": "Wildland/Canopy Biomass Fire (8/10 pts)"
-      }
-    ],
-    "priority_rank": 21
-  },
-  {
     "id": "case_014",
     "category_target": "mining_candidate",
     "latitude": 23.75806,
@@ -1625,7 +1550,7 @@
     "raw_image_url": "/crops/case_014/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 279,
+    "persistence_detections": 288,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1665,7 +1590,7 @@
         "detail": "Diffuse Overburden/Coal Heat Anomaly (5/10 pts)"
       }
     ],
-    "priority_rank": 22
+    "priority_rank": 21
   },
   {
     "id": "case_015",
@@ -1701,7 +1626,7 @@
     "raw_image_url": "/crops/case_015/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 403,
+    "persistence_detections": 416,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1741,7 +1666,7 @@
         "detail": "Diffuse Overburden/Coal Heat Anomaly (5/10 pts)"
       }
     ],
-    "priority_rank": 23
+    "priority_rank": 22
   },
   {
     "id": "case_020",
@@ -1776,7 +1701,7 @@
     "raw_image_url": "/crops/case_020/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
+    "persistence_detections": 32,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1816,10 +1741,10 @@
         "detail": "Wildland/Canopy Biomass Fire (8/10 pts)"
       }
     ],
-    "priority_rank": 24
+    "priority_rank": 23
   },
   {
-    "id": "case_022",
+    "id": "case_021",
     "category_target": "forest_candidate",
     "latitude": 27.9844,
     "longitude": 95.93944,
@@ -1847,11 +1772,11 @@
       "Telemetry verified strictly inside sovereign Indian airspace at 27.9844\u00b0N, 95.9394\u00b0E"
     ],
     "ai_reasoning": "Forest vegetation fire anomaly (7.8 MW, Cluster Total: 18.9 MW across 3 pixels) detected in dense montane canopy in Roing Sub-division, Lower Dibang Valley, Arunachal Pradesh, India.",
-    "image_url": "/crops/case_022/satellite_annotated.jpg",
-    "raw_image_url": "/crops/case_022/satellite_raw.jpg",
+    "image_url": "/crops/case_021/satellite_annotated.jpg",
+    "raw_image_url": "/crops/case_021/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 93,
+    "persistence_detections": 96,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1871,6 +1796,81 @@
         "score": 3.9,
         "max": 25.0,
         "detail": "7.8 MW (3.9/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 14.0,
+        "max": 20.0,
+        "detail": "Nominal Satellite Confidence (14/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 4.0,
+        "max": 15.0,
+        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 8.0,
+        "max": 10.0,
+        "detail": "Wildland/Canopy Biomass Fire (8/10 pts)"
+      }
+    ],
+    "priority_rank": 24
+  },
+  {
+    "id": "case_022",
+    "category_target": "forest_candidate",
+    "latitude": 28.49755,
+    "longitude": 97.02412,
+    "frp": 7.47,
+    "cluster_total_frp": 49.1,
+    "cluster_pixel_count": 9,
+    "operational_triggers": [
+      "MONTANE_FOREST_CANOPY"
+    ],
+    "confidence": "n",
+    "satellite": "N20",
+    "instrument": "VIIRS",
+    "acq_date": "2026-09-04",
+    "acq_time": "71:6",
+    "product": "VIIRS_NRT",
+    "location_name": "Northeastern Montane Forest Reserve (28.50\u00b0N, 97.02\u00b0E)",
+    "display_name": "Forest Mountain Sector, Arunachal/Assam Border, India",
+    "ai_classification": "wildfire",
+    "ai_confidence": 0.72,
+    "ai_uncertainty": "medium",
+    "ai_evidence": [
+      "Active N20 satellite detection (Peak: 7.5 MW, Cluster Total: 49.1 MW across 9 sensor pixels)",
+      "Operational qualification: MONTANE_FOREST_CANOPY",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 28.4976\u00b0N, 97.0241\u00b0E"
+    ],
+    "ai_reasoning": "Forest vegetation fire anomaly (7.5 MW, Cluster Total: 49.1 MW across 9 pixels) detected in dense montane canopy in Forest Mountain Sector, Arunachal/Assam Border, India.",
+    "image_url": "/crops/case_022/satellite_annotated.jpg",
+    "raw_image_url": "/crops/case_022/satellite_raw.jpg",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 96,
+    "days_active": 2,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 49,
+    "risk_tier": "MEDIUM",
+    "risk_color": "#f59e0b",
+    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 19.4,
+        "max": 30.0,
+        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 3.7,
+        "max": 25.0,
+        "detail": "7.5 MW (3.7/25.0 pts)"
       },
       {
         "factor": "FIRMS Instrument Confidence",
@@ -1926,7 +1926,7 @@
     "raw_image_url": "/crops/case_026/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 31,
+    "persistence_detections": 32,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,

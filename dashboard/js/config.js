@@ -22,7 +22,7 @@ export const MAP_HOME = { center: [22.4, 79.5], zoom: 5 };
 export const TIERS = [
   { id: "CRITICAL", min: 81, max: 100, label: "Critical" },
   { id: "HIGH", min: 61, max: 80, label: "High" },
-  { id: "MEDIUM", min: 31, max: 60, label: "Medium" },
+  { id: "MEDIUM", min: 36, max: 60, label: "Medium" },
   { id: "LOW", min: 0, max: 35, label: "Low" },
 ];
 
