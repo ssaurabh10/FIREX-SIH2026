@@ -89,9 +89,11 @@ class FIREXMapHandler(http.server.SimpleHTTPRequestHandler):
 
         elif parsed.path == "/api/trigger-sync":
             try:
+                import importlib
                 if GIS_DIR not in sys.path:
                     sys.path.insert(0, GIS_DIR)
                 import prepare_map_data
+                importlib.reload(prepare_map_data)
                 prepare_map_data.prepare_data()
 
                 _pers_dir = os.path.join(BASE_DIR, "pipeline", "07_persistence")

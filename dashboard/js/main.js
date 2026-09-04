@@ -17,7 +17,7 @@ const PREFS_KEY = "firex_prefs";
 
 const state = {
   view: "map",
-  window: "48h",
+  window: "all",
   filter: "all",
   query: "",
   ambient: true,

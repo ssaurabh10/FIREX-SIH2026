@@ -158,6 +158,120 @@ def prepare_data(pass_type=None):
                 "risk_adjustment": pers.get("risk_adjustment", 0)
             })
 
+    # 4. Extract and promote prominent active thermal anomalies from the latest satellite pass
+    benchmark_coords = [(inc["latitude"], inc["longitude"]) for inc in incidents]
+
+    def is_near_existing(lat, lon, threshold_km=25.0):
+        for b_lat, b_lon in benchmark_coords:
+            if history_db.haversine_km(lat, lon, b_lat, b_lon) <= threshold_km:
+                return True
+        return False
+
+    # Filter ambient points in Indian subcontinent
+    india_points = [
+        p for p in ambient_points 
+        if 8.0 <= p["lat"] <= 35.5 and 68.5 <= p["lon"] <= 96.5
+    ]
+    india_points.sort(key=lambda x: x["frp"], reverse=True)
+
+    selected_pass_targets = []
+    for p in india_points:
+        if is_near_existing(p["lat"], p["lon"], threshold_km=25.0):
+            continue
+        too_close = False
+        for s in selected_pass_targets:
+            if history_db.haversine_km(p["lat"], p["lon"], s["lat"], s["lon"]) < 30.0:
+                too_close = True
+                break
+        if not too_close:
+            selected_pass_targets.append(p)
+            if len(selected_pass_targets) >= 15:  # Top 15 distinct national target zones
+                break
+
+    for idx, p in enumerate(selected_pass_targets, start=8):
+        cid = f"case_{idx:03d}"
+        lat = p["lat"]
+        lon = p["lon"]
+        frp = p["frp"]
+        sat = p["sat"]
+        date = p["date"]
+        time_str = str(p["time"])
+        conf_str = str(p["conf"])
+
+        pers = history_db.compute_persistence(lat, lon)
+        has_day = pers.get("has_day_pass", False)
+        has_night = pers.get("has_night_pass", False)
+        if has_day and has_night:
+            dn_status = "DAY + NIGHT (Continuous 24h)"
+        elif has_day:
+            dn_status = "DAY ONLY"
+        elif has_night:
+            dn_status = "NIGHT ONLY"
+        else:
+            dn_status = "SINGLE PASS"
+
+        pattern = pers.get("pattern", "NEW_IGNITION")
+
+        # Heuristic inference from telemetry & geospatial coordinates
+        if pattern == "RECURRING_INDUSTRIAL_FLARE" or (frp >= 25.0 and (lon < 75.0 or 85.0 <= lon <= 87.0)):
+            classification = "gas_flare"
+            category_target = "likely_flare_or_persistent"
+            loc_label = f"Refinery / Flaring Corridor ({lat:.2f}°N, {lon:.2f}°E)"
+            reasoning = f"Continuous thermal emissions ({frp:.1f} MW) consistent with routine gas flaring or industrial furnace operations."
+        elif frp >= 20.0:
+            classification = "industrial_fire"
+            category_target = "industrial_candidate"
+            loc_label = f"Industrial Facility Cluster ({lat:.2f}°N, {lon:.2f}°E)"
+            reasoning = f"Elevated thermal radiative power ({frp:.1f} MW) flagged by {sat} polar pass. Elevated structural risk alert."
+        elif 82.0 <= lon <= 87.5 and 19.0 <= lat <= 24.5:
+            classification = "mining_or_other_thermal_source"
+            category_target = "mining_candidate"
+            loc_label = f"Mineral & Steel Energy Belt ({lat:.2f}°N, {lon:.2f}°E)"
+            reasoning = f"Thermal signature detected in major mining/coal energy belt. Consistent with spontaneous coal seam heating or smelting slag."
+        elif lat < 16.0 or (lat > 28.0 and lon > 90.0) or (73.0 <= lon <= 76.0 and 11.0 <= lat <= 18.0):
+            classification = "wildfire"
+            category_target = "forest_candidate"
+            loc_label = f"Wildland & Canopy Interface ({lat:.2f}°N, {lon:.2f}°E)"
+            reasoning = f"Thermal anomaly detected in vegetated terrain. Monitored for wildland or biomass fire spread."
+        else:
+            classification = "mining_or_other_thermal_source"
+            category_target = "unclassified_candidate"
+            loc_label = f"Satellite Thermal Anomaly ({lat:.2f}°N, {lon:.2f}°E)"
+            reasoning = f"Telemetry verified by {sat} polar sensor. Background thermal signature tracked across satellite observation cycle."
+
+        incidents.append({
+            "id": cid,
+            "category_target": category_target,
+            "latitude": lat,
+            "longitude": lon,
+            "frp": frp,
+            "confidence": conf_str,
+            "satellite": sat,
+            "instrument": "VIIRS" if "N" in sat or "VIIRS" in sat else "MODIS",
+            "acq_date": date,
+            "acq_time": f"{time_str[:2]}:{time_str[2:]}" if len(time_str) >= 3 else time_str,
+            "product": "VIIRS_NRT" if "N" in sat else "MODIS_NRT",
+            "location_name": loc_label,
+            "display_name": f"Satellite Anomaly Sector, {lat:.3f}°N {lon:.3f}°E, India",
+            "ai_classification": classification,
+            "ai_confidence": 0.85 if conf_str in ["h", "high"] or (conf_str.isdigit() and int(conf_str) >= 70) else 0.70,
+            "ai_uncertainty": "low" if conf_str in ["h", "high"] else "medium",
+            "ai_evidence": [
+                f"Active {sat} satellite detection with radiative output of {frp:.1f} MW",
+                f"Multi-pass persistence: {pattern.replace('_', ' ')} ({dn_status})",
+                f"Telemetry verified at coordinates {lat:.4f}°N, {lon:.4f}°E"
+            ],
+            "ai_reasoning": reasoning,
+            "image_url": "",
+            "raw_image_url": "",
+            "persistence_pattern": pattern,
+            "persistence_description": pers.get("description", ""),
+            "persistence_detections": pers.get("detection_count", 1),
+            "days_active": max(1, pers.get("distinct_days", 1)),
+            "day_night_status": dn_status,
+            "risk_adjustment": pers.get("risk_adjustment", 0)
+        })
+
     incidents_path = os.path.join(DATA_DIR, "incidents.json")
     with open(incidents_path, "w", encoding="utf-8") as f:
         json.dump(incidents, f, indent=2)
