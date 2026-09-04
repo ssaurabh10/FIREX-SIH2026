@@ -537,6 +537,53 @@ function wireKeys() {
   });
 }
 
+/* --- Satellite Orbit & Persistence Sync Widget (Section 7 & 8) ----------- */
+async function updatePersistenceWidget() {
+  try {
+    const res = await fetch("/api/history-stats");
+    if (!res.ok) return;
+    const data = await res.json();
+    const passBadge = document.getElementById("daemon-pass-badge");
+    const totalHotspots = document.getElementById("daemon-total-hotspots");
+    const runsCount = document.getElementById("daemon-runs-count");
+
+    if (passBadge) passBadge.textContent = `${data.current_pass} PASS ACTIVE`;
+    if (totalHotspots) totalHotspots.textContent = Number(data.total_hotspots).toLocaleString();
+    if (runsCount) runsCount.textContent = `${data.total_runs} cycles`;
+  } catch { /* graceful fallback */ }
+}
+
+function wirePersistenceSync() {
+  const syncBtn = document.getElementById("btn-trigger-sync");
+  if (!syncBtn) return;
+  syncBtn.addEventListener("click", async () => {
+    syncBtn.disabled = true;
+    const origHtml = syncBtn.innerHTML;
+    syncBtn.innerHTML = `<span class="tag__dot" style="background:#f59e0b"></span> Ingesting...`;
+    try {
+      const res = await fetch("/api/trigger-sync");
+      if (res.ok) {
+        syncBtn.innerHTML = `✓ Ingested!`;
+        await load();
+        await updatePersistenceWidget();
+        renderAll();
+        setTimeout(() => {
+          syncBtn.disabled = false;
+          syncBtn.innerHTML = origHtml;
+        }, 2000);
+      } else {
+        throw new Error("Sync failed");
+      }
+    } catch {
+      syncBtn.innerHTML = `Failed`;
+      setTimeout(() => {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = origHtml;
+      }, 2000);
+    }
+  });
+}
+
 /* --- Boot ----------------------------------------------------------------- */
 
 /* Leaflet is fetched from a CDN, so it is the one part of this console that a
@@ -607,6 +654,8 @@ async function boot() {
   wireControls();
   wireKeys();
   initSpotlightNav();
+  wirePersistenceSync();
+  updatePersistenceWidget();
 
   /* Skeletons in the real panel geometry, so nothing shifts when data lands. */
   ["overview-body", "inv-grid", "industrial-body", "analytics-body", "settings-body"]

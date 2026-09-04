@@ -7,6 +7,8 @@ __pycache__/
 dist/
 build/
 *.egg
+*.db-wal
+*.db-shm
 
 # API keys / secrets - NEVER commit active keys
 config.py

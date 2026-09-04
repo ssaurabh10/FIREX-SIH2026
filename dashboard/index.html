@@ -112,6 +112,26 @@
       <div class="mapview">
 
         <div class="mapview__rail">
+          <!-- 2x Daily Satellite Orbit & Persistence Sync Widget (Section 7 & 8) -->
+          <div class="glass glass--over panel" style="padding: 10px 14px; margin-bottom: 8px; flex-shrink: 0; border: 1px solid var(--line-strong);">
+            <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <div class="row" style="gap: 6px; align-items: center;">
+                <span class="tag tag--signal" style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 600; padding: 2px 6px;">
+                  <span class="tag__dot" style="background: #10b981; width: 6px; height: 6px; border-radius: 50%;"></span>
+                  <span id="daemon-pass-badge">NIGHT PASS ACTIVE</span>
+                </span>
+                <span class="u-micro u-quiet" style="font-size: 0.65rem;">2x Daily Sync</span>
+              </div>
+              <button class="btn btn--sm" id="btn-trigger-sync" type="button" title="Synchronize latest satellite pass into time-series DB" style="padding: 2px 8px; font-size: 0.68rem; height: 22px; cursor: pointer;">
+                <svg class="i i--sm" aria-hidden="true" style="width: 12px; height: 12px; vertical-align: middle;"><use href="#i-pulse"/></svg> Sync Pass
+              </button>
+            </div>
+            <div class="row" style="justify-content: space-between; font-size: 0.67rem; color: var(--t-secondary);">
+              <span>Database: <strong id="daemon-total-hotspots" style="color: var(--t-primary); font-family: var(--font-mono, monospace);">2,548</strong> Hotspots</span>
+              <span id="daemon-runs-count" style="color: var(--t-tertiary);">4 cycles (12h)</span>
+            </div>
+          </div>
+
           <div class="glass glass--over panel queue-panel" style="flex:1;min-height:0">
             <div class="panel__head panel__head--tight">
               <div class="row">

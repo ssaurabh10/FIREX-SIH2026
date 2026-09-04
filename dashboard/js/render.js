@@ -406,12 +406,24 @@ export function renderOverview(el, ctx) {
     timeline(cases, selected),
     { foot: legend() });
 
+  const persistencePanel = panel("Satellite Passes & Time-Series Intelligence",
+    `<span class="tag tag--signal">Section 7 & 8</span>`,
+    kvRows([
+      ["Cadence", "2x Daily (12-Hour Cadence)"],
+      ["Satellites", "VIIRS (S-NPP, NOAA-20) & MODIS (Aqua, Terra)"],
+      ["Pass Timing", "Day ~14:00 IST | Night ~02:30 IST"],
+      ["Persistence Rules", "Day + Night Continuous Flare vs Sudden New Ignition"],
+      ["Storage Engine", "SQLite WAL Time-Series (firex_history.db)"],
+      ["Automated Daemon", "python run.py daemon [--interval 12] [--once]"],
+    ], "kv kv--wide"),
+    { foot: `<p class="u-micro">Historical multi-pass tracking separates stationary flares from emerging wildfire outbreaks.</p>` });
+
   set(el, `
     ${head}
     <div class="grid-2">${work}${integrity}</div>
+    <div class="grid-2" style="margin-top:var(--s-3)">${persistencePanel}${panel("Risk distribution", "", `<div id="ov-hist"></div>`)}</div>
     ${when}
     <div class="grid-2">
-      ${panel("Risk distribution", "", `<div id="ov-hist"></div>`)}
       ${panel("Classification mix", `<span class="u-micro u-num">${cases.length} cases</span>`,
         ranksBlock(byClass(cases), cases.length))}
     </div>`);
