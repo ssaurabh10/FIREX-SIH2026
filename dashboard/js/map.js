@@ -171,19 +171,49 @@ export function drawAmbient(points, visible) {
   if (!visible) { mapState.onViewChange(countInView()); return; }
 
   const currentZoom = mapState.map.getZoom();
-  // Canvas-optimized batch rendering with dynamic zoom-scaled radius
+  // Canvas-optimized batch rendering with dynamic zoom-scaled radius & interactive tooltips
   points.forEach((p) => {
     const r = getAmbientRadius(p.frp, currentZoom);
+    const satName = p.sat === "N20" ? "VIIRS NOAA-20" : p.sat === "NPP" ? "VIIRS Suomi-NPP" : p.sat === "MOD" ? "MODIS Aqua/Terra" : (p.sat || "NASA FIRMS");
+    const confLabel = p.conf === "h" ? "High" : p.conf === "n" ? "Nominal" : p.conf === "l" ? "Low" : (p.conf ? String(p.conf) : "Unreported");
+    const timeFormatted = p.time ? `${String(p.time).padStart(4, "0").slice(0, 2)}:${String(p.time).padStart(4, "0").slice(2)} UTC` : "";
+    const dateFormatted = p.date || "";
+
+    const tipContent = `
+      <div class="amb-tip">
+        <div class="amb-tip__title">NASA FIRMS HOTSPOT</div>
+        <div class="amb-tip__row"><span>FRP:</span> <b>${p.frp} MW</b></div>
+        <div class="amb-tip__row"><span>Satellite:</span> <b>${escapeHtml(satName)}</b></div>
+        <div class="amb-tip__row"><span>Confidence:</span> <b>${escapeHtml(confLabel)}</b></div>
+        ${dateFormatted ? `<div class="amb-tip__row"><span>Acquired:</span> <b>${escapeHtml(dateFormatted)} ${escapeHtml(timeFormatted)}</b></div>` : ""}
+        <div class="amb-tip__row"><span>Coord:</span> <b>${p.lat.toFixed(4)}°, ${p.lon.toFixed(4)}°</b></div>
+      </div>
+    `;
+
     const marker = L.circleMarker([p.lat, p.lon], {
       radius: r,
       stroke: true,
       color: "#ffc233",
       weight: 1,
-      opacity: 0.8,
+      opacity: 0.85,
       fillColor: "#ff9900",
-      fillOpacity: 0.6,
-      interactive: false,
+      fillOpacity: 0.65,
+      interactive: true,
     }).addTo(mapState.ambient);
+
+    marker.bindTooltip(tipContent, {
+      direction: "top",
+      offset: [0, -r],
+      sticky: true,
+      className: "amb-tip-box"
+    });
+
+    marker.bindPopup(tipContent, {
+      className: "amb-popup-box",
+      closeButton: false,
+      offset: [0, -r]
+    });
+
     mapState.ambientLayers.push({ marker, frp: p.frp });
   });
   mapState.onViewChange(countInView());
