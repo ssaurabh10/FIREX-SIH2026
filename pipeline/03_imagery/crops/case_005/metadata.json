@@ -1,19 +1,71 @@
 {
   "id": "case_005",
-  "category_target": "forest_candidate",
-  "latitude": 12.09725,
-  "longitude": 77.06553,
-  "acq_date": "2026-09-02",
-  "acq_time": "08:12",
+  "category_target": "mining_candidate",
+  "latitude": 20.9705,
+  "longitude": 85.17382,
+  "frp": 15.42,
+  "confidence": "20",
   "satellite": "Aqua",
   "instrument": "MODIS",
-  "frp": 11.21,
-  "confidence": "54%",
+  "acq_date": "2026-09-03",
+  "acq_time": "21:44",
   "product": "MODIS_NRT",
-  "expected_ground_truth": "BR Hills / Chamarajanagar Forest & Wildlife Sanctuary, Karnataka (Western Ghats deciduous forest zone)",
-  "osm_display_name": "Shivakalli, Yalanduru taluk, Chamarajanagar, Karnataka, 571485, India",
-  "map_url": "https://www.google.com/maps?q=12.09725,77.06553&t=k",
-  "osm_url": "https://www.openstreetmap.org/?mlat=12.09725&mlon=77.06553#map=15/12.09725/77.06553",
+  "location_name": "Talcher Coalfields & NTPC Super Thermal Power Complex, Angul, Odisha",
+  "display_name": "Talcher Sadar, Angul District, Odisha, India",
+  "ai_classification": "mining_or_other_thermal_source",
+  "ai_confidence": 0.72,
+  "ai_uncertainty": "medium",
+  "ai_evidence": [
+    "Active Aqua satellite detection with radiative output of 15.4 MW",
+    "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+    "Telemetry verified strictly inside sovereign Indian airspace at 20.9705\u00b0N, 85.1738\u00b0E"
+  ],
+  "ai_reasoning": "Subsurface coal seam fire or open-cast excavation thermal anomaly (15.4 MW) in Talcher Sadar, Angul District, Odisha, India.",
+  "image_url": "/crops/case_005/satellite_annotated.jpg",
+  "raw_image_url": "/crops/case_005/satellite_raw.jpg",
+  "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+  "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+  "persistence_detections": 19,
+  "days_active": 1,
+  "day_night_status": "DAY + NIGHT (Continuous 24h)",
+  "risk_adjustment": -15,
+  "risk_score": 51,
+  "risk_tier": "MEDIUM",
+  "risk_color": "#f59e0b",
+  "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+  "risk_factors": [
+    {
+      "factor": "Vision AI Certainty",
+      "score": 19.4,
+      "max": 30.0,
+      "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+    },
+    {
+      "factor": "Fire Radiative Power",
+      "score": 7.7,
+      "max": 25.0,
+      "detail": "15.4 MW (7.7/25.0 pts)"
+    },
+    {
+      "factor": "FIRMS Instrument Confidence",
+      "score": 7.0,
+      "max": 20.0,
+      "detail": "Low Satellite Confidence (7/20 pts)"
+    },
+    {
+      "factor": "Hazardous Proximity",
+      "score": 12.0,
+      "max": 15.0,
+      "detail": "Heavy Industrial/Power Infrastructure (<500m, 12/15 pts)"
+    },
+    {
+      "factor": "Source Category Hazard",
+      "score": 5.0,
+      "max": 10.0,
+      "detail": "Diffuse Overburden/Coal Heat Anomaly (5/10 pts)"
+    }
+  ],
+  "priority_rank": 11,
   "image_files": {
     "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_005\\satellite_raw.jpg",
     "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_005\\satellite_annotated.jpg",

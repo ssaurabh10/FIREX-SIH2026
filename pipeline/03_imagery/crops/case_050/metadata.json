@@ -1,0 +1,16 @@
+{
+  "id": "case_050",
+  "latitude": 26.7609,
+  "longitude": 83.19978,
+  "frp": 3.62,
+  "satellite": "N20",
+  "instrument": "VIIRS",
+  "category_target": "agricultural_burning",
+  "ai_classification": "agricultural_burning",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_050\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_050\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

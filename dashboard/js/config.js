@@ -38,9 +38,10 @@ export function isTier(id) {
 /* Classification taxonomy. `icon` is the glyph that carries the class on the
    map, so severity colour stays free to carry risk instead. */
 export const CLASSES = {
-  industrial_fire: { label: "Industrial fire", short: "Industrial", icon: "i-flame", group: "industrial" },
+  uncontrolled_industrial_fire: { label: "Uncontrolled industrial fire", short: "Uncontrolled", icon: "i-warning", group: "critical" },
+  industrial_fire: { label: "Industrial fire / Smelter", short: "Industrial", icon: "i-factory", group: "industrial" },
   gas_flare: { label: "Gas flare", short: "Flare", icon: "i-flare", group: "industrial" },
-  mining_or_other_thermal_source: { label: "Mining or other thermal source", short: "Mining", icon: "i-mining", group: "industrial" },
+  mining_or_other_thermal_source: { label: "Mining / Coal seam fire", short: "Mining", icon: "i-mining", group: "industrial" },
   wildfire: { label: "Wildfire", short: "Wildfire", icon: "i-wildfire", group: "natural" },
   agricultural_burning: { label: "Agricultural burning", short: "Agricultural", icon: "i-crop", group: "natural" },
   uncertain: { label: "Not visually confirmable", short: "Uncertain", icon: "i-question", group: "unknown" },
@@ -56,10 +57,11 @@ export function classOf(id) {
 export const FILTERS = [
   { id: "all", label: "All", test: () => true },
   { id: "critical", label: "Critical", test: (c) => c.risk.tier === "CRITICAL" || c.risk.tier === "HIGH" },
-  { id: "industrial", label: "Industrial", test: (c) => c.classId === "industrial_fire" },
+  { id: "industrial", label: "Industrial", test: (c) => c.classId === "industrial_fire" || c.classId === "uncontrolled_industrial_fire" },
   { id: "flare", label: "Flare", test: (c) => c.classId === "gas_flare" },
   { id: "mining", label: "Mining", test: (c) => c.classId === "mining_or_other_thermal_source" },
   { id: "wildfire", label: "Wildfire", test: (c) => c.classId === "wildfire" },
+  { id: "agri", label: "Agricultural", test: (c) => c.classId === "agricultural_burning" },
   { id: "uncertain", label: "Unconfirmed", test: (c) => !c.confirmed },
 ];
 

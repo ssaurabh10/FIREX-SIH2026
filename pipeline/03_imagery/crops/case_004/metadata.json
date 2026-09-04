@@ -1,19 +1,71 @@
 {
   "id": "case_004",
-  "category_target": "likely_flare_or_persistent",
-  "latitude": 29.9098,
-  "longitude": 74.95193,
-  "acq_date": "2026-09-03",
-  "acq_time": "09:39",
-  "satellite": "Aqua",
-  "instrument": "MODIS",
-  "frp": 48.91,
-  "confidence": "60%",
-  "product": "MODIS_NRT",
-  "expected_ground_truth": "Talwandi Sabo / Bathinda, Punjab (Repeated detections by Aqua & Terra; HMEL Refinery / Thermal Power complex)",
-  "osm_display_name": "Rattangarh Kanakwal, Talwandi Sabo Tahsil, Bathinda, Punjab, India",
-  "map_url": "https://www.google.com/maps?q=29.9098,74.95193&t=k",
-  "osm_url": "https://www.openstreetmap.org/?mlat=29.9098&mlon=74.95193#map=15/29.9098/74.95193",
+  "category_target": "industrial_candidate",
+  "latitude": 9.20293,
+  "longitude": 77.64448,
+  "frp": 19.15,
+  "confidence": "n",
+  "satellite": "N",
+  "instrument": "VIIRS",
+  "acq_date": "2026-09-04",
+  "acq_time": "83:5",
+  "product": "VIIRS_NRT",
+  "location_name": "Kuruvikulam Industrial & Mineral Processing Sector, Tenkasi, Tamil Nadu",
+  "display_name": "Kuruvikulam, Sankarankoil, Tenkasi, Tamil Nadu, India",
+  "ai_classification": "industrial_fire",
+  "ai_confidence": 0.72,
+  "ai_uncertainty": "medium",
+  "ai_evidence": [
+    "Active N satellite detection with radiative output of 19.1 MW",
+    "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+    "Telemetry verified strictly inside sovereign Indian airspace at 9.2029\u00b0N, 77.6445\u00b0E"
+  ],
+  "ai_reasoning": "Intense industrial thermal emission (19.1 MW) consistent with metal smelting or blast furnace operations in Kuruvikulam, Sankarankoil, Tenkasi, Tamil Nadu, India.",
+  "image_url": "/crops/case_004/satellite_annotated.jpg",
+  "raw_image_url": "/crops/case_004/satellite_raw.jpg",
+  "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+  "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+  "persistence_detections": 19,
+  "days_active": 1,
+  "day_night_status": "DAY + NIGHT (Continuous 24h)",
+  "risk_adjustment": -15,
+  "risk_score": 61,
+  "risk_tier": "HIGH",
+  "risk_color": "#ff7700",
+  "action_recommendation": "ELEVATED SURVEILLANCE & FACILITY OPERATOR VERIFICATION",
+  "risk_factors": [
+    {
+      "factor": "Vision AI Certainty",
+      "score": 19.4,
+      "max": 30.0,
+      "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+    },
+    {
+      "factor": "Fire Radiative Power",
+      "score": 9.6,
+      "max": 25.0,
+      "detail": "19.1 MW (9.6/25.0 pts)"
+    },
+    {
+      "factor": "FIRMS Instrument Confidence",
+      "score": 14.0,
+      "max": 20.0,
+      "detail": "Nominal Satellite Confidence (14/20 pts)"
+    },
+    {
+      "factor": "Hazardous Proximity",
+      "score": 8.0,
+      "max": 15.0,
+      "detail": "Open-Pit Mining Extraction Belt (<1km, 8/15 pts)"
+    },
+    {
+      "factor": "Source Category Hazard",
+      "score": 10.0,
+      "max": 10.0,
+      "detail": "Uncontrolled Structural Industrial Fire (10/10 pts)"
+    }
+  ],
+  "priority_rank": 5,
   "image_files": {
     "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_004\\satellite_raw.jpg",
     "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_004\\satellite_annotated.jpg",

@@ -1,19 +1,71 @@
 {
   "id": "case_002",
   "category_target": "industrial_candidate",
-  "latitude": 20.96492,
-  "longitude": 85.17074,
-  "acq_date": "2026-09-02",
-  "acq_time": "07:29",
-  "satellite": "Suomi-NPP",
+  "latitude": 8.84638,
+  "longitude": 77.70205,
+  "frp": 22.48,
+  "confidence": "n",
+  "satellite": "N",
   "instrument": "VIIRS",
-  "frp": 7.94,
-  "confidence": "low",
-  "product": "VIIRS_SNPP_NRT",
-  "expected_ground_truth": "Angul - Talcher Industrial Belt, Odisha (NTPC Thermal Power Station, Coal Mines & Heavy Metal Smelters)",
-  "osm_display_name": "Talcher Sadar, Angul, Odisha, India",
-  "map_url": "https://www.google.com/maps?q=20.96492,85.17074&t=k",
-  "osm_url": "https://www.openstreetmap.org/?mlat=20.96492&mlon=85.17074#map=15/20.96492/85.17074",
+  "acq_date": "2026-09-04",
+  "acq_time": "83:5",
+  "product": "VIIRS_NRT",
+  "location_name": "Gangaikondan / Pallikottai Heavy Industrial Corridor, Tirunelveli, Tamil Nadu",
+  "display_name": "Pallikottai, Manur Taluk, Tirunelveli, Tamil Nadu, India",
+  "ai_classification": "industrial_fire",
+  "ai_confidence": 0.72,
+  "ai_uncertainty": "medium",
+  "ai_evidence": [
+    "Active N satellite detection with radiative output of 22.5 MW",
+    "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+    "Telemetry verified strictly inside sovereign Indian airspace at 8.8464\u00b0N, 77.7020\u00b0E"
+  ],
+  "ai_reasoning": "Intense industrial thermal emission (22.5 MW) consistent with metal smelting or blast furnace operations in Pallikottai, Manur Taluk, Tirunelveli, Tamil Nadu, India.",
+  "image_url": "/crops/case_002/satellite_annotated.jpg",
+  "raw_image_url": "/crops/case_002/satellite_raw.jpg",
+  "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+  "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+  "persistence_detections": 57,
+  "days_active": 1,
+  "day_night_status": "DAY + NIGHT (Continuous 24h)",
+  "risk_adjustment": -15,
+  "risk_score": 59,
+  "risk_tier": "MEDIUM",
+  "risk_color": "#f59e0b",
+  "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+  "risk_factors": [
+    {
+      "factor": "Vision AI Certainty",
+      "score": 19.4,
+      "max": 30.0,
+      "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+    },
+    {
+      "factor": "Fire Radiative Power",
+      "score": 11.2,
+      "max": 25.0,
+      "detail": "22.5 MW (11.2/25.0 pts)"
+    },
+    {
+      "factor": "FIRMS Instrument Confidence",
+      "score": 14.0,
+      "max": 20.0,
+      "detail": "Nominal Satellite Confidence (14/20 pts)"
+    },
+    {
+      "factor": "Hazardous Proximity",
+      "score": 4.0,
+      "max": 15.0,
+      "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+    },
+    {
+      "factor": "Source Category Hazard",
+      "score": 10.0,
+      "max": 10.0,
+      "detail": "Uncontrolled Structural Industrial Fire (10/10 pts)"
+    }
+  ],
+  "priority_rank": 7,
   "image_files": {
     "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_002\\satellite_raw.jpg",
     "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_002\\satellite_annotated.jpg",

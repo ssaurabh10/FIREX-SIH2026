@@ -11,6 +11,7 @@ import json
 import posixpath
 import http.server
 import socketserver
+import time
 from datetime import datetime
 from urllib.parse import unquote, urlsplit
 
@@ -53,6 +54,15 @@ class FIREXMapHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlsplit(self.path)
+        if parsed.path == "/api/health":
+            payload = json.dumps({"status": "OK", "timestamp": datetime.now().isoformat()}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
         if parsed.path == "/api/history-stats":
             try:
                 _pers_dir = os.path.join(BASE_DIR, "pipeline", "07_persistence")
@@ -86,6 +96,44 @@ class FIREXMapHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(err_payload)
                 return
+
+        elif parsed.path == "/api/trigger-sync-stream":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache, no-transform")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+
+            def send_event(stage, pct, label, detail, extra=None):
+                event_data = {
+                    "stage": stage,
+                    "pct": pct,
+                    "label": label,
+                    "detail": detail,
+                    "extra": extra or {},
+                    "done": (pct >= 100)
+                }
+                msg = f"data: {json.dumps(event_data)}\n\n"
+                try:
+                    self.wfile.write(msg.encode("utf-8"))
+                    self.wfile.flush()
+                except Exception:
+                    pass
+
+            try:
+                import importlib
+                if GIS_DIR not in sys.path:
+                    sys.path.insert(0, GIS_DIR)
+                import prepare_map_data
+                importlib.reload(prepare_map_data)
+
+                send_event(0, 5, "Initializing Mission Orbit Pipeline", "Starting satellite telemetry sync and persistence engine...")
+                time.sleep(0.3)
+
+                prepare_map_data.prepare_data(progress_cb=send_event)
+            except Exception as e:
+                send_event(5, 100, "Sync Error", str(e), {"error": True})
+            return
 
         elif parsed.path == "/api/trigger-sync":
             try:

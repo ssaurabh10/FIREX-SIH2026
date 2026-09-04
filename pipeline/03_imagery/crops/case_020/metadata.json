@@ -1,0 +1,16 @@
+{
+  "id": "case_020",
+  "latitude": 27.72401,
+  "longitude": 94.38616,
+  "frp": 10.09,
+  "satellite": "Aqua",
+  "instrument": "MODIS",
+  "category_target": "forest_candidate",
+  "ai_classification": "wildfire",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_020\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_020\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

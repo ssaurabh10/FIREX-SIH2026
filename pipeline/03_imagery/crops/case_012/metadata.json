@@ -1,0 +1,16 @@
+{
+  "id": "case_012",
+  "latitude": 23.64901,
+  "longitude": 85.4397,
+  "frp": 7.61,
+  "satellite": "Terra",
+  "instrument": "MODIS",
+  "category_target": "mining_candidate",
+  "ai_classification": "mining_or_other_thermal_source",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_012\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_012\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

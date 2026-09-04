@@ -1,0 +1,16 @@
+{
+  "id": "case_030",
+  "latitude": 15.17327,
+  "longitude": 76.85405,
+  "frp": 7.75,
+  "satellite": "Aqua",
+  "instrument": "MODIS",
+  "category_target": "agricultural_burning",
+  "ai_classification": "agricultural_burning",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_030\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_030\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

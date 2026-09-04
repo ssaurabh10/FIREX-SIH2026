@@ -1,0 +1,16 @@
+{
+  "id": "case_037",
+  "latitude": 28.181,
+  "longitude": 95.66731,
+  "frp": 5.65,
+  "satellite": "N",
+  "instrument": "VIIRS",
+  "category_target": "forest_candidate",
+  "ai_classification": "wildfire",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_037\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_037\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

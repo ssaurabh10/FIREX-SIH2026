@@ -1,19 +1,71 @@
 {
   "id": "case_001",
-  "category_target": "industrial_candidate",
-  "latitude": 21.10291,
-  "longitude": 72.64852,
-  "acq_date": "2026-09-02",
-  "acq_time": "08:10",
-  "satellite": "NOAA-20",
-  "instrument": "VIIRS",
-  "frp": 9.08,
-  "confidence": "nominal",
-  "product": "VIIRS_NOAA20_NRT",
-  "expected_ground_truth": "Hazira Industrial Area, Surat, Gujarat (Major petrochemical, ONGC gas, AM/NS steel, and LNG terminal hub)",
-  "osm_display_name": "Hazira, Chorasi Taluka, Surat, Gujarat, 394270, India",
-  "map_url": "https://www.google.com/maps?q=21.10291,72.64852&t=k",
-  "osm_url": "https://www.openstreetmap.org/?mlat=21.10291&mlon=72.64852#map=15/21.10291/72.64852",
+  "category_target": "likely_flare_or_persistent",
+  "latitude": 29.9098,
+  "longitude": 74.95193,
+  "frp": 48.91,
+  "confidence": "60",
+  "satellite": "Aqua",
+  "instrument": "MODIS",
+  "acq_date": "2026-09-03",
+  "acq_time": "93:9",
+  "product": "MODIS_NRT",
+  "location_name": "HMEL Guru Gobind Singh Oil Refinery, Talwandi Sabo, Bathinda, Punjab",
+  "display_name": "Rattangarh Kanakwal, Bathinda, Punjab, India",
+  "ai_classification": "gas_flare",
+  "ai_confidence": 0.72,
+  "ai_uncertainty": "medium",
+  "ai_evidence": [
+    "Active Aqua satellite detection with radiative output of 48.9 MW",
+    "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+    "Telemetry verified strictly inside sovereign Indian airspace at 29.9098\u00b0N, 74.9519\u00b0E"
+  ],
+  "ai_reasoning": "High-temperature continuous flaring (48.9 MW) at petroleum/refinery processing complex in Rattangarh Kanakwal, Bathinda, Punjab, India.",
+  "image_url": "/crops/case_001/satellite_annotated.jpg",
+  "raw_image_url": "/crops/case_001/satellite_raw.jpg",
+  "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+  "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+  "persistence_detections": 171,
+  "days_active": 2,
+  "day_night_status": "DAY + NIGHT (Continuous 24h)",
+  "risk_adjustment": -15,
+  "risk_score": 79,
+  "risk_tier": "HIGH",
+  "risk_color": "#ff7700",
+  "action_recommendation": "ELEVATED SURVEILLANCE & FACILITY OPERATOR VERIFICATION",
+  "risk_factors": [
+    {
+      "factor": "Vision AI Certainty",
+      "score": 19.4,
+      "max": 30.0,
+      "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+    },
+    {
+      "factor": "Fire Radiative Power",
+      "score": 24.5,
+      "max": 25.0,
+      "detail": "48.9 MW (24.5/25.0 pts)"
+    },
+    {
+      "factor": "FIRMS Instrument Confidence",
+      "score": 14.0,
+      "max": 20.0,
+      "detail": "Nominal Satellite Confidence (14/20 pts)"
+    },
+    {
+      "factor": "Hazardous Proximity",
+      "score": 15.0,
+      "max": 15.0,
+      "detail": "Critical Petrochemical/Refinery Zone (<200m, 15/15 pts)"
+    },
+    {
+      "factor": "Source Category Hazard",
+      "score": 6.0,
+      "max": 10.0,
+      "detail": "High-Output Flaring Anomaly (6/10 pts)"
+    }
+  ],
+  "priority_rank": 1,
   "image_files": {
     "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_001\\satellite_raw.jpg",
     "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_001\\satellite_annotated.jpg",

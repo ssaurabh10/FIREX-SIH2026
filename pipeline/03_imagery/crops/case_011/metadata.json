@@ -1,0 +1,16 @@
+{
+  "id": "case_011",
+  "latitude": 21.10291,
+  "longitude": 72.64852,
+  "frp": 9.08,
+  "satellite": "N20",
+  "instrument": "VIIRS",
+  "category_target": "industrial_candidate",
+  "ai_classification": "industrial_fire",
+  "image_files": {
+    "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_011\\satellite_raw.jpg",
+    "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_011\\satellite_annotated.jpg",
+    "crop_dimensions": "640x640 (~1.2 km coverage)",
+    "zoom_level": 16
+  }
+}

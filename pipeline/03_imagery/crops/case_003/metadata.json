@@ -1,19 +1,71 @@
 {
   "id": "case_003",
   "category_target": "industrial_candidate",
-  "latitude": 23.8012,
-  "longitude": 86.33105,
-  "acq_date": "2026-09-02",
-  "acq_time": "08:08",
-  "satellite": "Aqua",
+  "latitude": 20.965,
+  "longitude": 86.0109,
+  "frp": 21.12,
+  "confidence": "92",
+  "satellite": "Terra",
   "instrument": "MODIS",
-  "frp": 8.56,
-  "confidence": "62%",
+  "acq_date": "2026-09-03",
+  "acq_time": "15:01",
   "product": "MODIS_NRT",
-  "expected_ground_truth": "Dhanbad - Bokaro Coal & Steel Industrial Belt, Jharkhand",
-  "osm_display_name": "Sijua, Baghmara-Cum-Katras, Dhanbad, Jharkhand, 828103, India",
-  "map_url": "https://www.google.com/maps?q=23.8012,86.33105&t=k",
-  "osm_url": "https://www.openstreetmap.org/?mlat=23.8012&mlon=86.33105#map=15/23.8012/86.33105",
+  "location_name": "TATA Steel Kalinganagar Integrated Smelter & Plant, Jajpur, Odisha",
+  "display_name": "Kalinganagar Industrial Complex, Jajpur, Odisha, India",
+  "ai_classification": "industrial_fire",
+  "ai_confidence": 0.88,
+  "ai_uncertainty": "medium",
+  "ai_evidence": [
+    "Active Terra satellite detection with radiative output of 21.1 MW",
+    "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+    "Telemetry verified strictly inside sovereign Indian airspace at 20.9650\u00b0N, 86.0109\u00b0E"
+  ],
+  "ai_reasoning": "Intense industrial thermal emission (21.1 MW) consistent with metal smelting or blast furnace operations in Kalinganagar Industrial Complex, Jajpur, Odisha, India.",
+  "image_url": "/crops/case_003/satellite_annotated.jpg",
+  "raw_image_url": "/crops/case_003/satellite_raw.jpg",
+  "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+  "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+  "persistence_detections": 57,
+  "days_active": 2,
+  "day_night_status": "DAY + NIGHT (Continuous 24h)",
+  "risk_adjustment": -15,
+  "risk_score": 76,
+  "risk_tier": "HIGH",
+  "risk_color": "#ff7700",
+  "action_recommendation": "ELEVATED SURVEILLANCE & FACILITY OPERATOR VERIFICATION",
+  "risk_factors": [
+    {
+      "factor": "Vision AI Certainty",
+      "score": 23.8,
+      "max": 30.0,
+      "detail": "88% AI Confidence (medium uncertainty, 23.8/30.0 pts)"
+    },
+    {
+      "factor": "Fire Radiative Power",
+      "score": 10.6,
+      "max": 25.0,
+      "detail": "21.1 MW (10.6/25.0 pts)"
+    },
+    {
+      "factor": "FIRMS Instrument Confidence",
+      "score": 20.0,
+      "max": 20.0,
+      "detail": "High Satellite Confidence (20/20 pts)"
+    },
+    {
+      "factor": "Hazardous Proximity",
+      "score": 12.0,
+      "max": 15.0,
+      "detail": "Heavy Industrial/Power Infrastructure (<500m, 12/15 pts)"
+    },
+    {
+      "factor": "Source Category Hazard",
+      "score": 10.0,
+      "max": 10.0,
+      "detail": "Uncontrolled Structural Industrial Fire (10/10 pts)"
+    }
+  ],
+  "priority_rank": 2,
   "image_files": {
     "satellite_raw": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_003\\satellite_raw.jpg",
     "satellite_annotated": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\pipeline\\03_imagery\\crops\\case_003\\satellite_annotated.jpg",

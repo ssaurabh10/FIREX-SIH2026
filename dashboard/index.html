@@ -330,6 +330,106 @@
        aria-labelledby="modal-title" aria-hidden="true"></div>
 </div>
 
+<!-- ================= TACTICAL ORBITAL PIPELINE SYNC MODAL ================= -->
+<div class="sync-scrim" id="sync-scrim" data-open="0" role="dialog" aria-modal="true" aria-labelledby="sync-title">
+  <div class="sync-modal glass glass--frosted">
+    <div class="sync-head">
+      <div class="sync-title-group">
+        <span class="sync-badge" id="sync-badge-status">
+          <span class="tag__dot" style="background:#38bdf8;width:7px;height:7px;border-radius:50%;"></span>
+          ORBIT PIPELINE ACTIVE
+        </span>
+        <h2 id="sync-title">
+          <svg class="i i--sm" aria-hidden="true" style="width:16px;height:16px;color:#38bdf8;vertical-align:-2px;"><use href="#i-pulse"/></svg>
+          Sovereign Satellite Pass Synchronization
+        </h2>
+        <p>Autonomous ingestion · Sovereign airspace triage · Zoom-16 optical synthesis · Multi-factor threat scoring</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="u-micro u-quiet" id="sync-timer-label" style="font-family: var(--font-mono, monospace);">ELAPSED: 00:00</span>
+        <button class="search__clear" id="sync-btn-close" type="button" aria-label="Close" title="Dismiss" style="width:26px;height:26px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;color:#94a3b8;display:grid;place-items:center;">
+          <svg class="i i--sm" aria-hidden="true" style="width:12px;height:12px;"><use href="#i-close"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Overall Progress Section -->
+    <div class="sync-progress-box">
+      <div class="sync-progress-meta">
+        <span class="sync-current-phase" id="sync-phase-label">
+          <span class="tag__dot" style="background:#38bdf8;width:6px;height:6px;border-radius:50%;"></span>
+          INITIALIZING TELEMETRY STREAM...
+        </span>
+        <span class="sync-pct-number" id="sync-pct-display">0%</span>
+      </div>
+      <div class="sync-bar-track">
+        <div class="sync-bar-fill" id="sync-bar-fill" style="width: 0%;"></div>
+      </div>
+    </div>
+
+    <!-- 5-Stage Stepper Checklist -->
+    <div class="sync-stages-list" id="sync-stages-list">
+      <div class="sync-stage-row" id="sync-stage-1" data-stage="1" data-status="pending">
+        <div class="sync-stage-icon">1</div>
+        <div class="sync-stage-content">
+          <div class="sync-stage-name">Stage 1: FIRMS Ingestion & Sovereign Filter</div>
+          <div class="sync-stage-desc" id="sync-desc-1">Parses VIIRS/MODIS passes and discards foreign/cross-border thermal noise.</div>
+        </div>
+        <div class="sync-stage-status-badge" id="sync-status-1">PENDING</div>
+      </div>
+
+      <div class="sync-stage-row" id="sync-stage-2" data-stage="2" data-status="pending">
+        <div class="sync-stage-icon">2</div>
+        <div class="sync-stage-content">
+          <div class="sync-stage-name">Stage 2: Historical Persistence & Diurnal Profiles</div>
+          <div class="sync-stage-desc" id="sync-desc-2">Archives pass into SQLite time-series DB and evaluates 24h continuous burn status.</div>
+        </div>
+        <div class="sync-stage-status-badge" id="sync-status-2">PENDING</div>
+      </div>
+
+      <div class="sync-stage-row" id="sync-stage-3" data-stage="3" data-status="pending">
+        <div class="sync-stage-icon">3</div>
+        <div class="sync-stage-content">
+          <div class="sync-stage-name">Stage 3: Spatial Cluster Triage & Threat Qualification</div>
+          <div class="sync-stage-desc" id="sync-desc-3">Aggregates multi-pixel sensor detections into physical fire clusters and qualifies threats against strategic infrastructure.</div>
+        </div>
+        <div class="sync-stage-status-badge" id="sync-status-3">PENDING</div>
+      </div>
+
+      <div class="sync-stage-row" id="sync-stage-4" data-stage="4" data-status="pending">
+        <div class="sync-stage-icon">4</div>
+        <div class="sync-stage-content">
+          <div class="sync-stage-name">Stage 4: High-Res Optical Satellite Tile Synthesis</div>
+          <div class="sync-stage-desc" id="sync-desc-4">Synthesizes Zoom-16 optical scenes with tactical thermal reticles (0 coordinate mismatches).</div>
+        </div>
+        <div class="sync-stage-status-badge" id="sync-status-4">PENDING</div>
+      </div>
+
+      <div class="sync-stage-row" id="sync-stage-5" data-stage="5" data-status="pending">
+        <div class="sync-stage-icon">5</div>
+        <div class="sync-stage-content">
+          <div class="sync-stage-name">Stage 5: Section 10 Multi-Factor Threat Risk Engine</div>
+          <div class="sync-stage-desc" id="sync-desc-5">Computes deterministic threat scores and ranks prioritized incident dossiers for live feed.</div>
+        </div>
+        <div class="sync-stage-status-badge" id="sync-status-5">PENDING</div>
+      </div>
+    </div>
+
+    <!-- Monospace Terminal Log Stream -->
+    <div class="sync-log-terminal" id="sync-log-terminal">
+      <div class="sync-log-entry">
+        <span class="sync-log-ts">[SYSTEM]</span>
+        <span class="sync-log-msg">Ready to initiate sovereign pass synchronization.</span>
+      </div>
+    </div>
+
+    <div class="sync-foot">
+      <span>NTRO / SIH 2026 Sovereign Airspace Thermal Intelligence Pipeline</span>
+      <span id="sync-footer-status" style="color: #38bdf8; font-family: var(--font-mono, monospace);">CONNECTING TO MISSION ORBIT...</span>
+    </div>
+  </div>
+</div>
+
 <div class="vignette" aria-hidden="true"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

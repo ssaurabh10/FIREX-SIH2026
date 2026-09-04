@@ -555,32 +555,230 @@ async function updatePersistenceWidget() {
 
 function wirePersistenceSync() {
   const syncBtn = document.getElementById("btn-trigger-sync");
-  if (!syncBtn) return;
-  syncBtn.addEventListener("click", async () => {
+  const scrim = document.getElementById("sync-scrim");
+  if (!syncBtn || !scrim) return;
+
+  const barFill = document.getElementById("sync-bar-fill");
+  const pctDisplay = document.getElementById("sync-pct-display");
+  const phaseLabel = document.getElementById("sync-phase-label");
+  const badgeStatus = document.getElementById("sync-badge-status");
+  const timerLabel = document.getElementById("sync-timer-label");
+  const logTerminal = document.getElementById("sync-log-terminal");
+  const footerStatus = document.getElementById("sync-footer-status");
+  const closeBtn = document.getElementById("sync-btn-close");
+
+  let activeEvtSource = null;
+  let activeTimerInterval = null;
+
+  function closeModal() {
+    scrim.setAttribute("data-open", "0");
+    if (activeEvtSource) {
+      try { activeEvtSource.close(); } catch {}
+      activeEvtSource = null;
+    }
+    if (activeTimerInterval) {
+      clearInterval(activeTimerInterval);
+      activeTimerInterval = null;
+    }
+    syncBtn.disabled = false;
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", closeModal);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && scrim.getAttribute("data-open") === "1") {
+      closeModal();
+    }
+  });
+
+  function addLog(msg, tag = "STREAM") {
+    if (!logTerminal) return;
+    const now = new Date().toTimeString().split(" ")[0];
+    const row = document.createElement("div");
+    row.className = "sync-log-entry";
+    row.innerHTML = `<span class="sync-log-ts">[${now}]</span><span class="sync-log-msg">[${tag}] ${msg}</span>`;
+    logTerminal.appendChild(row);
+    logTerminal.scrollTop = logTerminal.scrollHeight;
+  }
+
+  syncBtn.addEventListener("click", () => {
     syncBtn.disabled = true;
     const origHtml = syncBtn.innerHTML;
-    syncBtn.innerHTML = `<span class="tag__dot" style="background:#f59e0b"></span> Ingesting...`;
-    try {
-      const res = await fetch("/api/trigger-sync");
-      if (res.ok) {
-        syncBtn.innerHTML = `✓ Ingested!`;
+    syncBtn.innerHTML = `<span class="tag__dot" style="background:#38bdf8"></span> Syncing...`;
+
+    // Open Modal HUD
+    scrim.setAttribute("data-open", "1");
+    if (barFill) barFill.style.width = "0%";
+    if (pctDisplay) pctDisplay.textContent = "0%";
+    if (phaseLabel) phaseLabel.innerHTML = `<span class="tag__dot" style="background:#38bdf8;width:6px;height:6px;border-radius:50%;"></span> CONNECTING TO ORBIT ENGINE...`;
+    if (badgeStatus) {
+      badgeStatus.className = "sync-badge sync-badge--running";
+      badgeStatus.innerHTML = `<span class="tag__dot" style="background:#38bdf8;width:7px;height:7px;border-radius:50%;"></span> ORBIT PIPELINE ACTIVE`;
+    }
+    if (footerStatus) {
+      footerStatus.textContent = "INITIALIZING SOVEREIGN PIPELINE WORKFLOW...";
+      footerStatus.style.color = "#38bdf8";
+    }
+
+    // Reset Stages
+    for (let i = 1; i <= 5; i++) {
+      const row = document.getElementById(`sync-stage-${i}`);
+      const icon = row ? row.querySelector(".sync-stage-icon") : null;
+      const statusBadge = document.getElementById(`sync-status-${i}`);
+      if (row) row.setAttribute("data-status", "pending");
+      if (icon) icon.textContent = `${i}`;
+      if (statusBadge) {
+        statusBadge.textContent = "PENDING";
+        statusBadge.style.color = "";
+      }
+    }
+
+    // Reset log terminal
+    if (logTerminal) {
+      logTerminal.innerHTML = "";
+      addLog("Initializing sovereign satellite telemetry stream...", "SYSTEM");
+    }
+
+    // Start timer
+    const startTime = Date.now();
+    activeTimerInterval = setInterval(() => {
+      const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+      const mm = String(Math.floor(elapsedSec / 60)).padStart(2, "0");
+      const ss = String(elapsedSec % 60).padStart(2, "0");
+      if (timerLabel) timerLabel.textContent = `ELAPSED: ${mm}:${ss}`;
+    }, 500);
+
+    // Connect to Server-Sent Events stream
+    let isCompleted = false;
+    activeEvtSource = new EventSource("/api/trigger-sync-stream");
+    const evtSource = activeEvtSource;
+
+    evtSource.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const stageNum = Number(data.stage || 0);
+        const pct = Math.min(100, Math.max(0, Number(data.pct || 0)));
+
+        // Update progress bar & percent
+        if (barFill) barFill.style.width = `${pct}%`;
+        if (pctDisplay) pctDisplay.textContent = `${pct}%`;
+
+        if (data.label && phaseLabel) {
+          phaseLabel.innerHTML = `<span class="tag__dot" style="background:#38bdf8;width:6px;height:6px;border-radius:50%;"></span> STAGE ${stageNum}: ${data.label.toUpperCase()}`;
+        }
+
+        // Add to terminal log
+        if (data.detail) {
+          addLog(`${data.label} — ${data.detail}`, `STAGE ${stageNum}`);
+        }
+
+        // Update stages
+        for (let i = 1; i <= 5; i++) {
+          const row = document.getElementById(`sync-stage-${i}`);
+          const icon = row ? row.querySelector(".sync-stage-icon") : null;
+          const statusBadge = document.getElementById(`sync-status-${i}`);
+          const desc = document.getElementById(`sync-desc-${i}`);
+
+          if (i < stageNum) {
+            if (row) row.setAttribute("data-status", "done");
+            if (icon) icon.textContent = "✓";
+            if (statusBadge) statusBadge.textContent = "VERIFIED ✓";
+          } else if (i === stageNum) {
+            if (data.done && pct >= 100) {
+              if (row) row.setAttribute("data-status", "done");
+              if (icon) icon.textContent = "✓";
+              if (statusBadge) statusBadge.textContent = "VERIFIED ✓";
+            } else {
+              if (row) row.setAttribute("data-status", "active");
+              if (icon) icon.textContent = `${i}`;
+              if (statusBadge) statusBadge.textContent = "PROCESSING...";
+            }
+            if (desc && data.detail) desc.textContent = data.detail;
+          } else {
+            if (row) row.setAttribute("data-status", "pending");
+            if (icon) icon.textContent = `${i}`;
+            if (statusBadge) statusBadge.textContent = "PENDING";
+          }
+        }
+
+        if (footerStatus && data.detail) {
+          footerStatus.textContent = data.detail.slice(0, 75) + "...";
+        }
+
+        // Check if finished
+        if (data.done || pct >= 100) {
+          if (isCompleted) return;
+          isCompleted = true;
+          clearInterval(timerInterval);
+          evtSource.close();
+
+          // Mark all stages complete
+          for (let i = 1; i <= 5; i++) {
+            const row = document.getElementById(`sync-stage-${i}`);
+            const icon = row ? row.querySelector(".sync-stage-icon") : null;
+            const statusBadge = document.getElementById(`sync-status-${i}`);
+            if (row) row.setAttribute("data-status", "done");
+            if (icon) icon.textContent = "✓";
+            if (statusBadge) statusBadge.textContent = "VERIFIED ✓";
+          }
+
+          if (barFill) barFill.style.width = "100%";
+          if (pctDisplay) pctDisplay.textContent = "100%";
+          if (badgeStatus) {
+            badgeStatus.className = "sync-badge";
+            badgeStatus.innerHTML = `<span class="tag__dot" style="background:#10b981;width:7px;height:7px;border-radius:50%;"></span> MISSION COMPLETE`;
+          }
+          if (phaseLabel) {
+            phaseLabel.innerHTML = `<span class="tag__dot" style="background:#10b981;width:6px;height:6px;border-radius:50%;"></span> ALL 5 PIPELINE STAGES SYNCHRONIZED`;
+          }
+          if (footerStatus) {
+            footerStatus.textContent = "SYNCHRONIZATION VERIFIED · DEPLOYING INCIDENTS TO FEED...";
+            footerStatus.style.color = "#10b981";
+          }
+
+          addLog("Pipeline synchronization complete. Deploying incident dossiers to live feed...", "SUCCESS");
+
+          // Reload data and refresh feed
+          await load();
+          await updatePersistenceWidget();
+          renderAll();
+
+          // Smooth close after brief pause for verification
+          setTimeout(() => {
+            scrim.setAttribute("data-open", "0");
+            syncBtn.disabled = false;
+            syncBtn.innerHTML = `✓ Synced!`;
+            setTimeout(() => {
+              syncBtn.innerHTML = origHtml;
+            }, 2500);
+          }, 1200);
+        }
+      } catch (err) {
+        console.error("SSE stream parsing error:", err);
+      }
+    };
+
+    evtSource.onerror = (err) => {
+      if (isCompleted) return;
+      clearInterval(timerInterval);
+      evtSource.close();
+      console.warn("SSE connection error or closed:", err);
+      addLog("Stream connection closed or completed. Refreshing live telemetry layers...", "INFO");
+      
+      // Fallback reload and close
+      (async () => {
         await load();
         await updatePersistenceWidget();
         renderAll();
         setTimeout(() => {
+          scrim.setAttribute("data-open", "0");
           syncBtn.disabled = false;
           syncBtn.innerHTML = origHtml;
-        }, 2000);
-      } else {
-        throw new Error("Sync failed");
-      }
-    } catch {
-      syncBtn.innerHTML = `Failed`;
-      setTimeout(() => {
-        syncBtn.disabled = false;
-        syncBtn.innerHTML = origHtml;
-      }, 2000);
-    }
+        }, 1000);
+      })();
+    };
   });
 }
 
