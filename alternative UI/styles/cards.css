@@ -1,0 +1,306 @@
+/* ==========================================================================
+   cards - case cards, queue rows, facility rows, states, fields
+   ========================================================================== */
+
+/* --- Case card (investigations grid) -------------------------------------- */
+
+.case {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  text-align: left;
+  transition: transform var(--d-base) var(--ease-out),
+              border-color var(--d-base) var(--ease-out);
+}
+.case:hover { transform: translateY(-2px); border-color: var(--line); }
+.case[data-selected="1"] { border-color: var(--signal-line); }
+
+/* Stretched hit area. The card stays an article so the figures inside can be
+   a real description list, and this button carries the click and the focus
+   ring for the whole card. */
+.case__link,
+.hit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+}
+.case__link:focus-visible,
+.hit:focus-visible { outline-offset: -3px; }
+
+.case__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.case__id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--t-quiet);
+  letter-spacing: 0.04em;
+}
+
+.case__name {
+  font-size: 0.875rem;
+  color: var(--t-primary);
+  line-height: var(--lh-snug);
+}
+
+.case__where {
+  margin-top: 3px;
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+}
+
+.case__thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--ink-800);
+  box-shadow: inset 0 0 0 1px var(--line-hair);
+}
+
+.case__thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  filter: saturate(0.8) contrast(1.04);
+  transition: transform var(--d-slow) var(--ease-out);
+}
+.case:hover .case__thumb img { transform: scale(1.03); }
+
+/* The crop is served from the pipeline's output folder. If it is not there,
+   say so in place rather than leaving a broken image frame. */
+.case__thumb[data-missing="1"] img { display: none; }
+.case__thumb[data-missing="1"]::after {
+  content: "Crop not available";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-micro);
+  color: var(--t-quiet);
+}
+
+.case__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line-hair);
+}
+
+.case__stats { display: flex; gap: var(--s-4); }
+
+.case__stat { display: grid; gap: 2px; }
+.case__stat dt { font-size: var(--fs-micro); color: var(--t-quiet); }
+.case__stat dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--t-secondary);
+}
+
+/* --- Queue row (map overlay + overview) ----------------------------------- */
+
+.queue { display: flex; flex-direction: column; }
+
+.queue__row {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3);
+  border: 0;
+  border-radius: var(--r-md);
+  text-align: left;
+  transition: background-color var(--d-fast) var(--ease-out);
+}
+.queue__row:hover { background: var(--fill-1); }
+.queue__row[data-selected="1"] { background: var(--fill-2); }
+
+.queue__edge {
+  border-radius: 99px;
+  background: var(--tier);
+  opacity: 0.85;
+}
+
+.queue__main { min-width: 0; display: grid; gap: 4px; }
+
+/* min-width:0 for the same reason as .spine__name: the label truncates only if
+   the flex box around it is allowed to shrink. */
+.queue__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+}
+
+.queue__meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+  letter-spacing: 0;
+}
+
+.queue__score {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--tier);
+}
+
+/* --- Facility row (industrial view) --------------------------------------- */
+
+.facility {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-3) var(--s-5);
+  align-items: center;
+  padding: var(--s-4);
+  border-top: 1px solid var(--line-hair);
+  text-align: left;
+  width: 100%;
+  transition: background-color var(--d-fast) var(--ease-out);
+}
+.facility:first-child { border-top: 0; }
+.facility:hover { background: var(--fill-1); }
+
+.facility__name {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  font-size: var(--fs-body);
+  color: var(--t-primary);
+}
+
+.facility__where {
+  margin-top: 3px;
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+}
+
+.facility__nums {
+  display: flex;
+  gap: var(--s-5);
+  align-items: baseline;
+}
+
+.facility__num { display: grid; gap: 2px; justify-items: end; }
+.facility__num dt { font-size: var(--fs-micro); color: var(--t-quiet); }
+.facility__num dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--t-secondary);
+}
+
+/* --- Loading: shimmer skeleton inside the real card shape ----------------- */
+
+.skel {
+  border-radius: 5px;
+  background:
+    linear-gradient(100deg,
+      var(--fill-1) 24%,
+      var(--fill-3) 42%,
+      var(--fill-1) 60%);
+  background-size: 260% 100%;
+  animation: skel-sweep 1500ms var(--ease-glide) infinite;
+}
+
+.skel--line { height: 9px; }
+.skel--wide { width: 100%; }
+.skel--half { width: 52%; }
+.skel--num  { height: 22px; width: 72px; }
+.skel--block { height: 100%; min-height: 56px; border-radius: var(--r-sm); }
+
+@keyframes skel-sweep {
+  from { background-position: 180% 0; }
+  to   { background-position: -80% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; background: var(--fill-2); }
+}
+
+/* --- Empty and error states ---------------------------------------------- */
+
+.state {
+  display: grid;
+  gap: var(--s-2);
+  place-content: center;
+  justify-items: center;
+  padding: var(--s-8) var(--s-5);
+  text-align: center;
+  min-height: 120px;
+}
+
+.state__icon { color: var(--t-quiet); }
+.state__title { font-size: var(--fs-body); color: var(--t-secondary); }
+.state__body { font-size: var(--fs-micro); color: var(--t-tertiary); max-width: 34ch; }
+
+/* --- Field (settings) ----------------------------------------------------- */
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--line-hair);
+}
+.field:first-child { border-top: 0; padding-top: 0; }
+
+.field__label { font-size: var(--fs-body); color: var(--t-primary); }
+.field__hint { margin-top: 3px; font-size: var(--fs-micro); color: var(--t-tertiary); max-width: 56ch; }
+
+.switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.34);
+  transition: background-color var(--d-base) var(--ease-out), border-color var(--d-base) var(--ease-out);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  border-radius: 99px;
+  background: var(--t-tertiary);
+  transition: translate var(--d-base) var(--ease-glide), background-color var(--d-base) var(--ease-out);
+}
+.switch[aria-checked="true"] { background: var(--signal-soft); border-color: var(--signal-line); }
+.switch[aria-checked="true"]::after { translate: 16px 0; background: var(--signal); }
+
+/* --- Scroll reveal -------------------------------------------------------- */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.reveal[data-shown="1"] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--d-slow) var(--ease-out) var(--reveal-delay, 0ms),
+    transform var(--d-slow) var(--ease-out) var(--reveal-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; }
+}

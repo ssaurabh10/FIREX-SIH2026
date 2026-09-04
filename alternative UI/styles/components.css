@@ -1,0 +1,565 @@
+/* ==========================================================================
+   components - controls, tags, metrics, meters, charts, cards
+   ========================================================================== */
+
+/* Risk tier is the only thing allowed to introduce hue. Any element carrying
+   data-tier exposes --tier to its subtree; components never hardcode a ramp
+   colour.
+
+   The unclassified default has to come first. All five selectors weigh the
+   same, so order is the only thing separating them, and a default written last
+   would win everywhere. It also cannot be written as var(--tier, fallback):
+   a custom property that refers to itself is a cycle, which makes --tier
+   invalid on every tiered element and quietly drops the ramp. */
+[data-tier]            { --tier: var(--unclassified); }
+[data-tier="CRITICAL"] { --tier: var(--tier-critical); }
+[data-tier="HIGH"]     { --tier: var(--tier-high); }
+[data-tier="MEDIUM"]   { --tier: var(--tier-medium); }
+[data-tier="LOW"]      { --tier: var(--tier-low); }
+
+/* --- Search --------------------------------------------------------------- */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 34px;
+  width: 216px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--t-tertiary);
+  transition: border-color var(--d-fast) var(--ease-out), width var(--d-base) var(--ease-out);
+}
+.search:focus-within { border-color: var(--signal-line); color: var(--t-secondary); }
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+  background: none;
+}
+.search input::placeholder { color: var(--t-quiet); }
+.search input::-webkit-search-cancel-button { display: none; }
+
+.search__clear {
+  display: grid;
+  place-items: center;
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  color: var(--t-tertiary);
+}
+.search__clear:hover { color: var(--t-primary); background: var(--fill-2); }
+
+@media (max-width: 1440px) { .search { width: 168px; } }
+@media (max-width: 1100px) { .search { display: none; } }
+
+/* --- Tab (navigation) ----------------------------------------------------- */
+
+.tab {
+  position: relative;
+  padding: 7px var(--s-3);
+  border-radius: 99px;
+  font-size: var(--fs-body);
+  font-weight: 400;
+  color: var(--t-tertiary);
+  transition: color var(--d-fast) var(--ease-out), background-color var(--d-fast) var(--ease-out);
+}
+.tab:hover { color: var(--t-primary); background: var(--fill-1); }
+
+.tab[aria-current="page"] {
+  color: var(--t-primary);
+  background: var(--fill-2);
+  box-shadow: inset 0 0 0 1px var(--line-hair), var(--bezel);
+}
+
+/* --- Buttons -------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 34px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--fill-1);
+  color: var(--t-secondary);
+  font-size: var(--fs-body);
+  white-space: nowrap;
+  transition: color var(--d-fast) var(--ease-out),
+              background-color var(--d-fast) var(--ease-out),
+              border-color var(--d-fast) var(--ease-out);
+}
+.btn:hover { color: var(--t-primary); background: var(--fill-2); border-color: var(--line-strong); }
+.btn:active { background: var(--fill-3); }
+.btn:disabled { opacity: 0.4; }
+.btn:disabled:hover { color: var(--t-secondary); background: var(--fill-1); border-color: var(--line); }
+
+.btn--primary {
+  border-color: var(--signal-line);
+  background: var(--signal-soft);
+  color: var(--t-primary);
+}
+.btn--primary:hover { background: rgba(22, 136, 247, 0.22); border-color: var(--signal); }
+
+.btn--ghost { border-color: transparent; background: none; }
+.btn--ghost:hover { border-color: var(--line); }
+
+.btn--sm { height: 28px; padding: 0 var(--s-3); font-size: var(--fs-label); }
+.btn--block { width: 100%; justify-content: center; }
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--fill-1);
+  color: var(--t-secondary);
+  transition: color var(--d-fast) var(--ease-out),
+              background-color var(--d-fast) var(--ease-out),
+              border-color var(--d-fast) var(--ease-out);
+}
+.icon-btn:hover { color: var(--t-primary); background: var(--fill-2); border-color: var(--line-strong); }
+.icon-btn[aria-pressed="true"] {
+  color: var(--t-primary);
+  border-color: var(--signal-line);
+  background: var(--signal-soft);
+}
+
+/* Unread-alert indicator. A real state flag, not decoration. */
+.icon-btn__flag {
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 6px; height: 6px;
+  border-radius: 99px;
+  background: var(--tier-critical);
+  box-shadow: 0 0 0 2px var(--ink-900);
+}
+.icon-btn--flagged { position: relative; }
+
+/* --- Segmented control ---------------------------------------------------- */
+
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.seg__opt {
+  padding: 5px var(--s-3);
+  border-radius: 6px;
+  font-size: var(--fs-label);
+  color: var(--t-tertiary);
+  transition: color var(--d-fast) var(--ease-out), background-color var(--d-fast) var(--ease-out);
+}
+.seg__opt:hover { color: var(--t-secondary); }
+.seg__opt[aria-checked="true"] {
+  color: var(--t-primary);
+  background: var(--fill-2);
+  box-shadow: var(--bezel);
+}
+
+/* --- Filter bar ----------------------------------------------------------
+   Sits in the rail directly above the list it filters, which is where the
+   section 6 console keeps its filter tabs. It wraps rather than scrolls: in a
+   fixed-width column a scrolling row would hide a class behind an edge with
+   nothing to say it was there. The pills are shorter here than elsewhere so
+   seven of them cost two rows of the column rather than three. */
+
+.filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 0 var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.filterbar .pill { height: 26px; padding: 0 9px; gap: 5px; }
+
+/* --- Filter pill ---------------------------------------------------------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 30px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-hair);
+  border-radius: 99px;
+  background: var(--fill-1);
+  font-size: var(--fs-label);
+  color: var(--t-tertiary);
+  transition: color var(--d-fast) var(--ease-out),
+              background-color var(--d-fast) var(--ease-out),
+              border-color var(--d-fast) var(--ease-out);
+}
+.pill:hover { color: var(--t-primary); border-color: var(--line); }
+.pill[aria-pressed="true"] {
+  color: var(--t-primary);
+  background: var(--fill-3);
+  border-color: var(--line-strong);
+}
+.pill__n {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-micro);
+  color: var(--t-quiet);
+}
+.pill[aria-pressed="true"] .pill__n { color: var(--t-secondary); }
+
+/* --- Tag ------------------------------------------------------------------
+   Uppercase, hairline, no fill by default. Tier tags borrow --tier. */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--t-secondary);
+  white-space: nowrap;
+}
+
+.tag--tier {
+  color: var(--tier);
+  border-color: color-mix(in srgb, var(--tier) 34%, transparent);
+  background: color-mix(in srgb, var(--tier) 11%, transparent);
+}
+
+/* Uncertainty is encoded structurally, not with colour: a dashed edge and no
+   fill reads as "not confirmed" even in greyscale. */
+.tag--unconfirmed {
+  border-style: dashed;
+  border-color: var(--line-strong);
+  background: none;
+  color: var(--t-tertiary);
+}
+
+.tag--signal {
+  color: var(--signal);
+  border-color: var(--signal-line);
+  background: var(--signal-soft);
+}
+
+.tag__dot {
+  width: 5px; height: 5px;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+/* --- Metric --------------------------------------------------------------- */
+
+.metric { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.metric__value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.metric__unit {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--t-tertiary);
+}
+
+.metric__note {
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+  line-height: 1.4;
+}
+
+/* --- Meter (hairline bar) -------------------------------------------------
+   Replaces the "big number with a gradient" pattern. The track is a hairline,
+   the fill is 2px, and the value is read from the mono label beside it. */
+
+.meter {
+  position: relative;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--fill-2);
+  overflow: hidden;
+}
+
+.meter__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--v, 0%);
+  border-radius: 99px;
+  background: var(--tier, var(--t-secondary));
+  transform-origin: left center;
+  transition: width var(--d-slow) var(--ease-glide);
+}
+
+.meter--signal .meter__fill { background: var(--signal); }
+.meter--quiet .meter__fill { background: var(--t-tertiary); }
+
+/* --- Bullet row (risk factor) --------------------------------------------- */
+
+.bullet { display: grid; gap: 6px; }
+
+.bullet__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.bullet__name {
+  font-size: var(--fs-label);
+  color: var(--t-secondary);
+}
+
+.bullet__score {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+}
+.bullet__max { color: var(--t-quiet); }
+
+.bullet__detail {
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+}
+
+/* --- Priority spine ------------------------------------------------------
+   The signature component. One row per triaged case, ordered by the scoring
+   engine's rank. Rank numeral, name, tier-coloured score bar, score. Hover
+   pre-highlights the matching map marker; click flies to it. */
+
+.spine { display: flex; flex-direction: column; }
+
+.spine__row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: 10px var(--s-4);
+  border: 0;
+  border-top: 1px solid var(--line-hair);
+  text-align: left;
+  transition: background-color var(--d-fast) var(--ease-out);
+  cursor: pointer;
+}
+.spine__row:first-child { border-top: 0; }
+.spine__row:hover { background: rgba(255, 255, 255, 0.05); }
+
+[data-theme="light"] .spine__row:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.spine__row[data-selected="1"] {
+  background: var(--signal-soft);
+  box-shadow: inset 3px 0 0 var(--signal);
+}
+
+.spine__rank {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  color: var(--t-secondary);
+  transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+}
+
+[data-theme="light"] .spine__rank {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #334155;
+}
+
+.spine__row[data-selected="1"] .spine__rank {
+  color: #ffffff;
+  background: var(--signal);
+  border-color: var(--signal);
+}
+
+.spine__main { min-width: 0; display: grid; gap: 4px; }
+
+.spine__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--t-primary);
+}
+
+.spine__name .spine__cid {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 400;
+  color: var(--t-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-hair);
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+[data-theme="light"] .spine__name .spine__cid {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #475569;
+}
+
+.spine__where {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+}
+.spine__where svg { color: var(--t-tertiary); }
+.dot-sep { opacity: 0.35; }
+
+.spine__score {
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tier);
+  padding: 2px 7px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--tier) 12%, rgba(0, 0, 0, 0.4));
+  border: 1px solid color-mix(in srgb, var(--tier) 35%, transparent);
+  transition: background-color 0.4s ease;
+}
+
+[data-theme="light"] .spine__score {
+  background: color-mix(in srgb, var(--tier) 14%, transparent);
+  border-color: color-mix(in srgb, var(--tier) 35%, transparent);
+}
+
+/* Light mode overrides for controls */
+[data-theme="light"] .seg {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .seg__opt {
+  color: #475569;
+}
+
+[data-theme="light"] .seg__opt:hover {
+  color: #0f172a;
+}
+
+[data-theme="light"] .seg__opt[aria-checked="true"] {
+  color: #0f172a;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .zoombar,
+[data-theme="light"] .icon-btn.glass {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #334155;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .icon-btn.glass:hover {
+  color: #0f172a;
+  background: #ffffff;
+}
+
+[data-theme="light"] .search {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+
+[data-theme="light"] .switch {
+  background: rgba(15, 23, 42, 0.12);
+  border-color: rgba(15, 23, 42, 0.16);
+}
+
+/* --- Key / value readout -------------------------------------------------- */
+
+.kv {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-2) var(--s-4);
+  align-items: baseline;
+}
+
+.kv__k {
+  font-size: var(--fs-label);
+  color: var(--t-tertiary);
+  white-space: nowrap;
+}
+
+.kv__v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+  text-align: right;
+  word-break: break-word;
+}
+
+.kv--wide { grid-template-columns: 118px minmax(0, 1fr); }
+.kv--wide .kv__v { text-align: left; }
+
+/* --- Boot failure --------------------------------------------------------
+   The one message that has to survive the console not starting. Built in
+   main.js with createElement and textContent, and styled here in neutral frost
+   tones rather than the risk ramp: that ramp encodes a scoring engine tier and
+   nothing else, and this is not a tier. Opaque on purpose, since a translucent
+   panel needs something rendered behind it and the failure this reports may be
+   the reason there is nothing there. */
+
+.bootfail {
+  position: fixed;
+  top: var(--s-4);
+  left: 50%;
+  translate: -50% 0;
+  z-index: var(--z-fatal);
+  width: min(560px, calc(100vw - var(--s-8)));
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--ink-900);
+  box-shadow: var(--lift-3), var(--bezel);
+}
+
+.bootfail strong {
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--t-primary);
+}
+
+.bootfail p {
+  font-size: var(--fs-label);
+  line-height: var(--lh-body);
+  color: var(--t-secondary);
+}

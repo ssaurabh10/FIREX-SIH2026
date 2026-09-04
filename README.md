@@ -34,7 +34,7 @@ Built for **Smart India Hackathon (SIH) 2026 — Problem Statement 162**: *"Sate
 ## 🏗️ Architecture
 
 ```text
-NASA FIRMS API (451 hotspots, India-wide)
+NASA FIRMS API (637 hotspots, India-wide)
         │
         ▼
 ┌─── Section 1: FIRMS Data Fetcher ───────────────────────┐
@@ -67,7 +67,7 @@ NASA FIRMS API (451 hotspots, India-wide)
                        ▼
 ┌─── Section 6: Interactive GIS Map Dashboard ─────────────┐
 │  Leaflet.js tactical dark-mode map                        │
-│  451 ambient FIRMS dots + 7 AI-classified pulsing markers │
+│  637 ambient FIRMS dots + 7 AI-classified pulsing markers │
 │  Click-to-inspect sidebar drawer                          │
 └──────────────────────┬──────────────────────────────────┘
                        ▼
@@ -120,7 +120,7 @@ PS162/
 │   ├── prepare_map_data.py   # Data bundler for frontend
 │   └── data/
 │       ├── incidents.json    # 7 AI-evaluated incidents
-│       └── ambient_firms.json # 451 nationwide FIRMS points
+│       └── ambient_firms.json # 637 nationwide FIRMS points
 │
 ├── .gitignore
 └── README.md
@@ -164,7 +164,7 @@ python run_pipeline.py
 |---------|-------------|
 | 🗺️ **Dual Basemaps** | CartoDB Dark Canvas + Esri Satellite toggle |
 | 🔴 **Pulsing Markers** | Color-coded by AI classification (Flare / Industrial / Mining / Wildfire) |
-| 📊 **451 Ambient Hotspots** | Nationwide FIRMS detections overlay |
+| 📊 **637 Ambient Hotspots** | Nationwide FIRMS detections overlay |
 | 🔍 **Click-to-Inspect** | Sidebar drawer with satellite crop, AI assessment, and FIRMS metrics |
 | 🔬 **Forensic Investigation** | Full-screen dossier with thermal reticle toggle, evidence checklist |
 | 🛡️ **Triage Workflow** | Operator can mark: Verified Fire / Routine Flare / Escalate / False Alarm |

@@ -63,28 +63,62 @@ if os.path.exists(bench_file):
 with open(os.path.join(DATA_DIR, "incidents.json"), "w", encoding="utf-8") as f:
     json.dump(incidents, f, indent=2)
 
-# 3. Load all raw FIRMS detections as ambient background points
-raw_csvs = glob.glob(os.path.join(BASE_DIR, "section1_firms", "raw_responses", "*.csv"))
+# 3. Load latest FIRMS detections as ambient background points
+products = ["VIIRS_NOAA20_NRT", "VIIRS_SNPP_NRT", "MODIS_NRT"]
+latest_csvs = []
+for prod in products:
+    matches = sorted(glob.glob(os.path.join(BASE_DIR, "section1_firms", "raw_responses", f"{prod}_*.csv")))
+    if matches:
+        latest_csvs.append(matches[-1])
+
+# If no specific matches, fallback to all CSVs
+if not latest_csvs:
+    latest_csvs = glob.glob(os.path.join(BASE_DIR, "section1_firms", "raw_responses", "*.csv"))
+
 ambient_points = []
-for csv_path in raw_csvs:
+seen_keys = set()
+
+for csv_path in latest_csvs:
     sat_name = "VIIRS" if "VIIRS" in csv_path else "MODIS"
     with open(csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             try:
+                lat = float(row["latitude"])
+                lon = float(row["longitude"])
+                date = row.get("acq_date", "")
+                time_str = row.get("acq_time", "")
+                dedup_key = (round(lat, 4), round(lon, 4), date, time_str)
+                if dedup_key in seen_keys:
+                    continue
+                seen_keys.add(dedup_key)
                 ambient_points.append({
-                    "lat": float(row["latitude"]),
-                    "lon": float(row["longitude"]),
+                    "lat": lat,
+                    "lon": lon,
                     "frp": float(row.get("frp", 0.0) or 0.0),
                     "conf": row.get("confidence", ""),
                     "sat": row.get("satellite", sat_name),
-                    "date": row.get("acq_date", ""),
-                    "time": row.get("acq_time", "")
+                    "date": date,
+                    "time": time_str
                 })
             except Exception:
                 continue
 
-with open(os.path.join(DATA_DIR, "ambient_firms.json"), "w", encoding="utf-8") as f:
+ambient_file = os.path.join(DATA_DIR, "ambient_firms.json")
+with open(ambient_file, "w", encoding="utf-8") as f:
     json.dump(ambient_points, f, indent=2)
 
-print(f"Prepared {len(incidents)} AI-evaluated incidents and {len(ambient_points)} ambient FIRMS hotspots.")
+print(f"Loaded {len(latest_csvs)} latest CSV files:")
+for c in latest_csvs:
+    print(f"  - {os.path.basename(c)}")
+print(f"Prepared {len(incidents)} AI-evaluated incidents and {len(ambient_points)} latest ambient FIRMS hotspots.")
+
+# 4. Enrich incidents with Section 10 Risk Engine
+try:
+    import sys
+    sys.path.append(os.path.join(BASE_DIR, "section10_risk_engine"))
+    from risk_scorer import score_and_enrich_incidents
+    score_and_enrich_incidents(os.path.join(DATA_DIR, "incidents.json"))
+except Exception as e:
+    print(f"Note: Risk engine enrichment skipped or error: {e}")
+
