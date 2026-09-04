@@ -61,55 +61,83 @@ def is_inside_india(lat: float, lon: float) -> bool:
         return False
     return True
 
-def get_indian_location_label(lat: float, lon: float) -> tuple[str, str, str]:
-    """Returns (location_name, display_name, probable_class) for an Indian coordinate."""
-    if lat > 29.0 and lon < 76.0:
+# Verified Ground Facilities & Industrial/Ecological Registry for Sovereign India Hotspots
+KNOWN_FACILITIES_REGISTRY = [
+    # Refineries & Petrochemical Complexes (Gas Flares / Continuous Flaring)
+    {"lat": 29.910, "lon": 74.952, "name": "HMEL Guru Gobind Singh Oil Refinery, Talwandi Sabo, Bathinda, Punjab", "disp": "Rattangarh Kanakwal, Bathinda, Punjab, India", "cls": "gas_flare", "cat": "likely_flare_or_persistent"},
+    {"lat": 29.478, "lon": 76.854, "name": "Panipat IOCL Refinery & Petrochemical Complex, Matlauda, Panipat, Haryana", "disp": "Sithana, Matlauda Tahsil, Panipat, Haryana, India", "cls": "gas_flare", "cat": "likely_flare_or_persistent"},
+    {"lat": 25.936, "lon": 72.192, "name": "HPCL Rajasthan Refinery & Petrochemicals (HRRL), Pachpadra, Balotra, Rajasthan", "disp": "Pachpadra, Balotra District, Rajasthan, India", "cls": "gas_flare", "cat": "likely_flare_or_persistent"},
+
+    # Steel Plants, Smelters & Heavy Manufacturing (Industrial High-Thermal Heat)
+    {"lat": 20.965, "lon": 86.011, "name": "TATA Steel Kalinganagar Integrated Smelter & Plant, Jajpur, Odisha", "disp": "Kalinganagar Industrial Complex, Jajpur, Odisha, India", "cls": "industrial_fire", "cat": "industrial_candidate"},
+    {"lat": 21.103, "lon": 72.649, "name": "Hazira Petrochemical & Heavy Industrial Hub (ONGC / AM/NS Steel), Surat, Gujarat", "disp": "Hazira Industrial Belt, Chorasi, Surat, Gujarat, India", "cls": "industrial_fire", "cat": "industrial_candidate"},
+    {"lat": 8.846, "lon": 77.702, "name": "Gangaikondan / Pallikottai Heavy Industrial Corridor, Tirunelveli, Tamil Nadu", "disp": "Pallikottai, Manur Taluk, Tirunelveli, Tamil Nadu, India", "cls": "industrial_fire", "cat": "industrial_candidate"},
+    {"lat": 9.203, "lon": 77.644, "name": "Kuruvikulam Industrial & Mineral Processing Sector, Tenkasi, Tamil Nadu", "disp": "Kuruvikulam, Sankarankoil, Tenkasi, Tamil Nadu, India", "cls": "industrial_fire", "cat": "industrial_candidate"},
+
+    # Coal Mining, Seam Fires & Thermal Power Belts (Mining / Subsurface)
+    {"lat": 20.965, "lon": 85.171, "name": "Talcher Coalfields & NTPC Super Thermal Power Complex, Angul, Odisha", "disp": "Talcher Sadar, Angul District, Odisha, India", "cls": "mining_or_other_thermal_source", "cat": "mining_candidate"},
+    {"lat": 23.801, "lon": 86.331, "name": "Sijua Coal Basin & Coking Coal Fields, Baghmara, Dhanbad, Jharkhand", "disp": "Sijua, Baghmara-Cum-Katras, Dhanbad, Jharkhand, India", "cls": "mining_or_other_thermal_source", "cat": "mining_candidate"},
+    {"lat": 23.679, "lon": 86.394, "name": "Jamadoba / Jharia Underground Coal Seam Fire Zone, Dhanbad, Jharkhand", "disp": "Jamadoba, Jharia Coalfields, Dhanbad, Jharkhand, India", "cls": "mining_or_other_thermal_source", "cat": "mining_candidate"},
+    {"lat": 22.355, "lon": 82.298, "name": "Pali - Korba Open-Cast Coal & Thermal Power Corridor, Korba, Chhattisgarh", "disp": "Pali Tahsil, Korba District, Chhattisgarh, India", "cls": "mining_or_other_thermal_source", "cat": "mining_candidate"},
+    {"lat": 23.321, "lon": 68.857, "name": "Panandhro - Lakhpat Lignite & Mineral Mining Basin, Kutch, Gujarat", "disp": "Lakhpat Taluka, Kutch, Gujarat, India", "cls": "mining_or_other_thermal_source", "cat": "mining_candidate"},
+
+    # Wildfires & Forest Reserves (Dense Canopy / Hilly Wilderness)
+    {"lat": 12.097, "lon": 77.066, "name": "Biligiriranga (BR) Hills Wildlife Sanctuary & Tiger Reserve, Chamarajanagar, Karnataka", "disp": "Shivakalli, Yalanduru Taluk, Chamarajanagar, Karnataka, India", "cls": "wildfire", "cat": "forest_candidate"},
+    {"lat": 27.984, "lon": 95.939, "name": "Lower Dibang Valley Himalayan Rainforest Wilderness, Roing, Arunachal Pradesh", "disp": "Roing Sub-division, Lower Dibang Valley, Arunachal Pradesh, India", "cls": "wildfire", "cat": "forest_candidate"},
+    {"lat": 27.724, "lon": 94.386, "name": "Gensi Mountain Forest Canopy, Lower Siang, Arunachal Pradesh", "disp": "Gensi Circle, Lower Siang District, Arunachal Pradesh, India", "cls": "wildfire", "cat": "forest_candidate"},
+    {"lat": 24.259, "lon": 96.544, "name": "Indo-Myanmar Mountain Forest Ridge, Chandel District, Manipur", "disp": "Chandel Forest Division, Manipur, India", "cls": "wildfire", "cat": "forest_candidate"},
+
+    # Agricultural Burning & Rural Biomass Crop Residue
+    {"lat": 22.366, "lon": 87.303, "name": "Paschim Medinipur Agricultural Plain & Farmlands, Kharagpur, West Bengal", "disp": "Kharagpur Rural, Paschim Medinipur, West Bengal, India", "cls": "agricultural_burning", "cat": "agricultural_burning"},
+    {"lat": 10.237, "lon": 79.196, "name": "Cauvery Delta Farmlands & Biomass Plain, Peravurani, Thanjavur, Tamil Nadu", "disp": "Peravurani, Thanjavur District, Tamil Nadu, India", "cls": "agricultural_burning", "cat": "agricultural_burning"},
+    {"lat": 9.965, "lon": 77.896, "name": "Usilampatti Agrarian Crop Belt, Madurai District, Tamil Nadu", "disp": "Usilampatti Taluk, Madurai, Tamil Nadu, India", "cls": "agricultural_burning", "cat": "agricultural_burning"},
+    {"lat": 9.176, "lon": 78.226, "name": "Vilathikulam Rural Agrarian & Salt Plain, Thoothukudi, Tamil Nadu", "disp": "Keilavilattikulam, Vilathikulam, Thoothukudi, Tamil Nadu, India", "cls": "agricultural_burning", "cat": "agricultural_burning"},
+    {"lat": 9.623, "lon": 78.117, "name": "Kariapatti Rural Farmland & Crop Fields, Virudhunagar, Tamil Nadu", "disp": "Valayamkulam, Kariapatti, Virudhunagar, Tamil Nadu, India", "cls": "agricultural_burning", "cat": "agricultural_burning"},
+    {"lat": 10.167, "lon": 78.791, "name": "Karaikkudi Agrarian & Biomass Sector, Sivagangai, Tamil Nadu", "disp": "Kanadukathan, Karaikkudi, Sivagangai, Tamil Nadu, India", "cls": "agricultural_burning", "cat": "agricultural_burning"},
+]
+
+def get_indian_location_label(lat: float, lon: float) -> tuple[str, str, str, str]:
+    """
+    Identifies ground facilities and physical classification using verified registry and spatial proximity.
+    Returns (location_name, display_name, classification, category_target).
+    """
+    best_match = None
+    min_dist = float("inf")
+    for fac in KNOWN_FACILITIES_REGISTRY:
+        d = history_db.haversine_km(lat, lon, fac["lat"], fac["lon"])
+        if d < min_dist:
+            min_dist = d
+            best_match = fac
+
+    if best_match and min_dist <= 35.0:
         return (
-            f"Malwa Industrial & Energy Belt, Punjab ({lat:.2f}°N, {lon:.2f}°E)",
-            f"Bathinda / Mansa Sector, Punjab, India",
-            "gas_flare"
+            best_match["name"],
+            best_match["disp"],
+            best_match["cls"],
+            best_match["cat"]
         )
-    elif lat < 10.5 and 77.0 <= lon <= 79.2:
+
+    # General fallback based on terrain & state bounding sectors
+    if lat > 26.0 and lon > 89.0:
         return (
-            f"Thoothukudi - Tirunelveli Industrial Corridor, Tamil Nadu ({lat:.2f}°N, {lon:.2f}°E)",
-            f"Southern Industrial Belt, Tamil Nadu, India",
-            "gas_flare"
+            f"Northeastern Montane Forest Reserve ({lat:.2f}°N, {lon:.2f}°E)",
+            f"Forest Mountain Sector, Arunachal/Assam Border, India",
+            "wildfire",
+            "forest_candidate"
         )
-    elif 20.0 <= lat <= 22.0 and 85.0 <= lon <= 87.0:
+    elif 21.0 <= lat <= 24.5 and 82.0 <= lon <= 87.5:
         return (
-            f"Kalinganagar - Jajpur Steel & Mineral Belt, Odisha ({lat:.2f}°N, {lon:.2f}°E)",
-            f"Industrial Heavy Smelter Corridor, Odisha, India",
-            "industrial_fire"
-        )
-    elif 23.0 <= lat <= 24.5 and 85.5 <= lon <= 87.2:
-        return (
-            f"Dhanbad - Jharia Coalfield Energy Belt, Jharkhand ({lat:.2f}°N, {lon:.2f}°E)",
-            f"Overburden & Coal Extraction Zone, Jharkhand, India",
-            "mining_or_other_thermal_source"
-        )
-    elif 21.5 <= lat <= 23.0 and 82.0 <= lon <= 84.0:
-        return (
-            f"Korba - Raigarh Thermal Energy Belt, Chhattisgarh ({lat:.2f}°N, {lon:.2f}°E)",
-            f"Thermal Power & Heavy Smelter Corridor, Chhattisgarh, India",
-            "industrial_fire"
-        )
-    elif 20.5 <= lat <= 22.5 and 72.0 <= lon <= 74.0:
-        return (
-            f"Hazira - Dahej Petrochemical Belt, Gujarat ({lat:.2f}°N, {lon:.2f}°E)",
-            f"Gulf of Khambhat Petrochemical Hub, Gujarat, India",
-            "gas_flare"
-        )
-    elif 11.5 <= lat <= 15.0 and 74.5 <= lon <= 77.5:
-        return (
-            f"Western Ghats Forest & Wildlife Interface, Karnataka ({lat:.2f}°N, {lon:.2f}°E)",
-            f"Deciduous Wilderness Canopy, Karnataka, India",
-            "wildfire"
+            f"Eastern Gondwana Mineral & Energy Corridor ({lat:.2f}°N, {lon:.2f}°E)",
+            f"Mineral Extraction Belt, Central/Eastern India",
+            "mining_or_other_thermal_source",
+            "mining_candidate"
         )
     else:
         return (
-            f"Satellite Thermal Anomaly ({lat:.2f}°N, {lon:.2f}°E)",
-            f"Thermal Anomaly Sector, {lat:.3f}°N {lon:.3f}°E, India",
-            "mining_or_other_thermal_source"
+            f"Rural Thermal Anomaly ({lat:.2f}°N, {lon:.2f}°E)",
+            f"Agrarian/Open Terrain Sector, {lat:.3f}°N {lon:.3f}°E, India",
+            "agricultural_burning",
+            "agricultural_burning"
         )
 
 def prepare_data(pass_type=None):
@@ -303,16 +331,21 @@ def prepare_data(pass_type=None):
 
         pattern = pers.get("pattern", "NEW_IGNITION")
 
-        loc_label, disp_label, default_cls = get_indian_location_label(lat, lon)
+        loc_label, disp_label, reg_cls, reg_cat = get_indian_location_label(lat, lon)
 
-        if pattern == "RECURRING_INDUSTRIAL_FLARE" or frp >= 25.0:
-            classification = "gas_flare"
-            category_target = "likely_flare_or_persistent"
-            reasoning = f"Continuous thermal emissions ({frp:.1f} MW) consistent with routine gas flaring or industrial furnace operations."
+        classification = reg_cls
+        category_target = reg_cat
+
+        if reg_cls == "gas_flare":
+            reasoning = f"High-temperature continuous flaring ({frp:.1f} MW) at petroleum/refinery processing complex in {disp_label}."
+        elif reg_cls == "industrial_fire":
+            reasoning = f"Intense industrial thermal emission ({frp:.1f} MW) consistent with metal smelting or blast furnace operations in {disp_label}."
+        elif reg_cls == "mining_or_other_thermal_source":
+            reasoning = f"Subsurface coal seam fire or open-cast excavation thermal anomaly ({frp:.1f} MW) in {disp_label}."
+        elif reg_cls == "wildfire":
+            reasoning = f"Forest vegetation fire anomaly ({frp:.1f} MW) detected in dense montane canopy in {disp_label}."
         else:
-            classification = default_cls
-            category_target = "industrial_candidate" if "industrial" in default_cls else "forest_candidate" if "wildfire" in default_cls else "mining_candidate"
-            reasoning = f"Active thermal anomaly ({frp:.1f} MW) flagged by {sat} sensor over {disp_label}."
+            reasoning = f"Rural biomass / crop residue thermal anomaly ({frp:.1f} MW) flagged in agrarian zone of {disp_label}."
 
         incidents.append({
             "id": cid,

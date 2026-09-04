@@ -28,7 +28,7 @@
     "raw_image_url": "/crops/case_004/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 117,
+    "persistence_detections": 126,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -72,7 +72,7 @@
   },
   {
     "id": "case_009",
-    "category_target": "likely_flare_or_persistent",
+    "category_target": "industrial_candidate",
     "latitude": 20.965,
     "longitude": 86.0109,
     "frp": 21.12,
@@ -82,9 +82,9 @@
     "acq_date": "2026-09-03",
     "acq_time": "15:01",
     "product": "MODIS_NRT",
-    "location_name": "Kalinganagar - Jajpur Steel & Mineral Belt, Odisha (20.96\u00b0N, 86.01\u00b0E)",
-    "display_name": "Industrial Heavy Smelter Corridor, Odisha, India",
-    "ai_classification": "gas_flare",
+    "location_name": "TATA Steel Kalinganagar Integrated Smelter & Plant, Jajpur, Odisha",
+    "display_name": "Kalinganagar Industrial Complex, Jajpur, Odisha, India",
+    "ai_classification": "industrial_fire",
     "ai_confidence": 0.88,
     "ai_uncertainty": "medium",
     "ai_evidence": [
@@ -92,16 +92,16 @@
       "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
       "Telemetry verified strictly inside sovereign Indian airspace at 20.9650\u00b0N, 86.0109\u00b0E"
     ],
-    "ai_reasoning": "Continuous thermal emissions (21.1 MW) consistent with routine gas flaring or industrial furnace operations.",
+    "ai_reasoning": "Intense industrial thermal emission (21.1 MW) consistent with metal smelting or blast furnace operations in Kalinganagar Industrial Complex, Jajpur, Odisha, India.",
     "image_url": "",
     "raw_image_url": "",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 39,
+    "persistence_detections": 42,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
-    "risk_score": 72,
+    "risk_score": 76,
     "risk_tier": "HIGH",
     "risk_color": "#ff7700",
     "action_recommendation": "ELEVATED SURVEILLANCE & FACILITY OPERATOR VERIFICATION",
@@ -132,81 +132,12 @@
       },
       {
         "factor": "Source Category Hazard",
-        "score": 6.0,
+        "score": 10.0,
         "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
+        "detail": "Uncontrolled Structural Industrial Fire (10/10 pts)"
       }
     ],
     "priority_rank": 2
-  },
-  {
-    "id": "case_013",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 10.23653,
-    "longitude": 79.19613,
-    "frp": 11.42,
-    "confidence": "h",
-    "satellite": "N",
-    "instrument": "VIIRS",
-    "acq_date": "2026-09-03",
-    "acq_time": "85:2",
-    "product": "VIIRS_NRT",
-    "location_name": "Thoothukudi - Tirunelveli Industrial Corridor, Tamil Nadu (10.24\u00b0N, 79.20\u00b0E)",
-    "display_name": "Southern Industrial Belt, Tamil Nadu, India",
-    "ai_classification": "gas_flare",
-    "ai_confidence": 0.88,
-    "ai_uncertainty": "low",
-    "ai_evidence": [
-      "Active N satellite detection with radiative output of 11.4 MW",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 10.2365\u00b0N, 79.1961\u00b0E"
-    ],
-    "ai_reasoning": "Continuous thermal emissions (11.4 MW) consistent with routine gas flaring or industrial furnace operations.",
-    "image_url": "",
-    "raw_image_url": "",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
-    "days_active": 1,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 62,
-    "risk_tier": "HIGH",
-    "risk_color": "#ff7700",
-    "action_recommendation": "ELEVATED SURVEILLANCE & FACILITY OPERATOR VERIFICATION",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 26.4,
-        "max": 30.0,
-        "detail": "88% AI Confidence (low uncertainty, 26.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 5.7,
-        "max": 25.0,
-        "detail": "11.4 MW (5.7/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 20.0,
-        "max": 20.0,
-        "detail": "High Satellite Confidence (20/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 6.0,
-        "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
-      }
-    ],
-    "priority_rank": 3
   },
   {
     "id": "case_020",
@@ -220,8 +151,8 @@
     "acq_date": "2026-09-03",
     "acq_time": "20:02",
     "product": "VIIRS_NRT",
-    "location_name": "Satellite Thermal Anomaly (29.48\u00b0N, 76.85\u00b0E)",
-    "display_name": "Thermal Anomaly Sector, 29.478\u00b0N 76.854\u00b0E, India",
+    "location_name": "Panipat IOCL Refinery & Petrochemical Complex, Matlauda, Panipat, Haryana",
+    "display_name": "Sithana, Matlauda Tahsil, Panipat, Haryana, India",
     "ai_classification": "gas_flare",
     "ai_confidence": 0.88,
     "ai_uncertainty": "low",
@@ -230,16 +161,16 @@
       "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
       "Telemetry verified strictly inside sovereign Indian airspace at 29.4776\u00b0N, 76.8537\u00b0E"
     ],
-    "ai_reasoning": "Continuous thermal emissions (9.5 MW) consistent with routine gas flaring or industrial furnace operations.",
+    "ai_reasoning": "High-temperature continuous flaring (9.5 MW) at petroleum/refinery processing complex in Sithana, Matlauda Tahsil, Panipat, Haryana, India.",
     "image_url": "",
     "raw_image_url": "",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 156,
+    "persistence_detections": 168,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
-    "risk_score": 61,
+    "risk_score": 72,
     "risk_tier": "HIGH",
     "risk_color": "#ff7700",
     "action_recommendation": "ELEVATED SURVEILLANCE & FACILITY OPERATOR VERIFICATION",
@@ -264,15 +195,84 @@
       },
       {
         "factor": "Hazardous Proximity",
-        "score": 4.0,
+        "score": 15.0,
         "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+        "detail": "Critical Petrochemical/Refinery Zone (<200m, 15/15 pts)"
       },
       {
         "factor": "Source Category Hazard",
         "score": 6.0,
         "max": 10.0,
         "detail": "High-Output Flaring Anomaly (6/10 pts)"
+      }
+    ],
+    "priority_rank": 3
+  },
+  {
+    "id": "case_010",
+    "category_target": "industrial_candidate",
+    "latitude": 9.20293,
+    "longitude": 77.64448,
+    "frp": 19.15,
+    "confidence": "n",
+    "satellite": "N",
+    "instrument": "VIIRS",
+    "acq_date": "2026-09-04",
+    "acq_time": "83:5",
+    "product": "VIIRS_NRT",
+    "location_name": "Kuruvikulam Industrial & Mineral Processing Sector, Tenkasi, Tamil Nadu",
+    "display_name": "Kuruvikulam, Sankarankoil, Tenkasi, Tamil Nadu, India",
+    "ai_classification": "industrial_fire",
+    "ai_confidence": 0.72,
+    "ai_uncertainty": "medium",
+    "ai_evidence": [
+      "Active N satellite detection with radiative output of 19.1 MW",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 9.2029\u00b0N, 77.6445\u00b0E"
+    ],
+    "ai_reasoning": "Intense industrial thermal emission (19.1 MW) consistent with metal smelting or blast furnace operations in Kuruvikulam, Sankarankoil, Tenkasi, Tamil Nadu, India.",
+    "image_url": "",
+    "raw_image_url": "",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 14,
+    "days_active": 1,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 61,
+    "risk_tier": "HIGH",
+    "risk_color": "#ff7700",
+    "action_recommendation": "ELEVATED SURVEILLANCE & FACILITY OPERATOR VERIFICATION",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 19.4,
+        "max": 30.0,
+        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 9.6,
+        "max": 25.0,
+        "detail": "19.1 MW (9.6/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 14.0,
+        "max": 20.0,
+        "detail": "Nominal Satellite Confidence (14/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 8.0,
+        "max": 15.0,
+        "detail": "Open-Pit Mining Extraction Belt (<1km, 8/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 10.0,
+        "max": 10.0,
+        "detail": "Uncontrolled Structural Industrial Fire (10/10 pts)"
       }
     ],
     "priority_rank": 4
@@ -307,7 +307,7 @@
     "raw_image_url": "/crops/case_001/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 169,
+    "persistence_detections": 182,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -350,6 +350,213 @@
     "priority_rank": 5
   },
   {
+    "id": "case_014",
+    "category_target": "likely_flare_or_persistent",
+    "latitude": 25.93598,
+    "longitude": 72.1917,
+    "frp": 10.29,
+    "confidence": "66",
+    "satellite": "Aqua",
+    "instrument": "MODIS",
+    "acq_date": "2026-09-04",
+    "acq_time": "10:17",
+    "product": "MODIS_NRT",
+    "location_name": "HPCL Rajasthan Refinery & Petrochemicals (HRRL), Pachpadra, Balotra, Rajasthan",
+    "display_name": "Pachpadra, Balotra District, Rajasthan, India",
+    "ai_classification": "gas_flare",
+    "ai_confidence": 0.72,
+    "ai_uncertainty": "medium",
+    "ai_evidence": [
+      "Active Aqua satellite detection with radiative output of 10.3 MW",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 25.9360\u00b0N, 72.1917\u00b0E"
+    ],
+    "ai_reasoning": "High-temperature continuous flaring (10.3 MW) at petroleum/refinery processing complex in Pachpadra, Balotra District, Rajasthan, India.",
+    "image_url": "",
+    "raw_image_url": "",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 98,
+    "days_active": 2,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 60,
+    "risk_tier": "MEDIUM",
+    "risk_color": "#f59e0b",
+    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 19.4,
+        "max": 30.0,
+        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 5.1,
+        "max": 25.0,
+        "detail": "10.3 MW (5.1/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 14.0,
+        "max": 20.0,
+        "detail": "Nominal Satellite Confidence (14/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 15.0,
+        "max": 15.0,
+        "detail": "Critical Petrochemical/Refinery Zone (<200m, 15/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 6.0,
+        "max": 10.0,
+        "detail": "High-Output Flaring Anomaly (6/10 pts)"
+      }
+    ],
+    "priority_rank": 6
+  },
+  {
+    "id": "case_008",
+    "category_target": "industrial_candidate",
+    "latitude": 8.84638,
+    "longitude": 77.70205,
+    "frp": 22.48,
+    "confidence": "n",
+    "satellite": "N",
+    "instrument": "VIIRS",
+    "acq_date": "2026-09-04",
+    "acq_time": "83:5",
+    "product": "VIIRS_NRT",
+    "location_name": "Gangaikondan / Pallikottai Heavy Industrial Corridor, Tirunelveli, Tamil Nadu",
+    "display_name": "Pallikottai, Manur Taluk, Tirunelveli, Tamil Nadu, India",
+    "ai_classification": "industrial_fire",
+    "ai_confidence": 0.72,
+    "ai_uncertainty": "medium",
+    "ai_evidence": [
+      "Active N satellite detection with radiative output of 22.5 MW",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 8.8464\u00b0N, 77.7020\u00b0E"
+    ],
+    "ai_reasoning": "Intense industrial thermal emission (22.5 MW) consistent with metal smelting or blast furnace operations in Pallikottai, Manur Taluk, Tirunelveli, Tamil Nadu, India.",
+    "image_url": "",
+    "raw_image_url": "",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 42,
+    "days_active": 1,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 59,
+    "risk_tier": "MEDIUM",
+    "risk_color": "#f59e0b",
+    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 19.4,
+        "max": 30.0,
+        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 11.2,
+        "max": 25.0,
+        "detail": "22.5 MW (11.2/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 14.0,
+        "max": 20.0,
+        "detail": "Nominal Satellite Confidence (14/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 4.0,
+        "max": 15.0,
+        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 10.0,
+        "max": 10.0,
+        "detail": "Uncontrolled Structural Industrial Fire (10/10 pts)"
+      }
+    ],
+    "priority_rank": 7
+  },
+  {
+    "id": "case_013",
+    "category_target": "agricultural_burning",
+    "latitude": 10.23653,
+    "longitude": 79.19613,
+    "frp": 11.42,
+    "confidence": "h",
+    "satellite": "N",
+    "instrument": "VIIRS",
+    "acq_date": "2026-09-03",
+    "acq_time": "85:2",
+    "product": "VIIRS_NRT",
+    "location_name": "Cauvery Delta Farmlands & Biomass Plain, Peravurani, Thanjavur, Tamil Nadu",
+    "display_name": "Peravurani, Thanjavur District, Tamil Nadu, India",
+    "ai_classification": "agricultural_burning",
+    "ai_confidence": 0.88,
+    "ai_uncertainty": "low",
+    "ai_evidence": [
+      "Active N satellite detection with radiative output of 11.4 MW",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 10.2365\u00b0N, 79.1961\u00b0E"
+    ],
+    "ai_reasoning": "Rural biomass / crop residue thermal anomaly (11.4 MW) flagged in agrarian zone of Peravurani, Thanjavur District, Tamil Nadu, India.",
+    "image_url": "",
+    "raw_image_url": "",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 14,
+    "days_active": 1,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 59,
+    "risk_tier": "MEDIUM",
+    "risk_color": "#f59e0b",
+    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 26.4,
+        "max": 30.0,
+        "detail": "88% AI Confidence (low uncertainty, 26.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 5.7,
+        "max": 25.0,
+        "detail": "11.4 MW (5.7/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 20.0,
+        "max": 20.0,
+        "detail": "High Satellite Confidence (20/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 4.0,
+        "max": 15.0,
+        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 3.0,
+        "max": 10.0,
+        "detail": "Unclassified Thermal Hotspot (3/10 pts)"
+      }
+    ],
+    "priority_rank": 8
+  },
+  {
     "id": "case_006",
     "category_target": "agricultural_candidate",
     "latitude": 22.36557,
@@ -378,7 +585,7 @@
     "raw_image_url": "/crops/case_006/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
+    "persistence_detections": 14,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -418,40 +625,40 @@
         "detail": "Uncontrolled Structural Industrial Fire (10/10 pts)"
       }
     ],
-    "priority_rank": 6
+    "priority_rank": 9
   },
   {
-    "id": "case_008",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 8.84638,
-    "longitude": 77.70205,
-    "frp": 22.48,
-    "confidence": "n",
-    "satellite": "N",
-    "instrument": "VIIRS",
+    "id": "case_012",
+    "category_target": "mining_candidate",
+    "latitude": 22.35515,
+    "longitude": 82.29759,
+    "frp": 11.76,
+    "confidence": "61",
+    "satellite": "Aqua",
+    "instrument": "MODIS",
     "acq_date": "2026-09-04",
-    "acq_time": "83:5",
-    "product": "VIIRS_NRT",
-    "location_name": "Thoothukudi - Tirunelveli Industrial Corridor, Tamil Nadu (8.85\u00b0N, 77.70\u00b0E)",
-    "display_name": "Southern Industrial Belt, Tamil Nadu, India",
-    "ai_classification": "gas_flare",
+    "acq_time": "10:17",
+    "product": "MODIS_NRT",
+    "location_name": "Pali - Korba Open-Cast Coal & Thermal Power Corridor, Korba, Chhattisgarh",
+    "display_name": "Pali Tahsil, Korba District, Chhattisgarh, India",
+    "ai_classification": "mining_or_other_thermal_source",
     "ai_confidence": 0.72,
     "ai_uncertainty": "medium",
     "ai_evidence": [
-      "Active N satellite detection with radiative output of 22.5 MW",
+      "Active Aqua satellite detection with radiative output of 11.8 MW",
       "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 8.8464\u00b0N, 77.7020\u00b0E"
+      "Telemetry verified strictly inside sovereign Indian airspace at 22.3551\u00b0N, 82.2976\u00b0E"
     ],
-    "ai_reasoning": "Continuous thermal emissions (22.5 MW) consistent with routine gas flaring or industrial furnace operations.",
+    "ai_reasoning": "Subsurface coal seam fire or open-cast excavation thermal anomaly (11.8 MW) in Pali Tahsil, Korba District, Chhattisgarh, India.",
     "image_url": "",
     "raw_image_url": "",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 39,
+    "persistence_detections": 28,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
-    "risk_score": 55,
+    "risk_score": 56,
     "risk_tier": "MEDIUM",
     "risk_color": "#f59e0b",
     "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
@@ -464,9 +671,9 @@
       },
       {
         "factor": "Fire Radiative Power",
-        "score": 11.2,
+        "score": 5.9,
         "max": 25.0,
-        "detail": "22.5 MW (11.2/25.0 pts)"
+        "detail": "11.8 MW (5.9/25.0 pts)"
       },
       {
         "factor": "FIRMS Instrument Confidence",
@@ -476,18 +683,18 @@
       },
       {
         "factor": "Hazardous Proximity",
-        "score": 4.0,
+        "score": 12.0,
         "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+        "detail": "Heavy Industrial/Power Infrastructure (<500m, 12/15 pts)"
       },
       {
         "factor": "Source Category Hazard",
-        "score": 6.0,
+        "score": 5.0,
         "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
+        "detail": "Diffuse Overburden/Coal Heat Anomaly (5/10 pts)"
       }
     ],
-    "priority_rank": 7
+    "priority_rank": 10
   },
   {
     "id": "case_002",
@@ -520,7 +727,7 @@
     "raw_image_url": "/crops/case_002/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
+    "persistence_detections": 14,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -560,11 +767,11 @@
         "detail": "Diffuse Overburden/Coal Heat Anomaly (5/10 pts)"
       }
     ],
-    "priority_rank": 8
+    "priority_rank": 11
   },
   {
     "id": "case_011",
-    "category_target": "likely_flare_or_persistent",
+    "category_target": "agricultural_burning",
     "latitude": 9.96503,
     "longitude": 77.89649,
     "frp": 12.21,
@@ -574,9 +781,9 @@
     "acq_date": "2026-09-04",
     "acq_time": "10:11",
     "product": "MODIS_NRT",
-    "location_name": "Thoothukudi - Tirunelveli Industrial Corridor, Tamil Nadu (9.97\u00b0N, 77.90\u00b0E)",
-    "display_name": "Southern Industrial Belt, Tamil Nadu, India",
-    "ai_classification": "gas_flare",
+    "location_name": "Usilampatti Agrarian Crop Belt, Madurai District, Tamil Nadu",
+    "display_name": "Usilampatti Taluk, Madurai, Tamil Nadu, India",
+    "ai_classification": "agricultural_burning",
     "ai_confidence": 0.88,
     "ai_uncertainty": "medium",
     "ai_evidence": [
@@ -584,16 +791,16 @@
       "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
       "Telemetry verified strictly inside sovereign Indian airspace at 9.9650\u00b0N, 77.8965\u00b0E"
     ],
-    "ai_reasoning": "Continuous thermal emissions (12.2 MW) consistent with routine gas flaring or industrial furnace operations.",
+    "ai_reasoning": "Rural biomass / crop residue thermal anomaly (12.2 MW) flagged in agrarian zone of Usilampatti Taluk, Madurai, Tamil Nadu, India.",
     "image_url": "",
     "raw_image_url": "",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
+    "persistence_detections": 14,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
-    "risk_score": 54,
+    "risk_score": 51,
     "risk_tier": "MEDIUM",
     "risk_color": "#f59e0b",
     "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
@@ -624,45 +831,45 @@
       },
       {
         "factor": "Source Category Hazard",
-        "score": 6.0,
+        "score": 3.0,
         "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
+        "detail": "Unclassified Thermal Hotspot (3/10 pts)"
       }
     ],
-    "priority_rank": 9
+    "priority_rank": 12
   },
   {
-    "id": "case_010",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 9.20293,
-    "longitude": 77.64448,
-    "frp": 19.15,
+    "id": "case_019",
+    "category_target": "mining_candidate",
+    "latitude": 23.32104,
+    "longitude": 68.85722,
+    "frp": 9.54,
     "confidence": "n",
-    "satellite": "N",
+    "satellite": "N20",
     "instrument": "VIIRS",
     "acq_date": "2026-09-04",
-    "acq_time": "83:5",
+    "acq_time": "85:8",
     "product": "VIIRS_NRT",
-    "location_name": "Thoothukudi - Tirunelveli Industrial Corridor, Tamil Nadu (9.20\u00b0N, 77.64\u00b0E)",
-    "display_name": "Southern Industrial Belt, Tamil Nadu, India",
-    "ai_classification": "gas_flare",
+    "location_name": "Panandhro - Lakhpat Lignite & Mineral Mining Basin, Kutch, Gujarat",
+    "display_name": "Lakhpat Taluka, Kutch, Gujarat, India",
+    "ai_classification": "mining_or_other_thermal_source",
     "ai_confidence": 0.72,
     "ai_uncertainty": "medium",
     "ai_evidence": [
-      "Active N satellite detection with radiative output of 19.1 MW",
+      "Active N20 satellite detection with radiative output of 9.5 MW",
       "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 9.2029\u00b0N, 77.6445\u00b0E"
+      "Telemetry verified strictly inside sovereign Indian airspace at 23.3210\u00b0N, 68.8572\u00b0E"
     ],
-    "ai_reasoning": "Continuous thermal emissions (19.1 MW) consistent with routine gas flaring or industrial furnace operations.",
+    "ai_reasoning": "Subsurface coal seam fire or open-cast excavation thermal anomaly (9.5 MW) in Lakhpat Taluka, Kutch, Gujarat, India.",
     "image_url": "",
     "raw_image_url": "",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
+    "persistence_detections": 14,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
-    "risk_score": 53,
+    "risk_score": 51,
     "risk_tier": "MEDIUM",
     "risk_color": "#f59e0b",
     "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
@@ -675,9 +882,9 @@
       },
       {
         "factor": "Fire Radiative Power",
-        "score": 9.6,
+        "score": 4.8,
         "max": 25.0,
-        "detail": "19.1 MW (9.6/25.0 pts)"
+        "detail": "9.5 MW (4.8/25.0 pts)"
       },
       {
         "factor": "FIRMS Instrument Confidence",
@@ -687,18 +894,18 @@
       },
       {
         "factor": "Hazardous Proximity",
-        "score": 4.0,
+        "score": 8.0,
         "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+        "detail": "Open-Pit Mining Extraction Belt (<1km, 8/15 pts)"
       },
       {
         "factor": "Source Category Hazard",
-        "score": 6.0,
+        "score": 5.0,
         "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
+        "detail": "Diffuse Overburden/Coal Heat Anomaly (5/10 pts)"
       }
     ],
-    "priority_rank": 10
+    "priority_rank": 13
   },
   {
     "id": "case_003",
@@ -730,7 +937,7 @@
     "raw_image_url": "/crops/case_003/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 143,
+    "persistence_detections": 154,
     "days_active": 2,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -770,287 +977,11 @@
         "detail": "Diffuse Overburden/Coal Heat Anomaly (5/10 pts)"
       }
     ],
-    "priority_rank": 11
-  },
-  {
-    "id": "case_012",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 22.35515,
-    "longitude": 82.29759,
-    "frp": 11.76,
-    "confidence": "61",
-    "satellite": "Aqua",
-    "instrument": "MODIS",
-    "acq_date": "2026-09-04",
-    "acq_time": "10:17",
-    "product": "MODIS_NRT",
-    "location_name": "Korba - Raigarh Thermal Energy Belt, Chhattisgarh (22.36\u00b0N, 82.30\u00b0E)",
-    "display_name": "Thermal Power & Heavy Smelter Corridor, Chhattisgarh, India",
-    "ai_classification": "gas_flare",
-    "ai_confidence": 0.72,
-    "ai_uncertainty": "medium",
-    "ai_evidence": [
-      "Active Aqua satellite detection with radiative output of 11.8 MW",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 22.3551\u00b0N, 82.2976\u00b0E"
-    ],
-    "ai_reasoning": "Continuous thermal emissions (11.8 MW) consistent with routine gas flaring or industrial furnace operations.",
-    "image_url": "",
-    "raw_image_url": "",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 26,
-    "days_active": 1,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 49,
-    "risk_tier": "MEDIUM",
-    "risk_color": "#f59e0b",
-    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 19.4,
-        "max": 30.0,
-        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 5.9,
-        "max": 25.0,
-        "detail": "11.8 MW (5.9/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 14.0,
-        "max": 20.0,
-        "detail": "Nominal Satellite Confidence (14/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 6.0,
-        "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
-      }
-    ],
-    "priority_rank": 12
-  },
-  {
-    "id": "case_014",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 25.93598,
-    "longitude": 72.1917,
-    "frp": 10.29,
-    "confidence": "66",
-    "satellite": "Aqua",
-    "instrument": "MODIS",
-    "acq_date": "2026-09-04",
-    "acq_time": "10:17",
-    "product": "MODIS_NRT",
-    "location_name": "Satellite Thermal Anomaly (25.94\u00b0N, 72.19\u00b0E)",
-    "display_name": "Thermal Anomaly Sector, 25.936\u00b0N 72.192\u00b0E, India",
-    "ai_classification": "gas_flare",
-    "ai_confidence": 0.72,
-    "ai_uncertainty": "medium",
-    "ai_evidence": [
-      "Active Aqua satellite detection with radiative output of 10.3 MW",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 25.9360\u00b0N, 72.1917\u00b0E"
-    ],
-    "ai_reasoning": "Continuous thermal emissions (10.3 MW) consistent with routine gas flaring or industrial furnace operations.",
-    "image_url": "",
-    "raw_image_url": "",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 91,
-    "days_active": 2,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 48,
-    "risk_tier": "MEDIUM",
-    "risk_color": "#f59e0b",
-    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 19.4,
-        "max": 30.0,
-        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 5.1,
-        "max": 25.0,
-        "detail": "10.3 MW (5.1/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 14.0,
-        "max": 20.0,
-        "detail": "Nominal Satellite Confidence (14/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 6.0,
-        "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
-      }
-    ],
-    "priority_rank": 13
-  },
-  {
-    "id": "case_015",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 9.17593,
-    "longitude": 78.22559,
-    "frp": 10.26,
-    "confidence": "n",
-    "satellite": "N",
-    "instrument": "VIIRS",
-    "acq_date": "2026-09-04",
-    "acq_time": "83:5",
-    "product": "VIIRS_NRT",
-    "location_name": "Thoothukudi - Tirunelveli Industrial Corridor, Tamil Nadu (9.18\u00b0N, 78.23\u00b0E)",
-    "display_name": "Southern Industrial Belt, Tamil Nadu, India",
-    "ai_classification": "gas_flare",
-    "ai_confidence": 0.72,
-    "ai_uncertainty": "medium",
-    "ai_evidence": [
-      "Active N satellite detection with radiative output of 10.3 MW",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 9.1759\u00b0N, 78.2256\u00b0E"
-    ],
-    "ai_reasoning": "Continuous thermal emissions (10.3 MW) consistent with routine gas flaring or industrial furnace operations.",
-    "image_url": "",
-    "raw_image_url": "",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 26,
-    "days_active": 1,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 48,
-    "risk_tier": "MEDIUM",
-    "risk_color": "#f59e0b",
-    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 19.4,
-        "max": 30.0,
-        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 5.1,
-        "max": 25.0,
-        "detail": "10.3 MW (5.1/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 14.0,
-        "max": 20.0,
-        "detail": "Nominal Satellite Confidence (14/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 6.0,
-        "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
-      }
-    ],
     "priority_rank": 14
   },
   {
-    "id": "case_016",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 9.62262,
-    "longitude": 78.11741,
-    "frp": 10.24,
-    "confidence": "n",
-    "satellite": "N",
-    "instrument": "VIIRS",
-    "acq_date": "2026-09-04",
-    "acq_time": "83:5",
-    "product": "VIIRS_NRT",
-    "location_name": "Thoothukudi - Tirunelveli Industrial Corridor, Tamil Nadu (9.62\u00b0N, 78.12\u00b0E)",
-    "display_name": "Southern Industrial Belt, Tamil Nadu, India",
-    "ai_classification": "gas_flare",
-    "ai_confidence": 0.72,
-    "ai_uncertainty": "medium",
-    "ai_evidence": [
-      "Active N satellite detection with radiative output of 10.2 MW",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 9.6226\u00b0N, 78.1174\u00b0E"
-    ],
-    "ai_reasoning": "Continuous thermal emissions (10.2 MW) consistent with routine gas flaring or industrial furnace operations.",
-    "image_url": "",
-    "raw_image_url": "",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
-    "days_active": 1,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 48,
-    "risk_tier": "MEDIUM",
-    "risk_color": "#f59e0b",
-    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 19.4,
-        "max": 30.0,
-        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 5.1,
-        "max": 25.0,
-        "detail": "10.2 MW (5.1/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 14.0,
-        "max": 20.0,
-        "detail": "Nominal Satellite Confidence (14/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 6.0,
-        "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
-      }
-    ],
-    "priority_rank": 15
-  },
-  {
     "id": "case_018",
-    "category_target": "likely_flare_or_persistent",
+    "category_target": "forest_candidate",
     "latitude": 24.25894,
     "longitude": 96.54393,
     "frp": 9.92,
@@ -1060,9 +991,9 @@
     "acq_date": "2026-09-04",
     "acq_time": "65:7",
     "product": "VIIRS_NRT",
-    "location_name": "Satellite Thermal Anomaly (24.26\u00b0N, 96.54\u00b0E)",
-    "display_name": "Thermal Anomaly Sector, 24.259\u00b0N 96.544\u00b0E, India",
-    "ai_classification": "gas_flare",
+    "location_name": "Indo-Myanmar Mountain Forest Ridge, Chandel District, Manipur",
+    "display_name": "Chandel Forest Division, Manipur, India",
+    "ai_classification": "wildfire",
     "ai_confidence": 0.72,
     "ai_uncertainty": "medium",
     "ai_evidence": [
@@ -1070,16 +1001,16 @@
       "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
       "Telemetry verified strictly inside sovereign Indian airspace at 24.2589\u00b0N, 96.5439\u00b0E"
     ],
-    "ai_reasoning": "Continuous thermal emissions (9.9 MW) consistent with routine gas flaring or industrial furnace operations.",
+    "ai_reasoning": "Forest vegetation fire anomaly (9.9 MW) detected in dense montane canopy in Chandel Forest Division, Manipur, India.",
     "image_url": "",
     "raw_image_url": "",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
+    "persistence_detections": 14,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
-    "risk_score": 48,
+    "risk_score": 50,
     "risk_tier": "MEDIUM",
     "risk_color": "#f59e0b",
     "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
@@ -1110,154 +1041,16 @@
       },
       {
         "factor": "Source Category Hazard",
-        "score": 6.0,
+        "score": 8.0,
         "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
+        "detail": "Wildland/Canopy Biomass Fire (8/10 pts)"
       }
     ],
-    "priority_rank": 16
-  },
-  {
-    "id": "case_019",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 23.32104,
-    "longitude": 68.85722,
-    "frp": 9.54,
-    "confidence": "n",
-    "satellite": "N20",
-    "instrument": "VIIRS",
-    "acq_date": "2026-09-04",
-    "acq_time": "85:8",
-    "product": "VIIRS_NRT",
-    "location_name": "Satellite Thermal Anomaly (23.32\u00b0N, 68.86\u00b0E)",
-    "display_name": "Thermal Anomaly Sector, 23.321\u00b0N 68.857\u00b0E, India",
-    "ai_classification": "gas_flare",
-    "ai_confidence": 0.72,
-    "ai_uncertainty": "medium",
-    "ai_evidence": [
-      "Active N20 satellite detection with radiative output of 9.5 MW",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 23.3210\u00b0N, 68.8572\u00b0E"
-    ],
-    "ai_reasoning": "Continuous thermal emissions (9.5 MW) consistent with routine gas flaring or industrial furnace operations.",
-    "image_url": "",
-    "raw_image_url": "",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
-    "days_active": 1,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 48,
-    "risk_tier": "MEDIUM",
-    "risk_color": "#f59e0b",
-    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 19.4,
-        "max": 30.0,
-        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 4.8,
-        "max": 25.0,
-        "detail": "9.5 MW (4.8/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 14.0,
-        "max": 20.0,
-        "detail": "Nominal Satellite Confidence (14/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 6.0,
-        "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
-      }
-    ],
-    "priority_rank": 17
-  },
-  {
-    "id": "case_021",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 10.16672,
-    "longitude": 78.79148,
-    "frp": 8.56,
-    "confidence": "n",
-    "satellite": "N",
-    "instrument": "VIIRS",
-    "acq_date": "2026-09-04",
-    "acq_time": "83:5",
-    "product": "VIIRS_NRT",
-    "location_name": "Thoothukudi - Tirunelveli Industrial Corridor, Tamil Nadu (10.17\u00b0N, 78.79\u00b0E)",
-    "display_name": "Southern Industrial Belt, Tamil Nadu, India",
-    "ai_classification": "gas_flare",
-    "ai_confidence": 0.72,
-    "ai_uncertainty": "medium",
-    "ai_evidence": [
-      "Active N satellite detection with radiative output of 8.6 MW",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 10.1667\u00b0N, 78.7915\u00b0E"
-    ],
-    "ai_reasoning": "Continuous thermal emissions (8.6 MW) consistent with routine gas flaring or industrial furnace operations.",
-    "image_url": "",
-    "raw_image_url": "",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 26,
-    "days_active": 1,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 48,
-    "risk_tier": "MEDIUM",
-    "risk_color": "#f59e0b",
-    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 19.4,
-        "max": 30.0,
-        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 4.3,
-        "max": 25.0,
-        "detail": "8.6 MW (4.3/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 14.0,
-        "max": 20.0,
-        "detail": "Nominal Satellite Confidence (14/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 6.0,
-        "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
-      }
-    ],
-    "priority_rank": 18
+    "priority_rank": 15
   },
   {
     "id": "case_022",
-    "category_target": "likely_flare_or_persistent",
+    "category_target": "forest_candidate",
     "latitude": 27.9844,
     "longitude": 95.93944,
     "frp": 7.85,
@@ -1267,9 +1060,9 @@
     "acq_date": "2026-09-03",
     "acq_time": "73:5",
     "product": "VIIRS_NRT",
-    "location_name": "Satellite Thermal Anomaly (27.98\u00b0N, 95.94\u00b0E)",
-    "display_name": "Thermal Anomaly Sector, 27.984\u00b0N 95.939\u00b0E, India",
-    "ai_classification": "gas_flare",
+    "location_name": "Lower Dibang Valley Himalayan Rainforest Wilderness, Roing, Arunachal Pradesh",
+    "display_name": "Roing Sub-division, Lower Dibang Valley, Arunachal Pradesh, India",
+    "ai_classification": "wildfire",
     "ai_confidence": 0.72,
     "ai_uncertainty": "medium",
     "ai_evidence": [
@@ -1277,16 +1070,16 @@
       "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
       "Telemetry verified strictly inside sovereign Indian airspace at 27.9844\u00b0N, 95.9394\u00b0E"
     ],
-    "ai_reasoning": "Continuous thermal emissions (7.8 MW) consistent with routine gas flaring or industrial furnace operations.",
+    "ai_reasoning": "Forest vegetation fire anomaly (7.8 MW) detected in dense montane canopy in Roing Sub-division, Lower Dibang Valley, Arunachal Pradesh, India.",
     "image_url": "",
     "raw_image_url": "",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 39,
+    "persistence_detections": 42,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
-    "risk_score": 47,
+    "risk_score": 49,
     "risk_tier": "MEDIUM",
     "risk_color": "#f59e0b",
     "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
@@ -1317,9 +1110,216 @@
       },
       {
         "factor": "Source Category Hazard",
-        "score": 6.0,
+        "score": 8.0,
         "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
+        "detail": "Wildland/Canopy Biomass Fire (8/10 pts)"
+      }
+    ],
+    "priority_rank": 16
+  },
+  {
+    "id": "case_015",
+    "category_target": "agricultural_burning",
+    "latitude": 9.17593,
+    "longitude": 78.22559,
+    "frp": 10.26,
+    "confidence": "n",
+    "satellite": "N",
+    "instrument": "VIIRS",
+    "acq_date": "2026-09-04",
+    "acq_time": "83:5",
+    "product": "VIIRS_NRT",
+    "location_name": "Vilathikulam Rural Agrarian & Salt Plain, Thoothukudi, Tamil Nadu",
+    "display_name": "Keilavilattikulam, Vilathikulam, Thoothukudi, Tamil Nadu, India",
+    "ai_classification": "agricultural_burning",
+    "ai_confidence": 0.72,
+    "ai_uncertainty": "medium",
+    "ai_evidence": [
+      "Active N satellite detection with radiative output of 10.3 MW",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 9.1759\u00b0N, 78.2256\u00b0E"
+    ],
+    "ai_reasoning": "Rural biomass / crop residue thermal anomaly (10.3 MW) flagged in agrarian zone of Keilavilattikulam, Vilathikulam, Thoothukudi, Tamil Nadu, India.",
+    "image_url": "",
+    "raw_image_url": "",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 28,
+    "days_active": 1,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 46,
+    "risk_tier": "MEDIUM",
+    "risk_color": "#f59e0b",
+    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 19.4,
+        "max": 30.0,
+        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 5.1,
+        "max": 25.0,
+        "detail": "10.3 MW (5.1/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 14.0,
+        "max": 20.0,
+        "detail": "Nominal Satellite Confidence (14/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 4.0,
+        "max": 15.0,
+        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 3.0,
+        "max": 10.0,
+        "detail": "Unclassified Thermal Hotspot (3/10 pts)"
+      }
+    ],
+    "priority_rank": 17
+  },
+  {
+    "id": "case_016",
+    "category_target": "agricultural_burning",
+    "latitude": 9.62262,
+    "longitude": 78.11741,
+    "frp": 10.24,
+    "confidence": "n",
+    "satellite": "N",
+    "instrument": "VIIRS",
+    "acq_date": "2026-09-04",
+    "acq_time": "83:5",
+    "product": "VIIRS_NRT",
+    "location_name": "Kariapatti Rural Farmland & Crop Fields, Virudhunagar, Tamil Nadu",
+    "display_name": "Valayamkulam, Kariapatti, Virudhunagar, Tamil Nadu, India",
+    "ai_classification": "agricultural_burning",
+    "ai_confidence": 0.72,
+    "ai_uncertainty": "medium",
+    "ai_evidence": [
+      "Active N satellite detection with radiative output of 10.2 MW",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 9.6226\u00b0N, 78.1174\u00b0E"
+    ],
+    "ai_reasoning": "Rural biomass / crop residue thermal anomaly (10.2 MW) flagged in agrarian zone of Valayamkulam, Kariapatti, Virudhunagar, Tamil Nadu, India.",
+    "image_url": "",
+    "raw_image_url": "",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 14,
+    "days_active": 1,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 46,
+    "risk_tier": "MEDIUM",
+    "risk_color": "#f59e0b",
+    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 19.4,
+        "max": 30.0,
+        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 5.1,
+        "max": 25.0,
+        "detail": "10.2 MW (5.1/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 14.0,
+        "max": 20.0,
+        "detail": "Nominal Satellite Confidence (14/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 4.0,
+        "max": 15.0,
+        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 3.0,
+        "max": 10.0,
+        "detail": "Unclassified Thermal Hotspot (3/10 pts)"
+      }
+    ],
+    "priority_rank": 18
+  },
+  {
+    "id": "case_021",
+    "category_target": "agricultural_burning",
+    "latitude": 10.16672,
+    "longitude": 78.79148,
+    "frp": 8.56,
+    "confidence": "n",
+    "satellite": "N",
+    "instrument": "VIIRS",
+    "acq_date": "2026-09-04",
+    "acq_time": "83:5",
+    "product": "VIIRS_NRT",
+    "location_name": "Karaikkudi Agrarian & Biomass Sector, Sivagangai, Tamil Nadu",
+    "display_name": "Kanadukathan, Karaikkudi, Sivagangai, Tamil Nadu, India",
+    "ai_classification": "agricultural_burning",
+    "ai_confidence": 0.72,
+    "ai_uncertainty": "medium",
+    "ai_evidence": [
+      "Active N satellite detection with radiative output of 8.6 MW",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 10.1667\u00b0N, 78.7915\u00b0E"
+    ],
+    "ai_reasoning": "Rural biomass / crop residue thermal anomaly (8.6 MW) flagged in agrarian zone of Kanadukathan, Karaikkudi, Sivagangai, Tamil Nadu, India.",
+    "image_url": "",
+    "raw_image_url": "",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 28,
+    "days_active": 1,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 45,
+    "risk_tier": "MEDIUM",
+    "risk_color": "#f59e0b",
+    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 19.4,
+        "max": 30.0,
+        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 4.3,
+        "max": 25.0,
+        "detail": "8.6 MW (4.3/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 14.0,
+        "max": 20.0,
+        "detail": "Nominal Satellite Confidence (14/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 4.0,
+        "max": 15.0,
+        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 3.0,
+        "max": 10.0,
+        "detail": "Unclassified Thermal Hotspot (3/10 pts)"
       }
     ],
     "priority_rank": 19
@@ -1397,6 +1397,75 @@
     "priority_rank": 20
   },
   {
+    "id": "case_017",
+    "category_target": "forest_candidate",
+    "latitude": 27.72401,
+    "longitude": 94.38616,
+    "frp": 10.09,
+    "confidence": "49",
+    "satellite": "Aqua",
+    "instrument": "MODIS",
+    "acq_date": "2026-09-04",
+    "acq_time": "83:9",
+    "product": "MODIS_NRT",
+    "location_name": "Gensi Mountain Forest Canopy, Lower Siang, Arunachal Pradesh",
+    "display_name": "Gensi Circle, Lower Siang District, Arunachal Pradesh, India",
+    "ai_classification": "wildfire",
+    "ai_confidence": 0.72,
+    "ai_uncertainty": "medium",
+    "ai_evidence": [
+      "Active Aqua satellite detection with radiative output of 10.1 MW",
+      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
+      "Telemetry verified strictly inside sovereign Indian airspace at 27.7240\u00b0N, 94.3862\u00b0E"
+    ],
+    "ai_reasoning": "Forest vegetation fire anomaly (10.1 MW) detected in dense montane canopy in Gensi Circle, Lower Siang District, Arunachal Pradesh, India.",
+    "image_url": "",
+    "raw_image_url": "",
+    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
+    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
+    "persistence_detections": 14,
+    "days_active": 1,
+    "day_night_status": "DAY + NIGHT (Continuous 24h)",
+    "risk_adjustment": -15,
+    "risk_score": 43,
+    "risk_tier": "MEDIUM",
+    "risk_color": "#f59e0b",
+    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
+    "risk_factors": [
+      {
+        "factor": "Vision AI Certainty",
+        "score": 19.4,
+        "max": 30.0,
+        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
+      },
+      {
+        "factor": "Fire Radiative Power",
+        "score": 5.0,
+        "max": 25.0,
+        "detail": "10.1 MW (5.0/25.0 pts)"
+      },
+      {
+        "factor": "FIRMS Instrument Confidence",
+        "score": 7.0,
+        "max": 20.0,
+        "detail": "Low Satellite Confidence (7/20 pts)"
+      },
+      {
+        "factor": "Hazardous Proximity",
+        "score": 4.0,
+        "max": 15.0,
+        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
+      },
+      {
+        "factor": "Source Category Hazard",
+        "score": 8.0,
+        "max": 10.0,
+        "detail": "Wildland/Canopy Biomass Fire (8/10 pts)"
+      }
+    ],
+    "priority_rank": 21
+  },
+  {
     "id": "case_007",
     "category_target": "uncertain_low_confidence",
     "latitude": 23.67901,
@@ -1426,7 +1495,7 @@
     "raw_image_url": "/crops/case_007/satellite_raw.jpg",
     "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
     "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 91,
+    "persistence_detections": 98,
     "days_active": 1,
     "day_night_status": "DAY + NIGHT (Continuous 24h)",
     "risk_adjustment": -15,
@@ -1464,75 +1533,6 @@
         "score": 5.0,
         "max": 10.0,
         "detail": "Diffuse Overburden/Coal Heat Anomaly (5/10 pts)"
-      }
-    ],
-    "priority_rank": 21
-  },
-  {
-    "id": "case_017",
-    "category_target": "likely_flare_or_persistent",
-    "latitude": 27.72401,
-    "longitude": 94.38616,
-    "frp": 10.09,
-    "confidence": "49",
-    "satellite": "Aqua",
-    "instrument": "MODIS",
-    "acq_date": "2026-09-04",
-    "acq_time": "83:9",
-    "product": "MODIS_NRT",
-    "location_name": "Satellite Thermal Anomaly (27.72\u00b0N, 94.39\u00b0E)",
-    "display_name": "Thermal Anomaly Sector, 27.724\u00b0N 94.386\u00b0E, India",
-    "ai_classification": "gas_flare",
-    "ai_confidence": 0.72,
-    "ai_uncertainty": "medium",
-    "ai_evidence": [
-      "Active Aqua satellite detection with radiative output of 10.1 MW",
-      "Multi-pass persistence: RECURRING INDUSTRIAL FLARE (DAY + NIGHT (Continuous 24h))",
-      "Telemetry verified strictly inside sovereign Indian airspace at 27.7240\u00b0N, 94.3862\u00b0E"
-    ],
-    "ai_reasoning": "Continuous thermal emissions (10.1 MW) consistent with routine gas flaring or industrial furnace operations.",
-    "image_url": "",
-    "raw_image_url": "",
-    "persistence_pattern": "RECURRING_INDUSTRIAL_FLARE",
-    "persistence_description": "Continuous 24h day/night thermal emissions characteristic of active refinery flares or industrial furnaces.",
-    "persistence_detections": 13,
-    "days_active": 1,
-    "day_night_status": "DAY + NIGHT (Continuous 24h)",
-    "risk_adjustment": -15,
-    "risk_score": 41,
-    "risk_tier": "MEDIUM",
-    "risk_color": "#f59e0b",
-    "action_recommendation": "ROUTINE SATELLITE PASS TRACKING & THERMAL LOGGING",
-    "risk_factors": [
-      {
-        "factor": "Vision AI Certainty",
-        "score": 19.4,
-        "max": 30.0,
-        "detail": "72% AI Confidence (medium uncertainty, 19.4/30.0 pts)"
-      },
-      {
-        "factor": "Fire Radiative Power",
-        "score": 5.0,
-        "max": 25.0,
-        "detail": "10.1 MW (5.0/25.0 pts)"
-      },
-      {
-        "factor": "FIRMS Instrument Confidence",
-        "score": 7.0,
-        "max": 20.0,
-        "detail": "Low Satellite Confidence (7/20 pts)"
-      },
-      {
-        "factor": "Hazardous Proximity",
-        "score": 4.0,
-        "max": 15.0,
-        "detail": "Wildland / Rural Buffer Interface (>1km, 4/15 pts)"
-      },
-      {
-        "factor": "Source Category Hazard",
-        "score": 6.0,
-        "max": 10.0,
-        "detail": "High-Output Flaring Anomaly (6/10 pts)"
       }
     ],
     "priority_rank": 22
