@@ -88,15 +88,25 @@ def build_investigation_package(
         force_refresh=force_refresh_imagery
     )
 
+    # Compute surge multiplier over local median
+    hist_median = hist_baseline.get("median_frp", 0.0) or 1.0
+    surge_mult = round(float(incident.current_max_frp or 0.0) / max(1.0, float(hist_median)), 2)
+
     # 6. Assemble Full Investigation Package
     package = {
         "incident": incident_data,
         "gis_context": gis_context,
         "historical_features": {
             "observation_count_90d": hist_baseline.get("observation_count", 0),
+            "active_days_365d": hist_baseline.get("active_days_365d", hist_baseline.get("active_days", 0)),
             "median_frp_mw": hist_baseline.get("median_frp", 0.0),
             "p90_frp_mw": hist_baseline.get("p90_frp", 0.0),
             "p95_frp_mw": hist_baseline.get("p95_frp", 0.0),
+            "max_frp_mw": hist_baseline.get("max_frp", 0.0),
+            "night_ratio": hist_baseline.get("night_ratio", 0.0),
+            "surge_multiplier": surge_mult,
+            "is_routine_flare": hist_baseline.get("is_routine_flare", False),
+            "site_classification_hint": hist_baseline.get("site_classification_hint", "EPISODIC_THERMAL"),
             "history_reliability_label": hist_baseline.get("history_reliability_label", "NONE"),
             "is_persistent": hist_baseline.get("is_persistent", False)
         },

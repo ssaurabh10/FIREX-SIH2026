@@ -9,8 +9,7 @@ import math
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from app.storage.models import Observation, HistoricalBaseline, BehaviorProfile, IndustrialAsset
+from app.storage.models import Observation, HistoricalBaseline, BehaviorProfile, IndustrialAsset, ThermalClimatology
 from app.gis.spatial import haversine_distance_km
 from app.core.logging import logger
 
@@ -130,6 +129,36 @@ def get_or_create_location_baseline(
             "history_reliability": existing_bl.history_reliability,
             "history_reliability_label": classify_history_reliability(count),
             "is_persistent": existing_bl.is_persistent
+        }
+
+    # 1b. Check National Thermal Climatology (pre-computed 0.02° grid across 2.89M Indian observations)
+    clim = (
+        db.query(ThermalClimatology)
+        .filter(ThermalClimatology.spatial_key == spatial_key)
+        .first()
+    )
+    if not force_refresh and clim:
+        count = clim.observation_count or 0
+        active_days = clim.active_days or 0
+        reliability = calculate_history_reliability(count, active_days, window_days)
+        is_persistent = bool(clim.is_routine_flare or (count >= 5 and active_days >= 3))
+        return {
+            "spatial_key": spatial_key,
+            "window_days": window_days,
+            "observation_count": count,
+            "active_days_365d": active_days,
+            "median_frp": clim.median_frp or 0.0,
+            "p90_frp": clim.p90_frp or 0.0,
+            "p95_frp": clim.p95_frp or 0.0,
+            "mean_frp": clim.median_frp or 0.0,
+            "min_frp": 0.0,
+            "max_frp": clim.max_frp or 0.0,
+            "night_ratio": clim.night_ratio or 0.0,
+            "is_routine_flare": bool(clim.is_routine_flare),
+            "site_classification_hint": clim.site_classification_hint or "EPISODIC_THERMAL",
+            "history_reliability": reliability,
+            "history_reliability_label": classify_history_reliability(count),
+            "is_persistent": is_persistent
         }
 
     # 2. Query observations within coordinate delta

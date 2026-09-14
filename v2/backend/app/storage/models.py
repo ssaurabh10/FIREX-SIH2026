@@ -227,6 +227,24 @@ class HistoricalBaseline(Base):
     last_updated_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ThermalClimatology(Base):
+    __tablename__ = "thermal_climatology"
+
+    spatial_key = Column(String, primary_key=True, index=True)  # e.g. GRID_21.15_72.68 (0.02 deg ~2.2km)
+    latitude = Column(Float, nullable=False, index=True)
+    longitude = Column(Float, nullable=False, index=True)
+    observation_count = Column(Integer, default=0)
+    active_days = Column(Integer, default=0)
+    median_frp = Column(Float, default=0.0)
+    p90_frp = Column(Float, default=0.0)
+    p95_frp = Column(Float, default=0.0)
+    max_frp = Column(Float, default=0.0)
+    night_ratio = Column(Float, default=0.0)  # 0.0 - 1.0 night-time detection fraction
+    is_routine_flare = Column(Boolean, default=False, index=True)
+    site_classification_hint = Column(String, default="EPISODIC_VEGETATION")
+    last_updated_at = Column(DateTime, default=datetime.utcnow)
+
+
 class HistoricalAnomaly(Base):
     __tablename__ = "historical_anomalies"
 

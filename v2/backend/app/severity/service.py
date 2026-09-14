@@ -51,6 +51,7 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
     p95_frp = base_dict.get("p95_frp", 0.0)
     history_rel = base_dict.get("history_reliability", 0.0)
     is_persistent = base_dict.get("is_persistent", False)
+    is_routine_flare = base_dict.get("is_routine_flare", False)
 
     # 4. Compute severity and confidence
     firms_confidence = incident.severity_confidence or 75.0  # default reasonable FIRMS confidence
@@ -66,7 +67,8 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
         facility_type=facility_type,
         hazard_category=hazard_cat,
         is_inside_facility=incident.is_inside_facility,
-        is_protected_area=False
+        is_protected_area=False,
+        is_routine_flare=is_routine_flare
     )
 
     # 5. Evaluate state machine transition

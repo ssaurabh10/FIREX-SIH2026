@@ -59,6 +59,12 @@ def build_investigation_prompt(package: Dict[str, Any]) -> str:
     p95_frp = hist.get("p95_frp_mw", 0.0)
     history_label = hist.get("history_reliability_label", "NO_HISTORY")
     is_persistent = "YES" if hist.get("is_persistent") else "NO"
+    active_days = hist.get("active_days_365d", 0)
+    night_ratio = hist.get("night_ratio", 0.0)
+    night_pct = round(night_ratio * 100.0, 1)
+    surge_mult = hist.get("surge_multiplier", 1.0)
+    is_routine_flare = "YES" if hist.get("is_routine_flare") else "NO"
+    site_hint = hist.get("site_classification_hint", "EPISODIC_THERMAL")
 
     radius_m = vis.get("radius_meters", 1000.0)
     zoom = vis.get("zoom_level", 16)
@@ -77,11 +83,14 @@ GEOSPATIAL & INDUSTRIAL INFRASTRUCTURE CONTEXT:
 - Distance to Facility Boundary/Center: {dist_str}
 - Inside Facility Boundary: {is_inside}
 
-365-DAY HISTORICAL BEHAVIOR BASELINE:
+365-DAY SATELLITE CLIMATOLOGY & HISTORICAL BEHAVIOR (EMPIRICAL):
 - Historical Data Reliability: {history_label}
-- Historical Median FRP: {median_frp:.1f} MW
-- Normal Operational Ceiling (95th-Percentile FRP): {p95_frp:.1f} MW
-- Persistent Thermal Source Flag: {is_persistent}
+- Annual Recurrence: Active on {active_days} distinct calendar days out of 365 ({round(active_days / 3.65, 1)}% of year)
+- Historical Median FRP: {median_frp:.1f} MW | Normal Operational Ceiling (P95): {p95_frp:.1f} MW
+- Thermal Excursion: Observed FRP ({frp:.1f} MW) is {surge_mult:.1f}x of historical median
+- Diurnal Pattern: {night_pct}% of historical detections occur at NIGHT (Flaring/Furnace Profile)
+- Persistent Thermal Source Flag: {is_persistent} (Known Routine Flare: {is_routine_flare})
+- Climatology Site Signature: {site_hint}
 
 TAXONOMY CHOICES:
 Select EXACTLY one primary and one alternative category from:
