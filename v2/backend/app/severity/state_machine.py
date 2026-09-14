@@ -5,18 +5,9 @@ Transitions incidents cleanly through lifecycle states:
 NEW -> INVESTIGATING -> ACTIVE -> ESCALATED / PERSISTENT -> SUBSIDING -> RESOLVED
 """
 import logging
+from app.incidents.state import VALID_STATES
 
 logger = logging.getLogger(__name__)
-
-VALID_STATES = {
-    "NEW",
-    "INVESTIGATING",
-    "ACTIVE",
-    "PERSISTENT",
-    "ESCALATED",
-    "SUBSIDING",
-    "RESOLVED"
-}
 
 def determine_lifecycle_state(
     current_status: str,

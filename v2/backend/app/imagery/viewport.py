@@ -4,7 +4,7 @@ Implements Section 14 / Stage 5 Dynamic Viewport and Custom Radius logic.
 Determines optimal ground radius, tile zoom level, and bounding box for optical satellite imagery.
 """
 import math
-from typing import Dict, Any, Optional, List
+from typing import Optional, List
 from pydantic import BaseModel
 
 class ViewportSpec(BaseModel):
@@ -29,12 +29,12 @@ def get_meters_per_pixel(lat: float, zoom: int) -> float:
 def determine_zoom_for_radius(radius_meters: float) -> int:
     """
     Chooses zoom level so that 2 * radius fits comfortably inside a 640px crop:
-    - radius <= 500m  -> Zoom 17 (~300m radius visible)
-    - radius <= 1000m -> Zoom 16 (~600m radius visible)
-    - radius <= 2000m -> Zoom 15 (~1200m radius visible)
-    - radius > 2000m  -> Zoom 14 (~2400m radius visible)
+    - radius <= 500m  -> Zoom 17
+    - radius <= 1000m -> Zoom 16
+    - radius <= 2000m -> Zoom 15
+    - radius > 2000m  -> Zoom 14
     """
-    return 17 if radius_meters <= 500.0 else 16 if radius_meters <= 1000.0 else 15 if radius_meters <= 2000.0 else 14
+    return 14 + int(radius_meters <= 2000.0) + int(radius_meters <= 1000.0) + int(radius_meters <= 500.0)
 
 def calculate_incident_viewport(
     lat: float,

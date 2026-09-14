@@ -7,7 +7,8 @@ Classifies land-use / land-cover characteristics around coordinates:
 - open_cast_mine / barren_rock
 - waterbody / coastal
 """
-from typing import Dict, Any, List
+from typing import Dict, Any
+from app.gis.spatial import haversine_distance_km
 
 # Prominent National Parks and Protected Forest Zones in India
 PROTECTED_ZONES = [
@@ -37,7 +38,6 @@ def resolve_landcover(
         dlat = abs(lat - park["lat"])
         dlon = abs(lon - park["lon"])
         if dlat < 0.5 and dlon < 0.5:
-            from app.gis.spatial import haversine_distance_km
             dist = haversine_distance_km(lat, lon, park["lat"], park["lon"])
             if dist <= park["radius_km"]:
                 return {
