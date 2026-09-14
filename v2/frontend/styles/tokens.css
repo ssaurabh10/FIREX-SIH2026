@@ -1,0 +1,152 @@
+/* ==========================================================================
+   FIREX / alternative UI - design tokens
+   Single source of truth. No component file may declare a raw hex value.
+   ========================================================================== */
+
+:root {
+  /* --- Ground -------------------------------------------------------------
+     Default: dark mode. */
+  --ink-900: #06080a;   /* page ground */
+  --ink-800: #0a0d0f;   /* inset wells, map letterbox */
+  --ink-700: #101315;   /* scrim base */
+
+  /* --- Frost ladder -------------------------------------------------------
+     Every surface, border and text tone derives from white alpha over ink.
+     Four text steps only: primary / secondary / tertiary / quiet. */
+  --t-primary:   rgba(255, 255, 255, 0.92);
+  --t-secondary: rgba(255, 255, 255, 0.62);
+  --t-tertiary:  rgba(255, 255, 255, 0.38);
+  --t-quiet:     rgba(255, 255, 255, 0.24);
+
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --line:        rgba(255, 255, 255, 0.075);
+  --line-hair:   rgba(255, 255, 255, 0.055);
+
+  --fill-3: rgba(255, 255, 255, 0.09);
+  --fill-2: rgba(255, 255, 255, 0.055);
+  --fill-1: rgba(255, 255, 255, 0.03);
+}
+
+/* Light Theme Variables */
+[data-theme="light"] {
+  --ink-900: #f0f4f8;
+  --ink-800: #e2e8f0;
+  --ink-700: #cbd5e1;
+
+  --t-primary:   rgba(15, 23, 42, 0.95);
+  --t-secondary: rgba(15, 23, 42, 0.72);
+  --t-tertiary:  rgba(15, 23, 42, 0.50);
+  --t-quiet:     rgba(15, 23, 42, 0.35);
+
+  --line-strong: rgba(15, 23, 42, 0.18);
+  --line:        rgba(15, 23, 42, 0.11);
+  --line-hair:   rgba(15, 23, 42, 0.07);
+
+  --fill-3: rgba(15, 23, 42, 0.08);
+  --fill-2: rgba(15, 23, 42, 0.05);
+  --fill-1: rgba(15, 23, 42, 0.025);
+
+  --unclassified: rgba(15, 23, 42, 0.45);
+}
+
+:root {
+
+  /* --- Accent -------------------------------------------------------------
+     Exactly one interactive accent for the whole application.
+     It means "selected / focused / active", never "important". */
+  --signal:      #1688f7;
+  --signal-soft: rgba(22, 136, 247, 0.14);
+  --signal-line: rgba(22, 136, 247, 0.42);
+
+  /* --- Risk ramp ----------------------------------------------------------
+     Semantic only. Encodes the risk tier from the scoring engine and
+     nothing else. Never used decoratively. */
+  --tier-critical: #f04438;
+  --tier-high:     #e8823b;
+  --tier-medium:   #d9b900;
+  --tier-low:      #64d977;
+
+  /* Unclassified FIRMS pixels. A thermal anomaly is not a confirmed fire,
+     so raw detections stay neutral until vision AI has classified them. */
+  --unclassified: rgba(255, 255, 255, 0.34);
+
+  /* --- Type ---------------------------------------------------------------
+     Geist for the interface, JetBrains Mono for every measured value.
+     The mono/sans split is the primary typographic contrast. */
+  --font-sans: "Geist", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --fs-display: 2rem;       /* 32px  view title */
+  --fs-title:   1.0625rem;  /* 17px  panel title */
+  --fs-metric:  1.75rem;    /* 28px  headline figure */
+  --fs-body:    0.8125rem;  /* 13px  reading size */
+  --fs-label:   0.6875rem;  /* 11px  field label */
+  --fs-micro:   0.625rem;   /* 10px  axis, unit, caption */
+
+  --lh-tight: 1.1;
+  --lh-snug:  1.35;
+  --lh-body:  1.55;
+
+  --tr-display: -0.024em;
+  --tr-tight:   -0.012em;
+  --tr-wide:    0.08em;   /* uppercase labels only */
+
+  /* --- Space (4px rhythm) ------------------------------------------------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+
+  /* --- Shape --------------------------------------------------------------
+     One radius system: 8 controls / 12 inner cells / 16 panels / 20 shells. */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+
+  /* --- Elevation ----------------------------------------------------------
+     Wide and low-opacity. No hard drop shadows. */
+  --lift-1: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --lift-2: 0 12px 32px rgba(0, 0, 0, 0.34);
+  --lift-3: 0 28px 70px rgba(0, 0, 0, 0.46);
+  --bezel:  inset 0 1px 0 rgba(255, 255, 255, 0.045);
+
+  /* --- Motion -------------------------------------------------------------
+     Transform and opacity only. Never linear, never ease-in-out. */
+  --ease-out:  cubic-bezier(0.16, 1, 0.30, 1);
+  --ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+  --d-fast: 140ms;
+  --d-base: 220ms;
+  --d-slow: 420ms;
+  --d-data: 180ms;   /* value-change transition, per the spec */
+
+  /* --- Frame ------------------------------------------------------------- */
+  --nav-h: 60px;
+  --rail-w: 384px;
+  --dock-w: 396px;
+  --strip-h: 156px;
+  --gutter: var(--s-3);
+  --blur: 20px;
+}
+
+/* Layer geometry. Declared once so nothing needs an arbitrary z-index. */
+:root {
+  --z-map: 0;
+  --z-map-overlay: 420;   /* above Leaflet panes (400) and controls (800 is ours) */
+  --z-nav: 900;
+  --z-drawer: 1000;
+  --z-modal: 1100;
+  --z-grain: 1200;
+  --z-fatal: 1300;        /* the boot failure notice, over everything including the grain */
+}
+
+/* Respect the OS preference for less transparency: fall back to opaque fills. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --blur: 0px;
+  }
+}

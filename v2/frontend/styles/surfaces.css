@@ -1,0 +1,176 @@
+/* ==========================================================================
+   surfaces - the glass system
+   --------------------------------------------------------------------------
+   Honest note: this is a backdrop-filter approximation of frosted glass, not
+   a physical material model. It is built from three stacked cues:
+     1. a low-contrast diagonal wash so the panel has a light direction
+     2. a single hairline border, brighter than the wash
+     3. a 1px inset top highlight (the bezel) to imply thickness
+
+   PERFORMANCE CONTRACT
+   .glass          -> no backdrop-filter. Safe inside scrolling regions.
+   .glass--frosted -> backdrop-filter. Only on fixed / sticky / overlay layers.
+   Blurring a scrolling container forces a repaint of everything behind it on
+   every frame, so the two classes are deliberately separate.
+   ========================================================================== */
+
+.glass {
+  position: relative;
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-lg);
+  background:
+    linear-gradient(148deg,
+      rgba(29, 32, 33, 0.72) 0%,
+      rgba(16, 19, 20, 0.62) 46%,
+      rgba(11, 13, 14, 0.58) 100%);
+  box-shadow: var(--lift-2), var(--bezel);
+}
+
+.glass--frosted {
+  backdrop-filter: blur(var(--blur)) saturate(118%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(118%);
+}
+
+/* Floating over the map: needs to read against imagery, so it sits darker. */
+.glass--over {
+  background:
+    linear-gradient(148deg,
+      rgba(14, 17, 18, 0.86) 0%,
+      rgba(8, 10, 11, 0.80) 100%);
+  border-color: var(--line);
+  box-shadow: var(--lift-3), var(--bezel);
+}
+
+[data-theme="light"] .glass {
+  background:
+    linear-gradient(148deg,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(241, 245, 249, 0.80) 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="light"] .glass--over {
+  background:
+    linear-gradient(148deg,
+      rgba(255, 255, 255, 0.92) 0%,
+      rgba(248, 250, 252, 0.88) 100%);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="light"] .queue-panel {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.1);
+}
+
+[data-theme="light"] .drawer {
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .spotlight-nav {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.12), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="light"] .spotlight-nav__item {
+  color: var(--t-secondary);
+}
+
+[data-theme="light"] .spotlight-nav__item:hover,
+[data-theme="light"] .spotlight-nav__item[aria-current="page"] {
+  color: #0f172a;
+}
+
+[data-theme="light"] .spotlight-nav__light {
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.10) 0%, rgba(15, 23, 42, 0.03) 45%, transparent 70%);
+}
+
+[data-theme="light"] .spotlight-nav__ambience {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 0 14px 1px rgba(22, 136, 247, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+
+.glass--flush { box-shadow: var(--bezel); }
+.glass--sm { border-radius: var(--r-md); }
+.glass--lg { border-radius: var(--r-xl); }
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .glass--over { background: #0d1012; }
+  .glass--frosted { backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* --- Double bezel --------------------------------------------------------
+   An outer shell holds a recessed inner core. The core's radius is derived
+   from the shell's so the two arcs stay concentric. Used for the map frame
+   and the dossier imagery, where the content needs a physical seat. */
+
+.bezel {
+  --bezel-inset: 5px;
+  padding: var(--bezel-inset);
+  border-radius: var(--r-xl);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012));
+  box-shadow:
+    var(--lift-3),
+    inset 0 1px 1px rgba(255, 255, 255, 0.10);
+}
+
+.bezel__core {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--r-xl) - var(--bezel-inset));
+  background: var(--ink-800);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+/* --- Inset well ----------------------------------------------------------
+   For read-only blocks nested inside a panel (evidence lists, reasoning,
+   coordinate readouts). Recessed rather than raised, so nesting stays legible
+   without stacking more shadows. */
+
+.well {
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.26);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.4);
+  transition: background-color 0.4s ease, border-color 0.4s ease;
+}
+
+[data-theme="light"] .well {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.06);
+}
+
+/* --- Hairline separators -------------------------------------------------- */
+
+.rule {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: var(--line-hair);
+}
+
+.rule--fade {
+  background: linear-gradient(90deg, transparent, var(--line), transparent);
+}
+
+/* --- Grain ---------------------------------------------------------------
+   Fixed, non-interactive, 1200 stacking layer. Breaks up the large flat
+   black areas and the blur banding. Cheap because it never repaints. */
+
+.grain {
+  display: none !important;
+}
+
+/* Vignette so the viewport edges fall away from the content. */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  background: radial-gradient(130% 110% at 50% 45%, transparent 52%, rgba(0, 0, 0, 0.42) 100%);
+}

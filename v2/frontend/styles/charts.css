@@ -1,0 +1,186 @@
+/* ==========================================================================
+   charts - hand-built, no charting library
+   All charts share one grammar: hairline axes, dotted gridlines, 2px marks,
+   values read from mono labels rather than from a legend.
+   ========================================================================== */
+
+.chart {
+  position: relative;
+  display: grid;
+  gap: var(--s-2);
+  min-height: 0;
+}
+
+.chart__plot {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+}
+
+/* Dotted horizontal gridlines, drawn as a repeating background so the SVG
+   stays free of decoration elements. */
+.chart__plot--grid {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--line-hair) 0 1px,
+    transparent 1px 5px
+  );
+  background-size: 100% 1px;
+  background-repeat: repeat-y;
+  background-position: 0 0;
+}
+
+.chart__axis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--t-quiet);
+  letter-spacing: 0;
+}
+
+.chart__svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+.chart__line { fill: none; stroke: var(--t-primary); stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
+.chart__line--quiet { stroke: var(--t-quiet); stroke-dasharray: 3 4; }
+.chart__area { fill: url(#chartFade); stroke: none; }
+.chart__grid { stroke: var(--line-hair); stroke-width: 1; stroke-dasharray: 1 4; }
+.chart__node { fill: var(--ink-900); stroke: var(--t-primary); stroke-width: 1.4; }
+.chart__node--peak { fill: var(--tier-high); stroke: var(--ink-900); }
+.chart__dot { fill: var(--unclassified); }
+.chart__dot--case { stroke: var(--ink-900); stroke-width: 1; }
+
+/* --- Column histogram ----------------------------------------------------- */
+
+.cols {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 100%;
+  min-height: 44px;
+}
+
+.cols__bar {
+  position: relative;
+  flex: 1;
+  min-width: 2px;
+  height: var(--v, 4%);
+  border-radius: 2px 2px 0 0;
+  background: var(--fill-3);
+  transition: height var(--d-slow) var(--ease-glide), background-color var(--d-fast) var(--ease-out);
+}
+.cols__bar[data-tier] { background: color-mix(in srgb, var(--tier) 62%, transparent); }
+.cols__bar:hover { background: var(--t-secondary); }
+.cols__bar[data-tier]:hover { background: var(--tier); }
+
+/* --- Ranked horizontal bars ----------------------------------------------
+   Class mix. Deliberately monochrome: classification is a category, not a
+   severity, so it does not get the risk ramp. */
+
+.ranks { display: grid; gap: var(--s-3); }
+
+.rank {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3) var(--s-4);
+}
+
+.rank__label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-label);
+  color: var(--t-secondary);
+  min-width: 0;
+}
+.rank__label svg { color: var(--t-tertiary); }
+
+.rank__n {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+}
+
+.rank__track {
+  grid-column: 1 / -1;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--fill-2);
+  overflow: hidden;
+}
+
+.rank__fill {
+  height: 100%;
+  width: var(--v, 0%);
+  border-radius: 99px;
+  background: var(--t-tertiary);
+  transition: width var(--d-slow) var(--ease-glide);
+}
+.rank:hover .rank__fill { background: var(--t-secondary); }
+
+/* --- Legend --------------------------------------------------------------- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+}
+
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+}
+
+.legend__swatch {
+  width: 8px;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--tier, var(--t-tertiary));
+}
+.legend__swatch--ring {
+  width: 8px; height: 8px;
+  border-radius: 99px;
+  border: 1.4px solid var(--tier, var(--t-tertiary));
+  background: none;
+}
+.legend__swatch--dashed { border-style: dashed; }
+
+/* --- Time strip ----------------------------------------------------------
+   One mark per detection on a real time axis, so a cluster of returns from a
+   single overpass looks like a cluster instead of a tidy sequence. Ring
+   colour is the risk tier; a dashed ring is a detection the vision model
+   could not confirm. Marks that would sit on top of each other are given a
+   lane off the axis by the render layer, which is why the strip is taller
+   than a single row of marks needs. */
+
+.tl { position: relative; height: 72px; }
+
+.tl__axis {
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 1px;
+  background: var(--line-hair);
+}
+
+.tl__mark {
+  position: absolute;
+  top: calc(50% + var(--lane, 0) * 13px);
+  width: 11px; height: 11px;
+  margin: -6px 0 0 -6px;
+  border: 1.4px solid var(--tier, var(--unclassified));
+  border-radius: 99px;
+  background: var(--ink-900);
+  transition: transform var(--d-fast) var(--ease-out),
+              background-color var(--d-fast) var(--ease-out);
+}
+.tl__mark[data-confirmed="0"] { border-style: dashed; }
+.tl__mark:hover { transform: scale(1.4); }
+.tl__mark[data-selected="1"] {
+  background: var(--tier);
+  transform: scale(1.4);
+}

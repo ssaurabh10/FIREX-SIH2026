@@ -1,0 +1,24 @@
+{
+  "incident_id": "inc_test_vis_mumbai",
+  "incident_code": "INC-2026-MUM01",
+  "provider": "SlippyTile / Google-Esri Hybrid",
+  "wording": "Current high-resolution map/satellite visual context centered on the FIRMS incident",
+  "zoom_level": 16,
+  "ground_radius_meters": 850.0,
+  "dimensions": {
+    "width": 640,
+    "height": 640
+  },
+  "reticle_xy": [
+    312,
+    383
+  ],
+  "raw_file_path": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\v2\\backend\\data\\crops\\inc_test_vis_mumbai\\satellite_raw.jpg",
+  "annotated_file_path": "C:\\Users\\ssaur\\OneDrive\\Desktop\\PS162\\v2\\backend\\data\\crops\\inc_test_vis_mumbai\\satellite_annotated.jpg",
+  "raw_image_url": "/crops/inc_test_vis_mumbai/satellite_raw.jpg",
+  "annotated_image_url": "/crops/inc_test_vis_mumbai/satellite_annotated.jpg",
+  "is_valid": true,
+  "latitude": 19.005,
+  "longitude": 72.89,
+  "captured_at": "2026-09-13T21:45:45.260347"
+}

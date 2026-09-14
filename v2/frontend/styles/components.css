@@ -1,0 +1,852 @@
+/* ==========================================================================
+   components - controls, tags, metrics, meters, charts, cards
+   ========================================================================== */
+
+/* Risk tier is the only thing allowed to introduce hue. Any element carrying
+   data-tier exposes --tier to its subtree; components never hardcode a ramp
+   colour.
+
+   The unclassified default has to come first. All five selectors weigh the
+   same, so order is the only thing separating them, and a default written last
+   would win everywhere. It also cannot be written as var(--tier, fallback):
+   a custom property that refers to itself is a cycle, which makes --tier
+   invalid on every tiered element and quietly drops the ramp. */
+[data-tier]            { --tier: var(--unclassified); }
+[data-tier="CRITICAL"] { --tier: var(--tier-critical); }
+[data-tier="HIGH"]     { --tier: var(--tier-high); }
+[data-tier="MEDIUM"]   { --tier: var(--tier-medium); }
+[data-tier="LOW"]      { --tier: var(--tier-low); }
+
+/* --- Search --------------------------------------------------------------- */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 34px;
+  width: 216px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--t-tertiary);
+  transition: border-color var(--d-fast) var(--ease-out), width var(--d-base) var(--ease-out);
+}
+.search:focus-within { border-color: var(--signal-line); color: var(--t-secondary); }
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+  background: none;
+}
+.search input::placeholder { color: var(--t-quiet); }
+.search input::-webkit-search-cancel-button { display: none; }
+
+.search__clear {
+  display: grid;
+  place-items: center;
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  color: var(--t-tertiary);
+}
+.search__clear:hover { color: var(--t-primary); background: var(--fill-2); }
+
+@media (max-width: 1440px) { .search { width: 168px; } }
+@media (max-width: 1100px) { .search { display: none; } }
+
+/* --- Tab (navigation) ----------------------------------------------------- */
+
+.tab {
+  position: relative;
+  padding: 7px var(--s-3);
+  border-radius: 99px;
+  font-size: var(--fs-body);
+  font-weight: 400;
+  color: var(--t-tertiary);
+  transition: color var(--d-fast) var(--ease-out), background-color var(--d-fast) var(--ease-out);
+}
+.tab:hover { color: var(--t-primary); background: var(--fill-1); }
+
+.tab[aria-current="page"] {
+  color: var(--t-primary);
+  background: var(--fill-2);
+  box-shadow: inset 0 0 0 1px var(--line-hair), var(--bezel);
+}
+
+/* --- Buttons -------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 34px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--fill-1);
+  color: var(--t-secondary);
+  font-size: var(--fs-body);
+  white-space: nowrap;
+  transition: color var(--d-fast) var(--ease-out),
+              background-color var(--d-fast) var(--ease-out),
+              border-color var(--d-fast) var(--ease-out);
+}
+.btn:hover { color: var(--t-primary); background: var(--fill-2); border-color: var(--line-strong); }
+.btn:active { background: var(--fill-3); }
+.btn:disabled { opacity: 0.4; }
+.btn:disabled:hover { color: var(--t-secondary); background: var(--fill-1); border-color: var(--line); }
+
+.btn--primary {
+  border-color: var(--signal-line);
+  background: var(--signal-soft);
+  color: var(--t-primary);
+}
+.btn--primary:hover { background: rgba(22, 136, 247, 0.22); border-color: var(--signal); }
+
+.btn--ghost { border-color: transparent; background: none; }
+.btn--ghost:hover { border-color: var(--line); }
+
+.btn--sm { height: 28px; padding: 0 var(--s-3); font-size: var(--fs-label); }
+.btn--block { width: 100%; justify-content: center; }
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--fill-1);
+  color: var(--t-secondary);
+  transition: color var(--d-fast) var(--ease-out),
+              background-color var(--d-fast) var(--ease-out),
+              border-color var(--d-fast) var(--ease-out);
+}
+.icon-btn:hover { color: var(--t-primary); background: var(--fill-2); border-color: var(--line-strong); }
+.icon-btn[aria-pressed="true"] {
+  color: var(--t-primary);
+  border-color: var(--signal-line);
+  background: var(--signal-soft);
+}
+
+/* Unread-alert indicator. A real state flag, not decoration. */
+.icon-btn__flag {
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 6px; height: 6px;
+  border-radius: 99px;
+  background: var(--tier-critical);
+  box-shadow: 0 0 0 2px var(--ink-900);
+}
+.icon-btn--flagged { position: relative; }
+
+/* --- Segmented control ---------------------------------------------------- */
+
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-sm);
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.seg__opt {
+  padding: 5px var(--s-3);
+  border-radius: 6px;
+  font-size: var(--fs-label);
+  color: var(--t-tertiary);
+  transition: color var(--d-fast) var(--ease-out), background-color var(--d-fast) var(--ease-out);
+}
+.seg__opt:hover { color: var(--t-secondary); }
+.seg__opt[aria-checked="true"] {
+  color: var(--t-primary);
+  background: var(--fill-2);
+  box-shadow: var(--bezel);
+}
+
+/* --- Filter bar ----------------------------------------------------------
+   Sits in the rail directly above the list it filters, which is where the
+   section 6 console keeps its filter tabs. It wraps rather than scrolls: in a
+   fixed-width column a scrolling row would hide a class behind an edge with
+   nothing to say it was there. The pills are shorter here than elsewhere so
+   seven of them cost two rows of the column rather than three. */
+
+.filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding: 0 var(--s-4) var(--s-3);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.filterbar .pill { height: 26px; padding: 0 9px; gap: 5px; }
+
+/* --- Filter pill ---------------------------------------------------------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 30px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-hair);
+  border-radius: 99px;
+  background: var(--fill-1);
+  font-size: var(--fs-label);
+  color: var(--t-tertiary);
+  transition: color var(--d-fast) var(--ease-out),
+              background-color var(--d-fast) var(--ease-out),
+              border-color var(--d-fast) var(--ease-out);
+}
+.pill:hover { color: var(--t-primary); border-color: var(--line); }
+.pill[aria-pressed="true"] {
+  color: var(--t-primary);
+  background: var(--fill-3);
+  border-color: var(--line-strong);
+}
+.pill__n {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-micro);
+  color: var(--t-quiet);
+}
+.pill[aria-pressed="true"] .pill__n { color: var(--t-secondary); }
+
+/* --- Tag ------------------------------------------------------------------
+   Uppercase, hairline, no fill by default. Tier tags borrow --tier. */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--t-secondary);
+  white-space: nowrap;
+}
+
+.tag--tier {
+  color: var(--tier);
+  border-color: color-mix(in srgb, var(--tier) 34%, transparent);
+  background: color-mix(in srgb, var(--tier) 11%, transparent);
+}
+
+/* Uncertainty is encoded structurally, not with colour: a dashed edge and no
+   fill reads as "not confirmed" even in greyscale. */
+.tag--unconfirmed {
+  border-style: dashed;
+  border-color: var(--line-strong);
+  background: none;
+  color: var(--t-tertiary);
+}
+
+.tag--signal {
+  color: var(--signal);
+  border-color: var(--signal-line);
+  background: var(--signal-soft);
+}
+
+.tag__dot {
+  width: 5px; height: 5px;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+/* --- Metric --------------------------------------------------------------- */
+
+.metric { display: flex; flex-direction: column; gap: var(--s-3); }
+
+.metric__value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.metric__unit {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--t-tertiary);
+}
+
+.metric__note {
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+  line-height: 1.4;
+}
+
+/* --- Meter (hairline bar) -------------------------------------------------
+   Replaces the "big number with a gradient" pattern. The track is a hairline,
+   the fill is 2px, and the value is read from the mono label beside it. */
+
+.meter {
+  position: relative;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--fill-2);
+  overflow: hidden;
+}
+
+.meter__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--v, 0%);
+  border-radius: 99px;
+  background: var(--tier, var(--t-secondary));
+  transform-origin: left center;
+  transition: width var(--d-slow) var(--ease-glide);
+}
+
+.meter--signal .meter__fill { background: var(--signal); }
+.meter--quiet .meter__fill { background: var(--t-tertiary); }
+
+/* --- Bullet row (risk factor) --------------------------------------------- */
+
+.bullet { display: grid; gap: 6px; }
+
+.bullet__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.bullet__name {
+  font-size: var(--fs-label);
+  color: var(--t-secondary);
+}
+
+.bullet__score {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+}
+.bullet__max { color: var(--t-quiet); }
+
+.bullet__detail {
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+}
+
+/* --- Priority spine ------------------------------------------------------
+   The signature component. One row per triaged case, ordered by the scoring
+   engine's rank. Rank numeral, name, tier-coloured score bar, score. Hover
+   pre-highlights the matching map marker; click flies to it. */
+
+.spine { display: flex; flex-direction: column; }
+
+.spine__row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: 10px var(--s-4);
+  border: 0;
+  border-top: 1px solid var(--line-hair);
+  text-align: left;
+  transition: background-color var(--d-fast) var(--ease-out);
+  cursor: pointer;
+}
+.spine__row:first-child { border-top: 0; }
+.spine__row:hover { background: rgba(255, 255, 255, 0.05); }
+
+[data-theme="light"] .spine__row:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.spine__row[data-selected="1"] {
+  background: var(--signal-soft);
+  box-shadow: inset 3px 0 0 var(--signal);
+}
+
+.spine__rank {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  color: var(--t-secondary);
+  transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+}
+
+[data-theme="light"] .spine__rank {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #334155;
+}
+
+.spine__row[data-selected="1"] .spine__rank {
+  color: #ffffff;
+  background: var(--signal);
+  border-color: var(--signal);
+}
+
+.spine__main { min-width: 0; display: grid; gap: 4px; }
+
+.spine__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--t-primary);
+}
+
+.spine__name .spine__cid {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 400;
+  color: var(--t-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line-hair);
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+[data-theme="light"] .spine__name .spine__cid {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #475569;
+}
+
+.spine__where {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+}
+.spine__where svg { color: var(--t-tertiary); }
+.dot-sep { opacity: 0.35; }
+
+.spine__score {
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tier);
+  padding: 2px 7px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--tier) 12%, rgba(0, 0, 0, 0.4));
+  border: 1px solid color-mix(in srgb, var(--tier) 35%, transparent);
+  transition: background-color 0.4s ease;
+}
+
+[data-theme="light"] .spine__score {
+  background: color-mix(in srgb, var(--tier) 14%, transparent);
+  border-color: color-mix(in srgb, var(--tier) 35%, transparent);
+}
+
+/* Light mode overrides for controls */
+[data-theme="light"] .seg {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .seg__opt {
+  color: #475569;
+}
+
+[data-theme="light"] .seg__opt:hover {
+  color: #0f172a;
+}
+
+[data-theme="light"] .seg__opt[aria-checked="true"] {
+  color: #0f172a;
+  background: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .zoombar,
+[data-theme="light"] .icon-btn.glass {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #334155;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .icon-btn.glass:hover {
+  color: #0f172a;
+  background: #ffffff;
+}
+
+[data-theme="light"] .search {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+
+[data-theme="light"] .switch {
+  background: rgba(15, 23, 42, 0.12);
+  border-color: rgba(15, 23, 42, 0.16);
+}
+
+/* --- Key / value readout -------------------------------------------------- */
+
+.kv {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-2) var(--s-4);
+  align-items: baseline;
+}
+
+.kv__k {
+  font-size: var(--fs-label);
+  color: var(--t-tertiary);
+  white-space: nowrap;
+}
+
+.kv__v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-label);
+  color: var(--t-primary);
+  text-align: right;
+  word-break: break-word;
+}
+
+.kv--wide { grid-template-columns: 118px minmax(0, 1fr); }
+.kv--wide .kv__v { text-align: left; }
+
+/* --- Boot failure --------------------------------------------------------
+   The one message that has to survive the console not starting. Built in
+   main.js with createElement and textContent, and styled here in neutral frost
+   tones rather than the risk ramp: that ramp encodes a scoring engine tier and
+   nothing else, and this is not a tier. Opaque on purpose, since a translucent
+   panel needs something rendered behind it and the failure this reports may be
+   the reason there is nothing there. */
+
+.bootfail {
+  position: fixed;
+  top: var(--s-4);
+  left: 50%;
+  translate: -50% 0;
+  z-index: var(--z-fatal);
+  width: min(560px, calc(100vw - var(--s-8)));
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--ink-900);
+  box-shadow: var(--lift-3), var(--bezel);
+}
+
+.bootfail strong {
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--t-primary);
+}
+
+.bootfail p {
+  font-size: var(--fs-label);
+  line-height: var(--lh-body);
+  color: var(--t-secondary);
+}
+
+/* ==========================================================================
+   Tactical Orbital Pipeline Sync Modal (Section 6 & 8)
+   ========================================================================== */
+
+.sync-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+  background: rgba(3, 6, 10, 0.88);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.3s;
+}
+
+.sync-scrim[data-open="1"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s;
+}
+
+.sync-modal {
+  width: min(720px, 95vw);
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(160deg, rgba(18, 24, 33, 0.97) 0%, rgba(10, 14, 20, 0.98) 100%);
+  box-shadow: 0 30px 70px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.16);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transform: scale(0.97) translateY(10px);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.sync-scrim[data-open="1"] .sync-modal {
+  transform: scale(1) translateY(0);
+}
+
+.sync-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 14px;
+}
+
+.sync-title-group h2 {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #f8fafc;
+  margin: 4px 0 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-title-group p {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  letter-spacing: 0.04em;
+}
+
+.sync-badge--running {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+}
+
+.sync-progress-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sync-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+}
+
+.sync-current-phase {
+  color: #38bdf8;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-pct-number {
+  color: #10b981;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.sync-bar-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.sync-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%);
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.5);
+}
+
+.sync-stages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.sync-stage-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.25s ease;
+  opacity: 0.45;
+}
+
+.sync-stage-row[data-status="active"] {
+  opacity: 1;
+  background: rgba(56, 189, 248, 0.06);
+  border-color: rgba(56, 189, 248, 0.25);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.08);
+}
+
+.sync-stage-row[data-status="done"] {
+  opacity: 0.9;
+  background: rgba(16, 185, 129, 0.04);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.sync-stage-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
+  color: #64748b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sync-stage-row[data-status="active"] .sync-stage-icon {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
+  animation: pulse-ring 1.5s infinite;
+}
+
+.sync-stage-row[data-status="done"] .sync-stage-icon {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(56, 189, 248, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}
+
+.sync-stage-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sync-stage-name {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.sync-stage-desc {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.sync-stage-status-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #64748b;
+}
+
+.sync-stage-row[data-status="active"] .sync-stage-status-badge {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.sync-stage-row[data-status="done"] .sync-stage-status-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.sync-log-terminal {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.67rem;
+  line-height: 1.45;
+  color: #94a3b8;
+  max-height: 85px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sync-log-entry {
+  display: flex;
+  gap: 8px;
+}
+
+.sync-log-ts {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.sync-log-msg {
+  color: #cbd5e1;
+  word-break: break-all;
+}
+
+.sync-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.68rem;
+  color: #64748b;
+  padding-top: 4px;
+}
