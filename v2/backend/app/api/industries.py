@@ -37,6 +37,8 @@ class IndustrialAssetResponse(BaseModel):
     buffer_radius_meters: float
     polygon_geojson: Optional[Dict[str, Any]] = None
 
+from app.core.cache import cache
+
 @router.get("/industries", response_model=List[IndustrialAssetResponse])
 def list_industries(
     limit: int = Query(default=50, le=500),
@@ -49,6 +51,11 @@ def list_industries(
     """
     List industrial facilities with optional filtering by type, state, or thermal category.
     """
+    cache_key = f"industries:list:{limit}:{offset}:{facility_type}:{state}:{category}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # Ensure seed data exists
     if db.query(IndustrialAsset).count() == 0:
         seed_industrial_assets(db)
@@ -61,7 +68,11 @@ def list_industries(
     if category:
         query = query.filter(IndustrialAsset.category == category)
 
-    return query.order_by(IndustrialAsset.name.asc()).offset(offset).limit(limit).all()
+    assets = query.order_by(IndustrialAsset.name.asc()).offset(offset).limit(limit).all()
+    # Cache dumpable dicts to avoid SQLAlchemy session detachment
+    result = [IndustrialAssetResponse.model_validate(a).model_dump() for a in assets]
+    cache.set(cache_key, result, ttl=60)
+    return result
 
 @router.get("/industries/search", response_model=List[IndustrialAssetResponse])
 def search_industries(
@@ -72,6 +83,11 @@ def search_industries(
     """
     Search industrial facilities across name, operator, state, district, or industry.
     """
+    cache_key = f"industries:search:{q.strip().lower()}:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     if db.query(IndustrialAsset).count() == 0:
         seed_industrial_assets(db)
 
@@ -91,17 +107,26 @@ def search_industries(
         .limit(limit)
         .all()
     )
-    return results
+    result = [IndustrialAssetResponse.model_validate(a).model_dump() for a in results]
+    cache.set(cache_key, result, ttl=60)
+    return result
 
 @router.get("/industries/{asset_id}", response_model=IndustrialAssetResponse)
 def get_industry_by_id(asset_id: str, db: Session = Depends(get_db)):
     """
     Get detailed facility profile by ID.
     """
+    cache_key = f"industries:asset:{asset_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     asset = db.query(IndustrialAsset).filter(IndustrialAsset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Industrial asset not found")
-    return asset
+    result = IndustrialAssetResponse.model_validate(asset).model_dump()
+    cache.set(cache_key, result, ttl=300)
+    return result
 
 @router.post("/industries/seed")
 def trigger_seed_industries(db: Session = Depends(get_db)):

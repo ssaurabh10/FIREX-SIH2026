@@ -17,6 +17,7 @@ from app.core.logging import logger
 from app.ingestion.validator import RawFIRMSObservation, NormalizedObservation
 from app.ingestion.normalizer import normalize_raw_firms
 from app.storage.models import Observation
+from app.gis.boundaries import is_within_indian_sovereign_territory
 
 class FIRMSClient:
     def __init__(
@@ -92,8 +93,13 @@ class FIRMSClient:
 
         new_entities = []
         skipped = 0
+        foreign_skipped = 0
 
         for obs in observations:
+            if not is_within_indian_sovereign_territory(obs.latitude, obs.longitude):
+                foreign_skipped += 1
+                continue
+
             if obs.external_id in existing_ids:
                 skipped += 1
                 continue

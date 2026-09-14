@@ -37,20 +37,20 @@ EVENT_ALERT_CREATED = "alert.created"
 EVENT_ANALYSIS_COMPLETED = "analysis.completed"
 EVENT_ANALYSIS_FAILED = "analysis.failed"
 
-# Mapping blueprint events to v1 UI stages for zero-breakage dashboard compatibility
+# Mapping blueprint events to v1 UI stages for clean, understandable progress
 STAGE_MAPPING = {
-    EVENT_ANALYSIS_STARTED: {"stage": 0, "pct": 5, "label": "Initializing Mission Orbit Pipeline"},
-    EVENT_FIRMS_FETCHED: {"stage": 1, "pct": 20, "label": "FIRMS Ingestion & Sovereign Filter"},
-    EVENT_GIS_COMPLETED: {"stage": 2, "pct": 35, "label": "GIS Spatial Context & Asset Enrichment"},
-    EVENT_CLUSTERING_COMPLETED: {"stage": 3, "pct": 50, "label": "Spatial-Temporal Clustering & Association"},
-    EVENT_SELECTION_COMPLETED: {"stage": 3, "pct": 65, "label": "Incident Triage & Investigation Selection"},
-    EVENT_IMAGERY_STARTED: {"stage": 4, "pct": 75, "label": "High-Res Optical Satellite Tile Synthesis"},
-    EVENT_AI_STARTED: {"stage": 5, "pct": 85, "label": "Multimodal AI Vision Scene Analysis"},
-    EVENT_AI_COMPLETED: {"stage": 5, "pct": 90, "label": "AI Scene Classification & Reasoning"},
-    EVENT_SEVERITY_COMPLETED: {"stage": 6, "pct": 95, "label": "Operational Threat Severity Assessment"},
-    EVENT_ALERT_CREATED: {"stage": 6, "pct": 98, "label": "Incident Alert Dispatch"},
-    EVENT_ANALYSIS_COMPLETED: {"stage": 6, "pct": 100, "label": "Analysis Complete & Feeds Published"},
-    EVENT_ANALYSIS_FAILED: {"stage": 6, "pct": 100, "label": "Analysis Run Error"}
+    EVENT_ANALYSIS_STARTED: {"stage": 0, "pct": 5, "label": "Starting Analysis Pipeline"},
+    EVENT_FIRMS_FETCHED: {"stage": 1, "pct": 20, "label": "Satellite Thermal Feed"},
+    EVENT_GIS_COMPLETED: {"stage": 2, "pct": 35, "label": "History & Baseline Matching"},
+    EVENT_CLUSTERING_COMPLETED: {"stage": 3, "pct": 50, "label": "Hotspot Clustering"},
+    EVENT_SELECTION_COMPLETED: {"stage": 3, "pct": 65, "label": "Target Prioritization"},
+    EVENT_IMAGERY_STARTED: {"stage": 4, "pct": 75, "label": "Satellite Imagery Preparation"},
+    EVENT_AI_STARTED: {"stage": 5, "pct": 80, "label": "AI Vision Analysis"},
+    EVENT_AI_COMPLETED: {"stage": 5, "pct": 90, "label": "AI Vision Verified"},
+    EVENT_SEVERITY_COMPLETED: {"stage": 6, "pct": 95, "label": "Threat Risk Assessment"},
+    EVENT_ALERT_CREATED: {"stage": 6, "pct": 98, "label": "Alerts Dispatched"},
+    EVENT_ANALYSIS_COMPLETED: {"stage": 6, "pct": 100, "label": "Analysis Complete"},
+    EVENT_ANALYSIS_FAILED: {"stage": 6, "pct": 100, "label": "Analysis Error"}
 }
 
 class PipelineEvent:
@@ -68,12 +68,13 @@ class PipelineEvent:
         """
         # Inject v1 compatibility fields into data
         compat = STAGE_MAPPING.get(self.event_type, {"stage": 0, "pct": 0, "label": self.event_type})
+        pct = self.data.get("stage_pct") if self.data.get("stage_pct") is not None else compat["pct"]
         payload = {
             "event": self.event_type,
             "run_id": self.run_id,
             "timestamp": self.timestamp,
             "stage": compat["stage"],
-            "pct": compat["pct"],
+            "pct": pct,
             "label": compat["label"],
             "detail": self.data.get("message") or compat["label"],
             "data": self.data,

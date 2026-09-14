@@ -21,8 +21,13 @@ def enrich_coordinate_gis_context(lat: float, lon: float, db: Session) -> Dict[s
 
     # 2. Sovereign Administrative Units (State & District)
     admin_context = resolve_admin_boundary(lat, lon)
-    state = asset_context.get("state") or admin_context.get("state")
-    district = asset_context.get("district") or admin_context.get("district")
+    is_near_facility = asset_context.get("is_inside_facility") or (asset_context.get("distance_km", 999.0) <= 5.0)
+    if is_near_facility and asset_context.get("state"):
+        state = asset_context.get("state")
+        district = asset_context.get("district") or admin_context.get("district")
+    else:
+        state = admin_context.get("state")
+        district = admin_context.get("district")
 
     # 3. Land Cover & Protected Area Resolution
     land_context = resolve_landcover(

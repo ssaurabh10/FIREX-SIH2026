@@ -34,22 +34,27 @@ BANNER = r"""
 def cmd_serve(args):
     """Launch the primary GIS Dashboard server."""
     port = args.port or 8000
-    server_script = os.path.join(BASE_DIR, "dashboard", "server.py")
-    if not os.path.exists(server_script):
-        print(f"[ERROR] Dashboard server script not found at: {server_script}")
+    backend_script = os.path.join(BASE_DIR, "v2", "backend", "run.py")
+    if not os.path.exists(backend_script):
+        print(f"[ERROR] Backend server script not found at: {backend_script}")
         sys.exit(1)
     
     print(BANNER)
-    print(f"[FIREX] Launching Unified GIS Command Center on port {port}...")
-    print(f"[FIREX] Serving from: {os.path.join(BASE_DIR, 'dashboard')}")
-    print(f"[FIREX] Web Access:   http://localhost:{port}/")
+    print(f"[FIREX v2] Launching Space-Borne Satellite Intelligence Console on port {port}...")
+    print(f"[FIREX v2] Web Console: http://127.0.0.1:{port}/console/")
+    print(f"[FIREX v2] API Docs:    http://127.0.0.1:{port}/docs")
     print("-" * 75)
     
     env = os.environ.copy()
-    env["FIREX_PORT"] = str(port)
-    if args.open:
-        env["FIREX_AUTO_OPEN"] = "1"
-    subprocess.run([sys.executable, server_script], cwd=BASE_DIR, env=env)
+    env["PORT"] = str(port)
+    env["HOST"] = "127.0.0.1"
+    
+    if getattr(args, "open", False):
+        import webbrowser
+        import threading
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}/console/")).start()
+        
+    subprocess.run([sys.executable, backend_script], cwd=os.path.join(BASE_DIR, "v2", "backend"), env=env)
 
 def cmd_pipeline(args):
     """Execute the end-to-end AI detection & classification pipeline."""
@@ -146,7 +151,10 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "serve":
+    if args.command == "serve" or args.command is None:
+        if args.command is None:
+            args.port = 8000
+            args.open = True
         cmd_serve(args)
     elif args.command == "daemon":
         cmd_daemon(args)

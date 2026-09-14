@@ -15,7 +15,7 @@ Full Schema based on Section 10 of Blueprint:
 import uuid
 from datetime import datetime
 from sqlalchemy import (
-    Column, String, Integer, Float, DateTime, Boolean, Text, ForeignKey, JSON
+    Column, String, Integer, Float, DateTime, Boolean, Text, ForeignKey, JSON, Index
 )
 from sqlalchemy.orm import relationship
 from app.storage.database import Base
@@ -43,6 +43,11 @@ class Observation(Base):
     raw_payload = Column(JSON, nullable=True)
 
     incident_links = relationship("IncidentObservation", back_populates="observation")
+
+    __table_args__ = (
+        Index("ix_obs_lat_lon", "latitude", "longitude"),
+        Index("ix_obs_acquired_frp", "acquired_at", "frp_mw"),
+    )
 
 
 class Incident(Base):
@@ -89,6 +94,13 @@ class Incident(Base):
     alerts = relationship("AlertRecord", back_populates="incident")
     events = relationship("IncidentEvent", back_populates="incident")
     asset = relationship("IndustrialAsset")
+
+    __table_args__ = (
+        Index("ix_incidents_lat_lon", "latitude", "longitude"),
+        Index("ix_incidents_status_priority", "status", "investigation_priority"),
+        Index("ix_incidents_status_severity", "status", "severity_score"),
+        Index("ix_incidents_last_detected", "last_detected_at"),
+    )
 
 
 class IncidentObservation(Base):

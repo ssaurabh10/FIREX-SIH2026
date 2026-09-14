@@ -26,27 +26,49 @@ async function getJSON(url) {
 }
 
 export async function load() {
-  const [incidents, ambient] = await Promise.allSettled([
-    getJSON(SOURCES.incidents),
-    getJSON(SOURCES.ambient),
-  ]);
-
   store.errors = [];
   store.notices = [];
 
-  if (incidents.status === "fulfilled" && Array.isArray(incidents.value)) {
-    store.cases = incidents.value.map(normaliseCase).sort((a, b) => a.rank - b.rank);
-    checkTiers();
-  } else {
-    store.errors.push({ source: "incidents", message: String(incidents.reason || "unavailable") });
+  let feedLoaded = false;
+  try {
+    const feedRes = await fetch("/api/console/feed", { cache: "no-store" });
+    if (feedRes.ok) {
+      const feed = await feedRes.json();
+      if (feed && Array.isArray(feed.incidents)) {
+        store.cases = feed.incidents.map(normaliseCase).sort((a, b) => a.rank - b.rank);
+        checkTiers();
+        feedLoaded = true;
+      }
+      if (feed && Array.isArray(feed.ambient)) {
+        store.ambient = feed.ambient
+          .map(normaliseAmbient)
+          .filter((p) => p.lat !== null && p.lon !== null);
+      }
+    }
+  } catch (err) {
+    // API not reachable or static host fallback
   }
 
-  if (ambient.status === "fulfilled" && Array.isArray(ambient.value)) {
-    store.ambient = ambient.value
-      .map(normaliseAmbient)
-      .filter((p) => p.lat !== null && p.lon !== null);
-  } else {
-    store.errors.push({ source: "ambient", message: String(ambient.reason || "unavailable") });
+  if (!feedLoaded) {
+    const [incidents, ambient] = await Promise.allSettled([
+      getJSON(SOURCES.incidents),
+      getJSON(SOURCES.ambient),
+    ]);
+
+    if (incidents.status === "fulfilled" && Array.isArray(incidents.value)) {
+      store.cases = incidents.value.map(normaliseCase).sort((a, b) => a.rank - b.rank);
+      checkTiers();
+    } else {
+      store.errors.push({ source: "incidents", message: String(incidents.reason || "unavailable") });
+    }
+
+    if (ambient.status === "fulfilled" && Array.isArray(ambient.value)) {
+      store.ambient = ambient.value
+        .map(normaliseAmbient)
+        .filter((p) => p.lat !== null && p.lon !== null);
+    } else {
+      store.errors.push({ source: "ambient", message: String(ambient.reason || "unavailable") });
+    }
   }
 
   const stamps = [...store.cases, ...store.ambient].map((r) => r.at).filter(Boolean);
@@ -105,8 +127,8 @@ function normaliseCase(raw) {
     lon: Number(raw.longitude),
     frp: Number(raw.frp) || 0,
 
-    classId: String(raw.ai_classification || "uncertain"),
-    cls: classOf(raw.ai_classification),
+    classId: String(raw.ai_classification || "uncertain").toLowerCase(),
+    cls: classOf(String(raw.ai_classification || "uncertain").toLowerCase()),
     aiConfidence: Number(raw.ai_confidence),
     uncertainty,
     confirmed,
@@ -145,6 +167,28 @@ function normaliseCase(raw) {
     evidence: Array.isArray(raw.ai_evidence) ? raw.ai_evidence : [],
     reasoning: raw.ai_reasoning || "",
     images: { annotated: raw.image_url || "", raw: raw.raw_image_url || "" },
+
+    investigationPriority: Number(raw.investigation_priority) || 0,
+    priorityExplanation: raw.priority_explanation || "",
+    historicalAnomaly: raw.historical_anomaly || "NEW_UNEXPECTED",
+    climatology: {
+      median: Number(raw.baseline_median) || 0,
+      p90: Number(raw.baseline_p90) || 0,
+      p95: Number(raw.baseline_p95) || 0,
+      activeDays: Number(raw.active_days_365d) || 0,
+      isRoutine: Boolean(raw.is_routine_flare),
+    },
+    severity: {
+      score: Number(raw.severity_score) || score,
+      level: raw.severity_level || (isTier(declaredTier) ? declaredTier : computedTier),
+      confidence: Number(raw.severity_confidence) || 0,
+    },
+    facility: {
+      name: raw.nearest_facility_name || null,
+      distanceKm: raw.facility_distance_km !== undefined && raw.facility_distance_km !== null ? Number(raw.facility_distance_km) : null,
+      type: raw.facility_type || null,
+      operator: raw.operator || null,
+    },
 
     persistence: {
       pattern: raw.persistence_pattern || "NEW_IGNITION",

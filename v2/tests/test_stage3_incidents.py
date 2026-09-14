@@ -106,10 +106,18 @@ def test_incident_lifecycle_and_association_dedup():
     try:
         # Create test observations in database
         import uuid
-        uid = uuid.uuid4().hex[:6]
-        offset = (int(uid, 16) % 500) * 0.01
-        test_lat = 25.0 + offset
-        test_lon = 82.0 + offset
+        uid = uuid.uuid4().hex[:8]
+        offset = 5.0 + (int(uid, 16) % 1000) * 0.02
+        test_lat = 14.0 + offset
+        test_lon = 75.0 + offset
+        
+        # Clean any incidents in test vicinity to guarantee zero test interference
+        db.query(Incident).filter(
+            Incident.latitude.between(test_lat - 0.1, test_lat + 0.1),
+            Incident.longitude.between(test_lon - 0.1, test_lon + 0.1)
+        ).delete(synchronize_session=False)
+        db.commit()
+
         t_base = datetime(2026, 9, 4, 14, 0, 0)
         obs_a = Observation(
             id=f"obs_life_1_{uid}", latitude=test_lat, longitude=test_lon, frp_mw=45.0,
@@ -144,6 +152,21 @@ def test_incident_lifecycle_and_association_dedup():
         assert inc2.observation_count == 2
         assert inc2.current_max_frp == 55.0
     finally:
+        try:
+            # Clean up test observations and test incident
+            db.query(IncidentObservation).filter(
+                IncidentObservation.observation_id.in_([f"obs_life_1_{uid}", f"obs_life_2_{uid}"])
+            ).delete(synchronize_session=False)
+            db.query(Incident).filter(
+                Incident.latitude.between(test_lat - 0.1, test_lat + 0.1),
+                Incident.longitude.between(test_lon - 0.1, test_lon + 0.1)
+            ).delete(synchronize_session=False)
+            db.query(Observation).filter(
+                Observation.id.in_([f"obs_life_1_{uid}", f"obs_life_2_{uid}"])
+            ).delete(synchronize_session=False)
+            db.commit()
+        except Exception:
+            db.rollback()
         db.close()
 
 def test_incident_state_transition_and_events():

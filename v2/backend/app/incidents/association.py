@@ -14,7 +14,7 @@ from app.storage.models import Incident, IncidentObservation, Observation
 from app.incidents.clustering import ThermalCluster
 from app.incidents.state import record_incident_event
 from app.gis.assets import find_nearest_asset
-from app.gis.boundaries import resolve_admin_boundary
+from app.gis.boundaries import resolve_admin_boundary, is_within_indian_sovereign_territory
 from app.gis.spatial import haversine_distance_meters
 from app.core.logging import logger
 
@@ -84,6 +84,10 @@ def sync_clusters_to_incidents(
     result_incidents: List[Incident] = []
 
     for cluster in clusters:
+        # Enforce sovereign Indian territory boundary
+        if not is_within_indian_sovereign_territory(cluster.center_lat, cluster.center_lon):
+            continue
+
         matched_inc, method, score = match_cluster_to_incident(cluster, active_incidents)
 
         if matched_inc:
@@ -140,8 +144,21 @@ def sync_clusters_to_incidents(
             asset_info = find_nearest_asset(cluster.center_lat, cluster.center_lon, db)
             admin_info = resolve_admin_boundary(cluster.center_lat, cluster.center_lon)
 
-            state = asset_info.get("state") or admin_info.get("state")
-            district = asset_info.get("district") or admin_info.get("district")
+            # Proximity Gating: Only associate asset if within facility perimeter or <= 5.0 km
+            is_near_facility = asset_info.get("is_inside_facility") or ((asset_info.get("distance_km") or 999.0) <= 5.0)
+
+            if is_near_facility and asset_info.get("state"):
+                state = asset_info.get("state")
+                district = asset_info.get("district") or admin_info.get("district")
+                nearest_asset_id = asset_info.get("asset_id")
+                distance_to_asset_km = asset_info.get("distance_km")
+                is_inside_facility = asset_info.get("is_inside_facility", False)
+            else:
+                state = admin_info.get("state")
+                district = admin_info.get("district")
+                nearest_asset_id = None
+                distance_to_asset_km = asset_info.get("distance_km")
+                is_inside_facility = False
 
             target_incident = Incident(
                 incident_code=code,
@@ -155,9 +172,9 @@ def sync_clusters_to_incidents(
                 observation_count=0,
                 current_max_frp=cluster.max_frp,
                 current_mean_frp=cluster.mean_frp,
-                nearest_asset_id=asset_info.get("asset_id"),
-                distance_to_asset_km=asset_info.get("distance_km"),
-                is_inside_facility=asset_info.get("is_inside_facility", False),
+                nearest_asset_id=nearest_asset_id,
+                distance_to_asset_km=distance_to_asset_km,
+                is_inside_facility=is_inside_facility,
                 state=state,
                 district=district,
                 created_at=datetime.utcnow()

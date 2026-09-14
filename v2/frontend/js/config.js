@@ -20,10 +20,10 @@ export const MAP_HOME = { center: [22.4, 79.5], zoom: 5 };
    quietly resolved, but the bands still have to be right for the cases the feed
    leaves untiered. */
 export const TIERS = [
-  { id: "CRITICAL", min: 81, max: 100, label: "Critical" },
-  { id: "HIGH", min: 61, max: 80, label: "High" },
-  { id: "MEDIUM", min: 36, max: 60, label: "Medium" },
-  { id: "LOW", min: 0, max: 35, label: "Low" },
+  { id: "CRITICAL", min: 75, max: 100, label: "Critical" },
+  { id: "HIGH", min: 50, max: 74, label: "High" },
+  { id: "MEDIUM", min: 25, max: 49, label: "Medium" },
+  { id: "LOW", min: 0, max: 24, label: "Low" },
 ];
 
 export function tierOf(score) {

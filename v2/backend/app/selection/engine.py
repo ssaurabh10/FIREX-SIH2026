@@ -46,7 +46,13 @@ def evaluate_incident_selection(incident_id: str, db: Session) -> Dict[str, Any]
     # 4. Historical anomaly score
     anomaly_score = 0.0
     if has_history:
-        eval_res = evaluate_historical_anomaly(frp_val, hist_median, persistence_score)
+        eval_res = evaluate_historical_anomaly(
+            current_frp=frp_val,
+            lat=incident.latitude,
+            lon=incident.longitude,
+            persistence_score=persistence_score,
+            baseline_override=baseline_data
+        )
         anomaly_score = float(eval_res.get("anomaly_score", 0.0))
 
     # 5. FIRMS confidence approximation (default 80 if aggregate)

@@ -209,23 +209,34 @@ def root_analysis_run(
 @top_router.get("/api/trigger-sync-stream")
 async def v1_trigger_sync_stream(
     request: Request,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
     v1 Dashboard compatibility endpoint.
-    If idle, starts a pipeline run in background and streams the v1-formatted SSE events.
+    If idle, starts a pipeline run in a dedicated background worker thread with its own database session
+    and streams real-time v1-formatted SSE events across all 5 analysis stages.
     """
     if not pipeline_lock.is_locked():
-        background_tasks.add_task(
-            execute_analysis_pipeline,
-            db=db,
-            firms_csv=None,
-            file_path=None,
-            force_reinvestigate=False,
-            max_ai_targets=5,
-            export_to_dashboard=True
-        )
+        def _bg_pipeline_worker():
+            from app.storage.database import SessionLocal
+            worker_db = SessionLocal()
+            try:
+                execute_analysis_pipeline(
+                    db=worker_db,
+                    firms_csv=None,
+                    file_path=None,
+                    force_reinvestigate=False,
+                    max_ai_targets=5,
+                    export_to_dashboard=True
+                )
+            except Exception as e:
+                logger.error(f"[PipelineWorker] Error during sync stream execution: {e}", exc_info=True)
+            finally:
+                worker_db.close()
+
+        import threading
+        thread = threading.Thread(target=_bg_pipeline_worker, daemon=True, name="PipelineSyncWorker")
+        thread.start()
 
     return await stream_analysis_events(request)
 
@@ -254,4 +265,15 @@ def get_history_stats(db: Session = Depends(get_db)):
         "cadence": "2x Daily (12-Hour Cadence)",
         "overpass_times": "14:00 IST (Day) / 02:30 IST (Night)"
     }
+
+
+@top_router.get("/api/console/feed")
+def get_console_feed(db: Session = Depends(get_db)):
+    """
+    Returns real-time active sovereign incidents and ambient FIRMS detections directly from the database.
+    Eliminates reliance on static json files and synchronizes directly with DB state.
+    """
+    from app.orchestration.pipeline import generate_console_feed_data
+    return generate_console_feed_data(db)
+
 
