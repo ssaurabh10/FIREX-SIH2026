@@ -76,9 +76,13 @@ from fastapi.staticfiles import StaticFiles
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
+V2_CROPS_DIR = os.path.abspath(os.path.join(BASE_DIR, "data", "imagery_cache"))
 V1_CROPS_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "v1", "pipeline", "03_imagery", "crops"))
 
-if os.path.exists(V1_CROPS_DIR):
+# Mount crops directory: prioritize v2 imagery cache, fallback to v1 crops if present
+if os.path.exists(V2_CROPS_DIR):
+    app.mount("/crops", StaticFiles(directory=V2_CROPS_DIR), name="crops")
+elif os.path.exists(V1_CROPS_DIR):
     app.mount("/crops", StaticFiles(directory=V1_CROPS_DIR), name="crops")
 
 if os.path.exists(FRONTEND_DIR):

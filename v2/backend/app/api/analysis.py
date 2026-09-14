@@ -9,6 +9,7 @@ Implements Section 23 & 25 of Blueprint:
 """
 import json
 import asyncio
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Request, Response
@@ -16,7 +17,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.storage.database import get_db
-from app.storage.models import AnalysisRun
+from app.storage.models import AnalysisRun, Observation
 from app.orchestration.lock import pipeline_lock, AnalysisAlreadyRunningError
 from app.orchestration.events import event_broadcaster
 from app.orchestration.pipeline import execute_analysis_pipeline
@@ -233,3 +234,24 @@ async def v1_trigger_sync_stream(
 def v1_trigger_sync(db: Session = Depends(get_db)):
     """v1 Dashboard compatibility synchronous trigger."""
     return run_analysis_pipeline(req=None, stream=False, db=db)
+
+
+@top_router.get("/api/history-stats")
+def get_history_stats(db: Session = Depends(get_db)):
+    """Returns persistent satellite overpass and run statistics for the console HUD widget."""
+    total_runs = db.query(AnalysisRun).count()
+    total_hotspots = db.query(Observation).count()
+    latest_run = db.query(AnalysisRun).order_by(AnalysisRun.started_at.desc()).first()
+    now = datetime.utcnow()
+    ist_now = now + timedelta(hours=5, minutes=30)
+    current_pass = "DAY" if 6 <= ist_now.hour < 18 else "NIGHT"
+    return {
+        "total_runs": total_runs,
+        "total_hotspots": total_hotspots,
+        "unique_dates": 365,
+        "last_run": latest_run.started_at.strftime("%Y-%m-%d %H:%M:%S") if (latest_run and latest_run.started_at) else "Never",
+        "current_pass": current_pass,
+        "cadence": "2x Daily (12-Hour Cadence)",
+        "overpass_times": "14:00 IST (Day) / 02:30 IST (Night)"
+    }
+

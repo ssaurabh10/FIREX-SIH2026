@@ -55,17 +55,21 @@ from app.orchestration.events import (
     EVENT_ANALYSIS_FAILED
 )
 
-# Optional export directory for v1 dashboard compatibility
+# Export directories for v2 frontend console and backward-compatible v1 dashboard
+FRONTEND_DATA_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "frontend", "data")
+)
 V1_DATA_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "v1", "dashboard", "data")
 )
 
 def export_v1_dashboard_data(db: Session) -> None:
     """
-    Exports latest active incidents and ambient detections to v1 dashboard data format
-    to preserve 100% backward compatibility for Stage 9.
+    Exports latest active incidents and ambient detections to v2 console and v1 dashboard
+    to preserve 100% backward compatibility and keep the live console up to date.
     """
     try:
+        os.makedirs(FRONTEND_DATA_DIR, exist_ok=True)
         os.makedirs(V1_DATA_DIR, exist_ok=True)
         incidents = db.query(Incident).filter(
             Incident.status.in_(["ACTIVE", "PERSISTENT", "INVESTIGATING", "NEW", "ESCALATED"])
@@ -123,9 +127,14 @@ def export_v1_dashboard_data(db: Session) -> None:
             }
             v1_incidents.append(v1_inc)
 
-        inc_path = os.path.join(V1_DATA_DIR, "incidents.json")
-        with open(inc_path, "w", encoding="utf-8") as f:
-            json.dump(v1_incidents, f, indent=2)
+        for target_dir in [FRONTEND_DATA_DIR, V1_DATA_DIR]:
+            try:
+                os.makedirs(target_dir, exist_ok=True)
+                inc_path = os.path.join(target_dir, "incidents.json")
+                with open(inc_path, "w", encoding="utf-8") as f:
+                    json.dump(v1_incidents, f, indent=2)
+            except Exception as ex:
+                logger.warning(f"[Export] Could not write incidents.json to {target_dir}: {ex}")
 
         # Export ambient points (recent 200 observations)
         recent_obs = db.query(Observation).order_by(Observation.acquired_at.desc()).limit(200).all()
@@ -142,13 +151,18 @@ def export_v1_dashboard_data(db: Session) -> None:
             }
             for o in recent_obs
         ]
-        amb_path = os.path.join(V1_DATA_DIR, "ambient_firms.json")
-        with open(amb_path, "w", encoding="utf-8") as f:
-            json.dump(ambient, f, indent=2)
+        for target_dir in [FRONTEND_DATA_DIR, V1_DATA_DIR]:
+            try:
+                os.makedirs(target_dir, exist_ok=True)
+                amb_path = os.path.join(target_dir, "ambient_firms.json")
+                with open(amb_path, "w", encoding="utf-8") as f:
+                    json.dump(ambient, f, indent=2)
+            except Exception as ex:
+                logger.warning(f"[Export] Could not write ambient_firms.json to {target_dir}: {ex}")
 
-        logger.info(f"[Export] Synchronized {len(v1_incidents)} incidents and {len(ambient)} ambient points to v1 dashboard.")
+        logger.info(f"[Export] Synchronized {len(v1_incidents)} incidents and {len(ambient)} ambient points to console & dashboard.")
     except Exception as e:
-        logger.warning(f"[Export] Could not export data to v1 dashboard data dir: {e}")
+        logger.warning(f"[Export] Could not export data to dashboard data dir: {e}")
 
 
 def execute_analysis_pipeline(

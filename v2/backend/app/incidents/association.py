@@ -131,6 +131,9 @@ def sync_clusters_to_incidents(
             # Create brand new incident
             incident_count += 1
             code = generate_incident_code(incident_count)
+            while db.query(Incident).filter(Incident.incident_code == code).first() is not None:
+                incident_count += 1
+                code = generate_incident_code(incident_count)
             logger.info(f"Promoting cluster {cluster.cluster_id} to new incident {code}")
 
             # GIS Enrichment at incident creation

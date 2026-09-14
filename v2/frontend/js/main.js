@@ -655,7 +655,7 @@ function wirePersistenceSync() {
     activeEvtSource = new EventSource("/api/trigger-sync-stream");
     const evtSource = activeEvtSource;
 
-    evtSource.onmessage = async (event) => {
+    const handleSseMessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
         const stageNum = Number(data.stage || 0);
@@ -711,7 +711,10 @@ function wirePersistenceSync() {
         if (data.done || pct >= 100) {
           if (isCompleted) return;
           isCompleted = true;
-          clearInterval(timerInterval);
+          if (activeTimerInterval) {
+            clearInterval(activeTimerInterval);
+            activeTimerInterval = null;
+          }
           evtSource.close();
 
           // Mark all stages complete
@@ -760,9 +763,22 @@ function wirePersistenceSync() {
       }
     };
 
+    evtSource.onmessage = handleSseMessage;
+    const BLUEPRINT_EVENTS = [
+      "analysis.started", "firms.fetched", "gis.completed", "clustering.completed",
+      "selection.completed", "imagery.started", "ai.started", "ai.completed",
+      "severity.completed", "alert.created", "analysis.completed", "analysis.failed"
+    ];
+    BLUEPRINT_EVENTS.forEach((evtName) => {
+      evtSource.addEventListener(evtName, handleSseMessage);
+    });
+
     evtSource.onerror = (err) => {
       if (isCompleted) return;
-      clearInterval(timerInterval);
+      if (activeTimerInterval) {
+        clearInterval(activeTimerInterval);
+        activeTimerInterval = null;
+      }
       evtSource.close();
       console.warn("SSE connection error or closed:", err);
       addLog("Stream connection closed or completed. Refreshing live telemetry layers...", "INFO");

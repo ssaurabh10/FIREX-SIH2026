@@ -12,6 +12,8 @@ build/
 *.sqlite3
 *.db-wal
 *.db-shm
+*.bak
+*.bak_*
 **/data/*.db
 data/*.db
 History data/
