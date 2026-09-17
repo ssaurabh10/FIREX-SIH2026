@@ -10,9 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.storage.models import Incident, IndustrialAsset, AIInvestigation, SeverityAssessment, IncidentEvent
 from app.behavior.baseline import get_or_create_facility_baseline, get_or_create_location_baseline
+from app.core.clock import data_reference_time
+from app.incidents.aggregation import resolve_firms_confidence
 from app.severity.scoring import compute_incident_severity
 from app.severity.state_machine import determine_lifecycle_state
 from app.alerts.engine import evaluate_and_emit_alert
+from app.gis.landcover import resolve_landcover
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +56,25 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
     is_persistent = base_dict.get("is_persistent", False)
     is_routine_flare = base_dict.get("is_routine_flare", False)
 
+    # Check eco-sensitive protected area containment
+    is_protected = False
+    try:
+        dist_km = (distance_m / 1000.0) if distance_m is not None else (incident.distance_to_asset_km or 999.0)
+        lc_info = resolve_landcover(incident.latitude, incident.longitude, nearest_asset_distance_km=dist_km)
+        is_protected = bool(lc_info.get("is_protected_area", False))
+    except Exception as e:
+        logger.warning(f"Error resolving protected area for incident {incident.id}: {e}")
+
     # 4. Compute severity and confidence
-    firms_confidence = incident.severity_confidence or 75.0  # default reasonable FIRMS confidence
+    #
+    # C_firms is the aggregate NASA FIRMS confidence of this incident's own
+    # detections (Section 4.5/4.6), on the 0-100 scale. It used to be
+    # `incident.severity_confidence or 75.0` -- the incident's *previous
+    # severity certainty*, which line 99 below then overwrites with the value
+    # this very call produces. Feeding C_sev back in as its own input closed a
+    # loop and made the scoring.py override gate (`firms_confidence >= 80.0`)
+    # self-satisfiable after one pass.
+    firms_confidence = resolve_firms_confidence(incident, db)
     assessment = compute_incident_severity(
         frp_mw=incident.current_max_frp,
         firms_confidence=firms_confidence,
@@ -67,14 +87,22 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
         facility_type=facility_type,
         hazard_category=hazard_cat,
         is_inside_facility=incident.is_inside_facility,
-        is_protected_area=False,
+        is_protected_area=is_protected,
         is_routine_flare=is_routine_flare
     )
 
     # 5. Evaluate state machine transition
+    #
+    # Recency is measured against the archive's own clock, not the wall clock.
+    # `hours_since_last_seen` is the input to Section 20's 24h/48h rule, and it
+    # is only meaningful relative to the newest detection the system has seen.
+    # Against `utcnow()` a stored archive replayed weeks behind the present
+    # resolves every incident on the first sweep -- measured at 332 of 332 on
+    # this database. See app/core/clock.py for the full account.
     hours_since_last = 0.0
     if incident.last_detected_at:
-        hours_since_last = max(0.0, (datetime.utcnow() - incident.last_detected_at).total_seconds() / 3600.0)
+        reference = data_reference_time(db)
+        hours_since_last = max(0.0, (reference - incident.last_detected_at).total_seconds() / 3600.0)
 
     next_status = determine_lifecycle_state(
         current_status=incident.status,
@@ -90,6 +118,23 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
     incident.status = next_status
     incident.updated_at = datetime.utcnow()
 
+    # Make the persisted breakdown self-describing. `SeverityAssessment.factors`
+    # used to carry only the component scores, so nothing downstream could
+    # explain *how* the published score was reached: the model choice, the
+    # pre-override base, the escalation triggers and the final score all lived
+    # only in this function's local dict. The console needs them to render a
+    # factor breakdown that reconciles with the score beside it.
+    assessment["factors"]["firms_confidence"] = firms_confidence
+    assessment["factors"].update({
+        "model_used": assessment["model_used"],
+        "base_score": assessment["base_score"],
+        "base_level": assessment["base_level"],
+        "severity_score": assessment["severity_score"],
+        "severity_level": assessment["severity_level"],
+        "override_reasons": assessment["override_reasons"],
+        "needs_reinvestigation": assessment["needs_reinvestigation"],
+    })
+
     # 7. Persist SeverityAssessment record
     assessment_row = SeverityAssessment(
         incident_id=incident.id,
@@ -104,6 +149,16 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
     # 8. Trigger Alert Engine
     alert_record = evaluate_and_emit_alert(incident, assessment, db)
 
+    # `evaluate_and_emit_alert` returns a record on three distinct paths: a fresh
+    # emission, an escalation, and a deduplication against an alert that is
+    # already open. Only the first two are dispatches, and the record itself
+    # cannot tell them apart -- hence the engine's transient `is_new` flag.
+    # Reporting `alert_record is not None` made this audit column true on every
+    # HIGH/CRITICAL re-evaluation, so the trail could not answer the one question
+    # Section 8's exactly-once rule is about: did this assessment raise an alert
+    # or suppress one? (F-013)
+    alert_dispatched = bool(alert_record is not None and getattr(alert_record, "is_new", True))
+
     # 9. Audit event
     event = IncidentEvent(
         incident_id=incident.id,
@@ -113,7 +168,8 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
             "level": assessment["severity_level"],
             "confidence": assessment["severity_confidence"],
             "model_used": assessment["model_used"],
-            "alert_emitted": alert_record is not None,
+            "alert_emitted": alert_dispatched,
+            "alert_deduplicated": bool(alert_record is not None and not alert_dispatched),
             "overrides": assessment["override_reasons"]
         },
         occurred_at=datetime.utcnow()
@@ -135,15 +191,22 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
         "severity_score": assessment["severity_score"],
         "severity_level": assessment["severity_level"],
         "severity_confidence": assessment["severity_confidence"],
+        "firms_confidence": firms_confidence,
         "lifecycle_status": next_status,
         "model_used": assessment["model_used"],
         "factors": assessment["factors"],
         "override_reasons": assessment["override_reasons"],
         "needs_reinvestigation": assessment["needs_reinvestigation"],
+        # `is_new` distinguishes a freshly raised alert from the record the
+        # engine returns on INV-6's deduplicated path. Both are non-None, so a
+        # caller that counts emitted alerts must consult the flag -- see
+        # app/alerts/engine.py and the ALERT_CREATED block in
+        # orchestration/pipeline.py.
         "alert": {
             "alert_id": alert_record.id,
             "status": alert_record.status,
-            "title": alert_record.title
+            "title": alert_record.title,
+            "is_new": bool(getattr(alert_record, "is_new", True)),
         } if alert_record else None,
         "assessed_at": assessment_row.created_at.isoformat()
     }

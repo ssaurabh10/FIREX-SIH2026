@@ -131,6 +131,19 @@
             </div>
           </div>
 
+          <!-- Queue roll-up published by GET /api/console/feed. Hidden until a
+               summary arrives: an older cached payload and the static fallback
+               have no queue_summary, and zeroes would read as a finding. -->
+          <div class="glass glass--over panel" id="queue-summary" hidden
+               style="display:none;padding:var(--s-2) var(--s-3);margin-bottom:var(--s-2);flex-shrink:0;">
+            <div class="row" style="justify-content:space-between;align-items:center;gap:var(--s-2);">
+              <span class="u-label" style="font-size:var(--fs-micro);">Published queue</span>
+              <span class="u-micro u-quiet" id="queue-summary-attention"></span>
+            </div>
+            <div class="row row--wrap" id="queue-summary-tiers" style="gap:4px;margin-top:5px;"></div>
+            <p class="u-micro u-quiet" id="queue-summary-closed" style="margin:5px 0 0;display:none;"></p>
+          </div>
+
           <div class="glass glass--over panel queue-panel" style="flex:1;min-height:0">
             <div class="panel__head panel__head--tight">
               <div class="row">
@@ -486,7 +499,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin="anonymous"></script>
-<script type="module" src="js/main.js?v=17"></script>
+<script type="module" src="js/main.js?v=18"></script>
 
 </body>
 </html>

@@ -121,13 +121,46 @@ def test_get_single_observation_by_id():
 def test_live_firms_api_connectivity():
     """
     Live test against NASA FIRMS API using configured MAP_KEY.
+
+    Reports SKIPPED -- not PASS -- when the API is unreachable or
+    unauthenticated. ``FIRMSClient.fetch_live_csv`` returns None on any non-200
+    response and on any exception, and the body here used to be guarded by
+    ``if csv_text:`` and closed with ``assert len(parsed) >= 0``, a tautology
+    true for every list including []. An offline or quota-limited run therefore
+    reported a green test that had exercised nothing (E1, F-089). A skip states
+    that outcome rather than disguising it.
     """
     firms_client = FIRMSClient()
     csv_text = firms_client.fetch_live_csv(product="VIIRS_NOAA20_NRT", days=1)
-    # If network allows, verify we receive valid CSV text with header
-    if csv_text:
-        assert "latitude" in csv_text
-        assert "longitude" in csv_text
-        assert "frp" in csv_text
-        parsed = firms_client.parse_csv(csv_text, product="VIIRS_NOAA20_NRT")
-        assert len(parsed) >= 0
+    if not csv_text:
+        pytest.skip(
+            "NASA FIRMS returned no CSV (offline, rate-limited, or FIRMS_MAP_KEY "
+            "unset in v2/backend/.env); live-only assertions not evaluated."
+        )
+
+    # Header contract of the NRT CSV product.
+    header = csv_text.splitlines()[0]
+    for column in ("latitude", "longitude", "frp", "acq_date", "confidence"):
+        assert column in header, f"FIRMS CSV header missing {column!r}: {header!r}"
+
+    # A well-formed response with zero detections is a legitimate outcome for a
+    # one-day window over one region -- but "zero detections" and "the parser
+    # rejected every row" look identical from the record count alone, and
+    # parse_csv swallows the latter (`except Exception: ... continue`). Count the
+    # rows the response actually carried and require the parser to account for
+    # every one of them, so a schema drift that silently drops telemetry fails
+    # here instead of passing as an empty day.
+    data_rows = [line for line in csv_text.splitlines()[1:] if line.strip()]
+    parsed = firms_client.parse_csv(csv_text, product="VIIRS_NOAA20_NRT")
+    assert len(parsed) == len(data_rows), (
+        f"parse_csv silently dropped rows: {len(data_rows)} data row(s) in the "
+        f"response, {len(parsed)} parsed. A schema change or a validator "
+        f"rejection is discarding telemetry."
+    )
+
+    for rec in parsed:
+        assert -90.0 <= rec.latitude <= 90.0, f"latitude out of range: {rec.latitude}"
+        assert -180.0 <= rec.longitude <= 180.0, f"longitude out of range: {rec.longitude}"
+        assert rec.frp_mw >= 0.0, f"negative FRP: {rec.frp_mw}"
+        # confidence_score is the validator's 0-1 normalization, not the raw L/N/H.
+        assert 0.0 <= rec.confidence_score <= 1.0, f"confidence out of range: {rec.confidence_score}"

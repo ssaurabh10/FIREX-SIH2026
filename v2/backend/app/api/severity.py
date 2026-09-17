@@ -27,6 +27,35 @@ def evaluate_severity(
         raise HTTPException(status_code=500, detail=f"Severity evaluation failed: {str(e)}")
 
 
+@router.get("/incident/{incident_id}", summary="Compute or retrieve multi-factor severity assessment")
+def get_or_evaluate_severity(
+    incident_id: str,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    F-056: the spec's route table (V2_LOGIC_SPECIFICATION.md:474) documents
+    GET /api/severity/incident/{id} as "compute or retrieve"; only the retrieve-only
+    /severity/{id} and the evaluate-only POST existed, so the documented URL 404'd.
+    Retrieval is tried first and only a miss triggers evaluation, because
+    evaluate_incident_severity persists an assessment and emits alerts as a side effect --
+    recomputing on every poll would stack duplicate rows and re-fire alerts.
+
+    Both branches answer in the persisted-assessment shape the sibling GET /severity/{id}
+    returns, so a client reads the same keys whichever branch served it; the richer
+    evaluation payload (alert detail, override reasons) stays on POST /severity/evaluate/{id}.
+    """
+    history = get_incident_severity_history(incident_id, db)
+    if not history:
+        try:
+            evaluate_incident_severity(incident_id, db)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Severity evaluation failed: {str(e)}")
+        history = get_incident_severity_history(incident_id, db)
+    return history[0]
+
+
 @router.get("/{incident_id}", summary="Get Latest Severity Assessment")
 def get_latest_severity(
     incident_id: str,
@@ -39,7 +68,7 @@ def get_latest_severity(
     if not history:
         raise HTTPException(
             status_code=404,
-            detail=f"No severity assessment found for incident {incident_id}. Trigger POST /api/severity/evaluate/{incident_id} first."
+            detail=f"No severity assessment found for incident {incident_id}. Trigger GET /api/severity/incident/{incident_id} to compute one."
         )
     return history[0]
 

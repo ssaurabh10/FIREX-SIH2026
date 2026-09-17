@@ -16,6 +16,62 @@ from app.core.logging import logger
 
 CACHE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "imagery_cache"))
 
+# F-105: version of the renderer that produced a cached annotated.jpg. Bump it whenever the
+# pixels of an existing render would change -- the reticle/annotation drawing, the geometry fed
+# into it, or the cached file format. The cache key below already compares the rendering INPUTS a
+# caller can vary (requested radius, zoom, crop size), but no input can reveal that the renderer
+# itself changed between two calls that asked for the same thing: a render written by the previous
+# drawing code is indistinguishable from a current one on the input key alone, so all 631 renders
+# in the served cache -- every one of them written before the reticle and radius fixes -- would
+# stay valid forever. The version is the one thing that has to be stamped at write time and
+# compared at read time, which makes the read side self-healing: a stale entry is a miss and the
+# next request re-renders it. Nothing walks or deletes the cache.
+RENDERER_VERSION = 2
+
+# F-103: how close two *requests* must be to name the same cache entry, in metres. The comparison
+# is request-to-request now; it used to be request-to-derived-render, which is why the old 50 m
+# window was both necessary and useless (see _cache_entry_is_reusable). Half a metre only absorbs
+# float round-tripping through JSON -- far below the tile grid, which quantises the render to
+# steps of hundreds of metres, so two requests this close cannot produce different pixels.
+REQUEST_MATCH_TOLERANCE_M = 0.5
+
+def _cache_entry_is_reusable(cached_meta: Dict[str, Any], viewport: ViewportSpec) -> bool:
+    """
+    Is this cached entry the render the current request would produce? (F-103, F-105)
+
+    The cache is keyed on the REQUEST, not on the rendering the request derives. The old check
+    compared the requested radius against metadata["radius_meters"], which holds the *derived*
+    coverage from calculate_incident_viewport: an 800 m request derives 706.4 m at lat 22.456 /
+    zoom 16, a 93.6 m gap, so `abs(derived - requested) < 50` was false and the incident was
+    re-fetched from the tile provider on every single call. The identity that decides reuse is:
+      * renderer version (F-105) -- same request, different drawing code;
+      * zoom level -- a request that derives another zoom is another crop, even when the radius
+        request is identical (an explicit zoom override changes this without changing radius);
+      * the requested radius (ViewportSpec.requested_radius_meters: the clamped custom radius,
+        or None when the caller asked for none) -- None matches None only, so a default view is
+        never served a custom-radiused render, or the reverse;
+      * crop size in pixels.
+    A missing key (a pre-F-105 entry) reads as None and never equals the current version, so such
+    an entry is a miss rather than something that has to be migrated.
+
+    One rendering input is deliberately not part of the key: the incident's FRP, which the reticle
+    prints into its HUD. It changes on every ingestion, so folding it in would re-fetch tiles and
+    redraw on each observation rather than per request; the version above is what covers a change
+    in how that figure is drawn.
+    """
+    if cached_meta.get("renderer_version") != RENDERER_VERSION:
+        return False
+    if cached_meta.get("zoom_level") != viewport.zoom_level:
+        return False
+    if cached_meta.get("crop_size_px") != viewport.crop_size_px:
+        return False
+
+    cached_request = cached_meta.get("requested_radius_meters")
+    requested = viewport.requested_radius_meters
+    if cached_request is None or requested is None:
+        return cached_request is None and requested is None
+    return abs(float(cached_request) - float(requested)) < REQUEST_MATCH_TOLERANCE_M
+
 def get_or_create_incident_imagery(
     incident_id: str,
     db: Session,
@@ -47,13 +103,14 @@ def get_or_create_incident_imagery(
         zoom_level=zoom_level
     )
 
-    # 2. Check Disk Cache (unless custom radius changed or force_refresh requested)
+    # 2. Check Disk Cache (unless force_refresh requested). An entry is reusable only when it was
+    # rendered for this exact request by the current renderer (F-103/F-105); anything else is a
+    # miss and falls through to the tile provider, which also re-stamps the entry below.
     if not force_refresh and os.path.exists(raw_path) and os.path.exists(annotated_path) and os.path.exists(meta_path):
         try:
             with open(meta_path, "r", encoding="utf-8") as f:
                 cached_meta = json.load(f)
-            # If custom radius matches or wasn't specified, use cache
-            if custom_radius_meters is None or abs(cached_meta.get("radius_meters", 0) - custom_radius_meters) < 50:
+            if _cache_entry_is_reusable(cached_meta, viewport):
                 cached_meta["cached"] = True
                 return cached_meta
         except Exception:
@@ -92,6 +149,12 @@ def get_or_create_incident_imagery(
 
     metadata = {
         "incident_id": incident.id,
+        # F-103/F-105: the request identity and the renderer that produced this file -- these are
+        # what a later call compares against, so an entry is reusable only for the same request
+        # and is never served once the drawing code behind it has changed.
+        "renderer_version": RENDERER_VERSION,
+        "requested_radius_meters": viewport.requested_radius_meters,
+        "crop_size_px": viewport.crop_size_px,
         "provider": provider_name,
         "zoom_level": viewport.zoom_level,
         "radius_meters": viewport.radius_meters,

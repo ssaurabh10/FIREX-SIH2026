@@ -9,6 +9,7 @@ Handles:
 import hashlib
 from datetime import datetime
 from typing import Dict, Any
+from app.core.config import settings
 from app.ingestion.validator import RawFIRMSObservation, NormalizedObservation
 
 def parse_acquisition_datetime(acq_date_str: str, acq_time_str: str) -> datetime:
@@ -69,7 +70,7 @@ def generate_observation_external_id(
     key = f"{satellite.upper()}_{instrument.upper()}_{lat:.4f}_{lon:.4f}_{acquired_at.strftime('%Y%m%d%H%M')}"
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:20]
 
-def normalize_raw_firms(raw: RawFIRMSObservation, product: str = "VIIRS_NRT") -> NormalizedObservation:
+def normalize_raw_firms(raw: RawFIRMSObservation, product: str = settings.FIRMS_DEFAULT_PRODUCTS[0]) -> NormalizedObservation:
     """
     Transforms RawFIRMSObservation into NormalizedObservation.
     """

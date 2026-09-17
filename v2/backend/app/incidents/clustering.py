@@ -66,14 +66,19 @@ class ThermalCluster:
             self.first_detected_at = now
             self.last_detected_at = now
 
-        # Dynamic Footprint Radius (distance from centroid to furthest observation + 300m sensor buffer)
+        # Dynamic Footprint Radius -- Section 4.3 (V2_LOGIC_SPECIFICATION.md:142):
+        #   R_footprint = max(500.0, max_i d_H((phi_bar, lambda_bar), o_i) * 1000.0 + 375.0)
+        # d_H is kilometers in the spec, so the x1000 lands it in the meters this
+        # module works in; the additive 375 m is the sensor-pixel buffer on top of
+        # the furthest member. This used to be 300.0, which under-sized every
+        # persisted footprint_radius_meters by 75 m.
         max_dist_m = 0.0
         for obs in self.observations:
             d = haversine_distance_meters(self.center_lat, self.center_lon, obs.latitude, obs.longitude)
             if d > max_dist_m:
                 max_dist_m = d
 
-        self.radius_meters = max(500.0, round(max_dist_m + 300.0, 1))
+        self.radius_meters = max(500.0, round(max_dist_m + 375.0, 1))
         
         # Generate GeoJSON bounding polygon ring
         ring_coords = generate_bounding_circle_polygon(
@@ -104,7 +109,7 @@ class ThermalCluster:
 
 def cluster_observations(
     observations: List[Observation],
-    spatial_eps_meters: float = 2000.0,
+    spatial_eps_meters: float = 1500.0,
     time_window_hours: float = 24.0
 ) -> List[ThermalCluster]:
     """
@@ -113,6 +118,12 @@ def cluster_observations(
     - Case A: 3 nearby observations at nearly same time -> 1 cluster, individual FRPs preserved.
     - Case B: distant observations -> separate clusters.
     - Case C: same location but > 24h apart -> separate clusters.
+
+    Defaults are the Section 4.3 reachability parameters
+    (V2_LOGIC_SPECIFICATION.md:129): eps_s = 1500 m, tau = 24.0 h. spatial_eps_meters
+    defaulted to 2000.0, so a direct caller got a 33% wider radius than the spec
+    mandates and than the pipeline passes explicitly (orchestration/pipeline.py:518
+    passes 1500.0).
     """
     if not observations:
         return []
@@ -159,7 +170,7 @@ def cluster_observations(
             if neighbor.id not in visited:
                 visited.add(neighbor.id)
                 sub_neighbors = get_neighbors(neighbor)
-                queue.extend(sub_neighbors)
+                queue.extend([sn for sn in sub_neighbors if sn.id not in visited])
 
             # Add to cluster if not already in one
             if neighbor not in current_cluster.observations:

@@ -15,6 +15,11 @@ export const store = {
   loaded: false,
   errors: [],
   notices: [],       // the feed loaded, but something in it does not add up
+  /* The feed's own roll-up over the published queue. Optional: an older cached
+     payload and the static fallback (which reads data/incidents.json, a bare
+     array) may not carry one, and every reader of these has to cope with null. */
+  queueSummary: null,
+  closedAttention: [],  // closed HIGH/CRITICAL incidents whose alerts are still open
 };
 
 /* --- Load ---------------------------------------------------------------- */
@@ -28,6 +33,8 @@ async function getJSON(url) {
 export async function load() {
   store.errors = [];
   store.notices = [];
+  store.queueSummary = null;
+  store.closedAttention = [];
 
   let feedLoaded = false;
   try {
@@ -44,15 +51,25 @@ export async function load() {
           .map(normaliseAmbient)
           .filter((p) => p.lat !== null && p.lon !== null);
       }
+      /* Both halves of the roll-up are read only when they are actually the
+         shape they claim to be, so a payload from before they existed leaves
+         the summary null rather than a half-filled object downstream. */
+      if (feed && feed.queue_summary && typeof feed.queue_summary === "object") {
+        store.queueSummary = feed.queue_summary;
+      }
+      if (feed && Array.isArray(feed.closed_attention)) {
+        store.closedAttention = feed.closed_attention;
+      }
     }
   } catch (err) {
     // API not reachable or static host fallback
   }
 
   if (!feedLoaded) {
-    const [incidents, ambient] = await Promise.allSettled([
+    const [incidents, ambient, summary] = await Promise.allSettled([
       getJSON(SOURCES.incidents),
       getJSON(SOURCES.ambient),
+      getJSON(SOURCES.summary),
     ]);
 
     if (incidents.status === "fulfilled" && Array.isArray(incidents.value)) {
@@ -68,6 +85,14 @@ export async function load() {
         .filter((p) => p.lat !== null && p.lon !== null);
     } else {
       store.errors.push({ source: "ambient", message: String(ambient.reason || "unavailable") });
+    }
+
+    /* A missing summary is not a fault: it is an old export or a host that only
+       serves the incident list, and the console is expected to run without it. */
+    const rollUp = summary.status === "fulfilled" ? summary.value : null;
+    if (rollUp && typeof rollUp === "object") {
+      store.queueSummary = rollUp;
+      if (Array.isArray(rollUp.closed_attention)) store.closedAttention = rollUp.closed_attention;
     }
   }
 

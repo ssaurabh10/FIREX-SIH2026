@@ -55,7 +55,7 @@ class Incident(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     incident_code = Column(String, unique=True, index=True)
-    status = Column(String, default="NEW", index=True)  # NEW, INVESTIGATING, ACTIVE, PERSISTENT, SUBSIDING, RESOLVED
+    status = Column(String, default="NEW", index=True)  # NEW, INVESTIGATING, ACTIVE, PERSISTENT, ESCALATED, SUBSIDING, RESOLVED, REOPENED -- see incidents/state.py:VALID_STATES
     latitude = Column(Float, nullable=False, index=True)
     longitude = Column(Float, nullable=False, index=True)
     footprint_radius_meters = Column(Float, default=500.0)
@@ -75,7 +75,15 @@ class Incident(Base):
     # Classification
     classification = Column(String, default="uncertain")
     classification_confidence = Column(Float, default=0.0)
-    
+
+    # Aggregate NASA FIRMS confidence of the incident's member observations,
+    # on the 0-100 scale produced by ingestion.normalizer.normalize_confidence.
+    # This is a property of the *detections*, not of any AI or severity verdict,
+    # and it is what Section 4.5 / 4.6 mean by C_firms. It used to be absent, so
+    # the selection engine hard-coded 80.0 and the severity engine fed the
+    # incident's own previous severity_confidence back into itself.
+    firms_confidence = Column(Float, nullable=True)
+
     # GIS and Asset Association
     nearest_asset_id = Column(String, ForeignKey("industrial_assets.id"), nullable=True)
     distance_to_asset_km = Column(Float, nullable=True)
@@ -203,6 +211,13 @@ class BehaviorProfile(Base):
     detection_frequency = Column(Float, default=0.0)  # active_days / total_days
     persistence_score = Column(Float, default=0.0)    # 0.0 to 1.0 continuous persistence
     history_reliability = Column(Float, default=0.0)  # confidence in baseline
+    # Columns the live database carries but this model used to omit, so a
+    # rebuild from the ORM could not reproduce the running schema. See
+    # Section 10 of the specification.
+    window_days = Column(Integer, default=365)        # rolling window the profile was built over
+    day_passes_count = Column(Integer, default=0)     # daytime overpass count in window
+    night_passes_count = Column(Integer, default=0)   # night-time overpass count in window
+    is_continuous_24h = Column(Boolean, default=False)  # both day and night passes present
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -242,7 +257,7 @@ class HistoricalBaseline(Base):
 class ThermalClimatology(Base):
     __tablename__ = "thermal_climatology"
 
-    spatial_key = Column(String, primary_key=True, index=True)  # e.g. GRID_21.15_72.68 (0.02 deg ~2.2km)
+    spatial_key = Column(String, primary_key=True, index=True)  # e.g. GRID_21.16_72.68 (0.02 deg ~2.2km)
     latitude = Column(Float, nullable=False, index=True)
     longitude = Column(Float, nullable=False, index=True)
     observation_count = Column(Integer, default=0)
@@ -267,8 +282,12 @@ class HistoricalAnomaly(Base):
     historical_median = Column(Float, default=0.0)
     historical_p95 = Column(Float, default=0.0)
     frp_ratio = Column(Float, default=1.0)
-    anomaly_score = Column(Float, default=0.0)
+    anomaly_score = Column(Float, default=0.0)  # 0-100, matching the Section 4.4 ratio table
     above_p95 = Column(Boolean, default=False)
+    # Persisted counterpart of the status string returned by
+    # behavior.anomaly.evaluate_historical_anomaly (NORMAL_OPERATIONAL_RANGE,
+    # ELEVATED_EMISSION, ABNORMAL_HISTORICAL_SPIKE, INSUFFICIENT_HISTORY).
+    anomaly_status = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -280,7 +299,12 @@ class AlertRecord(Base):
     severity_level = Column(String, nullable=False)
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(String, default="NEW")  # NEW, ACKNOWLEDGED, DISMISSED
+    status = Column(String, default="NEW")  # NEW, ACKNOWLEDGED, RESOLVED, DISMISSED
+    # An alert superseded by an escalation is closed, not left open alongside
+    # its replacement. See app/alerts/engine.py.
+    superseded_by = Column(String, ForeignKey("alert_records.id"), nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     incident = relationship("Incident", back_populates="alerts")

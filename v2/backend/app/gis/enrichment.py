@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.gis.assets import find_nearest_asset
 from app.gis.boundaries import resolve_admin_boundary
 from app.gis.landcover import resolve_landcover
+from app.gis.mining_basins import get_mining_basin_metadata
 
 def enrich_coordinate_gis_context(lat: float, lon: float, db: Session) -> Dict[str, Any]:
     """
@@ -37,6 +38,9 @@ def enrich_coordinate_gis_context(lat: float, lon: float, db: Session) -> Dict[s
         nearest_asset_category=asset_context.get("category") or ""
     )
 
+    # 4. Sovereign Mining Basin Context
+    mining_basin = get_mining_basin_metadata(lat, lon)
+
     return {
         "latitude": lat,
         "longitude": lon,
@@ -61,4 +65,5 @@ def enrich_coordinate_gis_context(lat: float, lon: float, db: Session) -> Dict[s
         "forest_context": land_context.get("forest_context"),
         "industrial_context": land_context.get("industrial_context"),
         "mining_context": land_context.get("mining_context"),
+        "mining_basin": mining_basin,
     }

@@ -9,6 +9,7 @@ Classifies land-use / land-cover characteristics around coordinates:
 """
 from typing import Dict, Any
 from app.gis.spatial import haversine_distance_km
+from app.gis.mining_basins import is_in_major_mining_basin
 
 # Prominent National Parks and Protected Forest Zones in India
 PROTECTED_ZONES = [
@@ -51,16 +52,29 @@ def resolve_landcover(
 
     # 2. Check Industrial Zone proximity
     if nearest_asset_distance_km <= 2.5:
+        is_mining_basin, basin = is_in_major_mining_basin(lat, lon)
+        basin_note = f" in {basin['name']}" if is_mining_basin else ""
         return {
-            "primary_landcover": "industrial_complex",
+            "primary_landcover": "industrial_complex" if not is_mining_basin else "open_cast_mine",
             "is_protected_area": False,
             "protected_area_name": None,
             "forest_context": "Low / Peripheral Vegetation Buffer",
-            "industrial_context": f"Active Industrial Corridor ({nearest_asset_category})",
-            "mining_context": "Active Mining Area" if "mining" in nearest_asset_category.lower() else "Industrial Operational Zone"
+            "industrial_context": f"Active Industrial Corridor ({nearest_asset_category}){basin_note}",
+            "mining_context": f"Active Mining Basin: {basin['name']} ({basin['operator']})" if is_mining_basin else ("Active Mining Area" if "mining" in nearest_asset_category.lower() else "Industrial Operational Zone")
         }
 
-    # 3. Check Mining Basin Context
+    # 3. Check Sovereign Mining Basin Containment & Asset Context
+    is_mining_basin, basin = is_in_major_mining_basin(lat, lon)
+    if is_mining_basin and basin:
+        return {
+            "primary_landcover": "open_cast_mine",
+            "is_protected_area": False,
+            "protected_area_name": None,
+            "forest_context": "Sparse / Degraded Mining Buffer & Pit Perimeter",
+            "industrial_context": f"Sovereign Mineral & Mining Extraction Belt ({basin['name']})",
+            "mining_context": f"Active Mining Basin: {basin['name']} (Operator: {basin['operator']})"
+        }
+
     if "mining" in nearest_asset_category.lower() and nearest_asset_distance_km <= 10.0:
         return {
             "primary_landcover": "open_cast_mine",

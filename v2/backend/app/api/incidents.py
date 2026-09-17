@@ -7,7 +7,7 @@ Endpoints specified in Section 32 of Blueprint:
 - POST /incidents/{id}/state: Transition incident state (ACTIVE, SUBSIDING, RESOLVED)
 """
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
@@ -136,15 +136,43 @@ def get_incident_by_id(incident_id: str, db: Session = Depends(get_db)):
 
 @router.post("/cluster-sync")
 def trigger_cluster_sync(
-    spatial_eps_meters: float = 2000.0,
+    spatial_eps_meters: float = 1500.0,
     time_window_hours: float = 24.0,
     db: Session = Depends(get_db)
 ):
     """
     Clusters stored observations and associates them into persistent Incident objects.
+
+    Runs over the Stage-3 active-observation window only: Section 3 (spec line 64)
+    defines Stage 3's input as "Active observations (72h)" and the canonical
+    pseudocode (spec lines 536-537) is
+    `active_obs = db_session.query_observations(window_hours=72)`. This route used
+    to feed the entire observations table into the engine, so a sync after a
+    backfill could re-incident telemetry from months or years back -- time windows
+    the temporal continuity rule never considered. The cutoff and the sparse-data
+    fallback mirror orchestration/pipeline.py:490-495, the other entry point into
+    the same engine.
+
+    Defaults follow Section 4.3 (spec line 129): eps_s = 1500 m, tau = 24.0 h.
     """
-    # Grab all stored observations
-    observations = db.query(Observation).all()
+    # Stage 3 input window: observations acquired in the last 72 hours
+    time_cutoff = datetime.utcnow() - timedelta(hours=72)
+    observations = (
+        db.query(Observation)
+        .filter(Observation.acquired_at >= time_cutoff)
+        .all()
+    )
+
+    # If the window is empty, fall back to the most recent observations so an
+    # operator can still exercise the route on a quiet ingest period.
+    if not observations:
+        observations = (
+            db.query(Observation)
+            .order_by(Observation.acquired_at.desc())
+            .limit(50)
+            .all()
+        )
+
     if not observations:
         return {"status": "no_data", "message": "No observations available to cluster"}
 

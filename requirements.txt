@@ -1,8 +1,38 @@
 # FIREX — Satellite Thermal Intelligence Platform
 # Python 3.10+ Dependencies
+#
+# Covers the whole repository: the v2 platform (v2/backend, the live system) and
+# the archived v1 prototype (v1/, reachable through `python run.py legacy`,
+# `v1-pipeline` and `v1-daemon`).
+#
+# v2/backend/requirements.txt is the authoritative list for the v2 backend
+# alone; this file is the union so that a single `pip install -r requirements.txt`
+# at the repository root is enough to run anything here.
+#
+# R14: this file previously listed only `requests` and `Pillow`, so a fresh
+# clone could not start v2 at all -- `from fastapi import FastAPI` in
+# v2/backend/app/main.py failed immediately.
 
-# Networking & API integrations (NASA FIRMS, OpenRouter Vision AI, Satellite Tiles)
+# --- v2 backend: API, orchestration, console ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+sqlalchemy>=2.0.28
+
+# --- v2 tests ---
+pytest>=8.0.0
+httpx>=0.27.0
+
+# --- NASA FIRMS ingestion, OpenRouter vision AI, satellite tile fetching ---
+# Used by both trees.
 requests>=2.31.0
 
-# Satellite Imagery Processing & Thermal Annotation
-Pillow>=10.0.0
+# --- Satellite imagery processing & thermal annotation ---
+# Used by both trees.
+pillow>=10.2.0
+
+# --- Optional: PostgreSQL/PostGIS backend (SQLite is the default) ---
+# Set DATABASE_URL=postgresql://... to use it. Commented out because it needs a
+# C toolchain on some platforms and nothing in the default path imports it.
+# psycopg2-binary>=2.9.9

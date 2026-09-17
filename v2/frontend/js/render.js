@@ -1542,7 +1542,18 @@ function factorBullets(cases) {
 
   return `<div class="stack-5">${rows.map((r) => {
     const mean = r.sum / r.n;
+    // A suppression row carries a NEGATIVE score against a ceiling of 0: it
+    // subtracts from the composite rather than contributing to it, so there is
+    // no ceiling to be a percentage of. The guard below is right to refuse the
+    // division -- -11.2 / 0 is -Infinity, and `--v:-Infinity%` is not a length --
+    // but its default of 0 must not then be printed as a measurement: "0% of the
+    // weight available" says the factor contributed nothing, on the one row that
+    // removes the most.
     const pct = r.max ? Math.round((mean / r.max) * 100) : 0;
+    const n = `${r.n} scored ${r.n === 1 ? "case" : "cases"}`;
+    const detail = r.max
+      ? `Mean contribution across ${n}, ${pct}% of the weight available`
+      : `Mean across ${n}: ${fmt.dec(Math.abs(mean))} points ${mean < 0 ? "removed from" : "added to"} the published score, against no ceiling to be a percentage of`;
     return `
       <div class="bullet">
         <div class="bullet__top">
@@ -1550,7 +1561,7 @@ function factorBullets(cases) {
           <span class="bullet__score">${fmt.dec(mean)}<span class="bullet__max"> of ${r.max}</span></span>
         </div>
         <div class="meter meter--quiet" aria-hidden="true"><span class="meter__fill" style="--v:${pct}%"></span></div>
-        <p class="bullet__detail">Mean contribution across ${r.n} scored ${r.n === 1 ? "case" : "cases"}, ${pct}% of the weight available</p>
+        <p class="bullet__detail">${detail}</p>
       </div>`;
   }).join("")}</div>`;
 }

@@ -10,7 +10,9 @@ from app.alerts.engine import (
     get_active_alerts,
     acknowledge_alert,
     resolve_alert,
-    dismiss_alert
+    dismiss_alert,
+    AlertNotFound,
+    InvalidAlertTransition,
 )
 
 router = APIRouter(prefix="/alerts", tags=["Alert Engine"])
@@ -40,7 +42,23 @@ def list_alerts(
     ]
 
 
+def _alert_action_response(updated, message: str) -> Dict[str, Any]:
+    return {
+        "id": updated.id,
+        "incident_id": updated.incident_id,
+        "status": updated.status,
+        "message": message,
+    }
+
+
+# Section 10's route table names this endpoint `/api/alerts/{id}/ack`. The
+# implementation offered only `/acknowledge`, and since no client called either
+# (the console has no alert-action wiring) the divergence went unnoticed rather
+# than being caught by an integration test (F-014). Both spellings are served
+# from one handler so the documented contract and the existing one cannot drift
+# apart again.
 @router.post("/{alert_id}/acknowledge", summary="Acknowledge Alert")
+@router.post("/{alert_id}/ack", summary="Acknowledge Alert (spec alias)")
 def ack_alert(
     alert_id: str,
     notes: Optional[str] = Body(None, embed=True, description="Operator confirmation notes"),
@@ -49,14 +67,11 @@ def ack_alert(
     """Operator marks alert as acknowledged/dispatched."""
     try:
         updated = acknowledge_alert(alert_id, db, notes=notes)
-        return {
-            "id": updated.id,
-            "incident_id": updated.incident_id,
-            "status": updated.status,
-            "message": "Alert successfully acknowledged by operator."
-        }
-    except ValueError as e:
+        return _alert_action_response(updated, "Alert successfully acknowledged by operator.")
+    except AlertNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except InvalidAlertTransition as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post("/{alert_id}/resolve", summary="Resolve Alert")
@@ -68,14 +83,11 @@ def res_alert(
     """Marks alert as resolved."""
     try:
         updated = resolve_alert(alert_id, db, notes=notes)
-        return {
-            "id": updated.id,
-            "incident_id": updated.incident_id,
-            "status": updated.status,
-            "message": "Alert marked as resolved."
-        }
-    except ValueError as e:
+        return _alert_action_response(updated, "Alert marked as resolved.")
+    except AlertNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except InvalidAlertTransition as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @router.post("/{alert_id}/dismiss", summary="Dismiss Alert (False Alarm / Controlled Burn)")
@@ -87,11 +99,8 @@ def dis_alert(
     """Marks alert as dismissed."""
     try:
         updated = dismiss_alert(alert_id, db, reason=reason)
-        return {
-            "id": updated.id,
-            "incident_id": updated.incident_id,
-            "status": updated.status,
-            "message": "Alert dismissed."
-        }
-    except ValueError as e:
+        return _alert_action_response(updated, "Alert dismissed.")
+    except AlertNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except InvalidAlertTransition as e:
+        raise HTTPException(status_code=409, detail=str(e))

@@ -136,11 +136,27 @@ def test_rate_limiting_exempt_paths():
     def console():
         return "html"
 
+    @test_app.get("/api/not-exempt")
+    def not_exempt():
+        return {"ok": True}
+
     c = TestClient(test_app)
     # 5 requests to exempt path should all succeed
     for _ in range(5):
         r = c.get("/console/index.html")
         assert r.status_code == 200
+
+    # The loop above only shows exempt requests are not *blocked*. It cannot
+    # show they are not *counted*, which is the claim that matters: counting
+    # them would let console traffic consume the API's budget, so a client that
+    # had merely loaded the UI would be throttled on its first data call. With
+    # the limit at 2, five counted requests would have blocked this one (E9,
+    # F-093).
+    r = c.get("/api/not-exempt")
+    assert r.status_code == 200, (
+        "requests to an exempt path consumed the rate-limit budget: the "
+        "non-exempt request after 5 exempt ones was throttled"
+    )
 
 
 # ============================================================================
@@ -211,6 +227,15 @@ def test_system_status_hardening_metrics():
     assert data["service"] in ["FIREX-SIH2026", "FIREX v2 Engine"]
     assert "hardening" in data
     assert data["hardening"]["rate_limiting"] is not None
+    # Section 12 advertises "Rate limiting (120 req/min)" and the shipped value
+    # is config.RATE_LIMIT_PER_MINUTE, wired at main.py:40. Asserting only that
+    # the flag is non-None left the number itself unguarded -- it could have been
+    # changed to any value without a failure, which is the half of this test that
+    # was missing (E9, F-093).
+    assert data["hardening"]["rate_limit_per_minute"] == 120, (
+        f"shipped rate limit is {data['hardening']['rate_limit_per_minute']}, "
+        f"but V2_LOGIC_SPECIFICATION.md section 12 documents 120 req/min"
+    )
     assert data["hardening"]["cache_enabled"] is not None
     assert "cache_size" in data["hardening"]
     assert "pipeline_locked" in data["hardening"]
@@ -282,6 +307,82 @@ def test_failure_injection_firms_network_error_pipeline_survives():
         assert summary["status"] == "COMPLETED"
         assert summary["new_observations"] == 0
     db.close()
+
+
+# NASA's area/csv API names its sources as satellite+latency pairs; the list is
+# published at https://firms.modaps.eosdis.nasa.gov/api/area/ and holds no bare
+# instrument-series name. The pipeline used to request "VIIRS_NRT", which the API
+# rejects with HTTP 400 "Invalid source." -- measured directly against the live
+# endpoint with a dummy key -- so fetch_live_csv returned None on every run and
+# the live branch silently degraded to already-stored observations.
+SERVED_FIRMS_PRODUCTS = {
+    "LANDSAT_NRT",
+    "MODIS_NRT",
+    "MODIS_SP",
+    "VIIRS_NOAA20_NRT",
+    "VIIRS_NOAA20_SP",
+    "VIIRS_NOAA21_NRT",
+    "VIIRS_SNPP_NRT",
+    "VIIRS_SNPP_SP",
+}
+
+
+def test_live_branch_requests_a_product_nasa_serves():
+    """
+    The live branch is the default path for the console's "Sync Analysis" action
+    (the SSE route reaches execute_analysis_pipeline with firms_csv and file_path
+    both None), so a product the API refuses means the primary operator action
+    can never ingest anything. Assert the product actually passed at the call
+    site, not just the constant it is built from.
+    """
+    db = TestingSessionLocal()
+    requested = []
+
+    def _capture(product, days=1):
+        requested.append(product)
+        return None  # exercise the "no live payload" fallback the API produces
+
+    with patch("app.ingestion.firms.FIRMSClient.fetch_live_csv", side_effect=_capture):
+        summary = execute_analysis_pipeline(db=db, export_to_dashboard=False)
+    db.close()
+
+    assert summary["status"] == "COMPLETED"
+    assert requested, "the live branch was never reached; this test proves nothing"
+    for product in requested:
+        assert product in SERVED_FIRMS_PRODUCTS, (
+            f"the live fetch requested {product!r}, which NASA's area/csv API does "
+            f"not serve: the request 400s on the source and the branch never ingests"
+        )
+
+
+def test_every_ingestion_default_names_a_served_firms_product():
+    """
+    A rejected id as a *default* is worse than a rejected id at one call site:
+    it is reached by every caller that does not name a product, and it stamps the
+    bogus id onto whatever it parses. `product` is a label and an instrument hint
+    (it is not part of the observation's dedup identity), so the defaults are
+    assertable directly through the signatures.
+    """
+    import inspect
+
+    from app.ingestion.firms import FIRMSClient
+    from app.ingestion.normalizer import normalize_raw_firms
+
+    targets = (
+        FIRMSClient.parse_csv,
+        FIRMSClient.ingest_from_file,
+        normalize_raw_firms,
+    )
+    for fn in targets:
+        default = inspect.signature(fn).parameters["product"].default
+        assert default in SERVED_FIRMS_PRODUCTS, (
+            f"{fn.__qualname__} defaults product to {default!r}, which NASA's "
+            f"area/csv API does not serve"
+        )
+
+    assert all(p in SERVED_FIRMS_PRODUCTS for p in settings.FIRMS_DEFAULT_PRODUCTS), (
+        f"FIRMS_DEFAULT_PRODUCTS holds an unserved id: {settings.FIRMS_DEFAULT_PRODUCTS}"
+    )
 
 
 def test_failure_injection_concurrent_pipeline_locking():

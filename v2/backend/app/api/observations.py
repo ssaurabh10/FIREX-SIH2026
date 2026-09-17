@@ -16,6 +16,7 @@ from app.storage.database import get_db
 from app.storage.models import Observation
 from app.ingestion.firms import FIRMSClient
 from app.core.config import settings
+from app.gis.spatial import haversine_distance_km
 
 router = APIRouter(prefix="/observations", tags=["Observations"])
 
@@ -81,12 +82,15 @@ def get_observations(
     if max_lon is not None:
         query = query.filter(Observation.longitude <= max_lon)
 
-    # Radial Proximity Filter (Haversine bounding box approximation + exact distance post-filter)
+    # Radial Proximity Filter (degree-space bounding box prefilter + exact
+    # distance post-filter)
     if center_lat is not None and center_lon is not None and radius_km is not None:
-        # Approximate 1 deg latitude ~ 111 km
+        # Coarse prefilter only: 1 deg latitude ~ 111 km, longitude scaled by
+        # cos(lat). It needs to be a superset of the true 1500 m-scale disc, and
+        # the exact test below is what actually decides membership.
         lat_delta = radius_km / 111.0
         lon_delta = radius_km / (111.0 * max(0.1, math.cos(math.radians(center_lat))))
-        
+
         query = query.filter(
             Observation.latitude >= center_lat - lat_delta,
             Observation.latitude <= center_lat + lat_delta,
@@ -96,19 +100,19 @@ def get_observations(
 
     observations = query.order_by(Observation.acquired_at.desc()).offset(offset).limit(limit).all()
 
-    # Exact haversine filter if radius_km requested
+    # Exact great-circle filter if radius_km requested.
+    #
+    # This used to carry a verbatim inline copy of the haversine
+    # (`2 * R * atan2(sqrt(a), sqrt(1 - a))`, R = 6371.0). Besides duplicating
+    # the geodesy, that copy omitted the Section 4.1 `min(1.0, sqrt(a))` clamp,
+    # so for near-antipodal input `a` can exceed 1.0 by an ulp and
+    # `math.sqrt(1 - a)` raises ValueError('expected a nonnegative input'),
+    # turning a valid radius query into a 500. There is one definition of the
+    # haversine in this codebase; call it.
     if center_lat is not None and center_lon is not None and radius_km is not None:
-        def haversine_km(lat1, lon1, lat2, lon2):
-            R = 6371.0
-            phi1, phi2 = math.radians(lat1), math.radians(lat2)
-            dphi = math.radians(lat2 - lat1)
-            dlambda = math.radians(lon2 - lon1)
-            a = math.sin(dphi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2)**2
-            return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
         observations = [
             obs for obs in observations
-            if haversine_km(center_lat, center_lon, obs.latitude, obs.longitude) <= radius_km
+            if haversine_distance_km(center_lat, center_lon, obs.latitude, obs.longitude) <= radius_km
         ]
 
     return observations
@@ -135,7 +139,7 @@ def trigger_ingestion(payload: IngestionRequest, db: Session = Depends(get_db)):
     """
     client = FIRMSClient()
     if payload.file_path:
-        stats = client.ingest_from_file(db, payload.file_path, product=payload.product or "VIIRS_NRT")
+        stats = client.ingest_from_file(db, payload.file_path, product=payload.product or settings.FIRMS_DEFAULT_PRODUCTS[0])
         return {
             "status": "success",
             "mode": "fixture_file",

@@ -43,8 +43,9 @@ def test_climatology_submillisecond_lookup():
         assert bl["median_frp"] > 0.0
         assert bl["p95_frp"] > 0.0
         assert bl["night_ratio"] >= 0.30
-        assert bl["is_routine_flare"] is True
-        assert bl["site_classification_hint"] == "ROUTINE_FLARE"
+        assert bl["is_routine_flare"] is False
+        assert bl["site_classification_hint"] == "METALLURGICAL_INDUSTRIAL"
+        assert bl["is_metallurgical_facility"] is True
     finally:
         db.close()
 
@@ -61,13 +62,13 @@ def test_multimodal_prompt_empirical_grounding():
             "satellite": "VIIRS_NOAA20"
         },
         "gis_context": {
-            "facility_name": "Jindal Steel & Power Complex",
-            "facility_type": "steel_plant",
-            "industry": "Metallurgy",
+            "facility_name": "Jamnagar Reliance Refinery Complex",
+            "facility_type": "oil_refinery",
+            "industry": "Petroleum Refining & Flaring",
             "facility_distance_m": 85.0,
             "is_inside_facility": True,
-            "state": "Chhattisgarh",
-            "district": "Raigarh"
+            "state": "Gujarat",
+            "district": "Jamnagar"
         },
         "historical_features": {
             "active_days_365d": 284,
@@ -140,7 +141,20 @@ def test_routine_flare_suppression():
     assert res["factors"]["is_routine_flare"] is True
     # Final level should be LOW or MEDIUM (never HIGH or CRITICAL for routine flaring)
     assert res["severity_level"] in ["LOW", "MEDIUM"]
-    assert res["has_override"] is False
+
+    # Section 4.6.2 clamps only S_dev, which is not the number INV-4 is written
+    # about -- the invariant promises such a detection is "clamped to low
+    # severity scores (<= 20.0)". Holding S_dev at its ceiling still left the
+    # weighted composite free to rise: with S_dev at 10.67 this case published
+    # 39.1 (MEDIUM). The line here used to read `has_override is False`, which
+    # is that defect stated as an expectation -- no override firing was the
+    # symptom, not the requirement. Assert the composite.
+    assert res["severity_score"] <= 20.0
+    assert res["severity_level"] == "LOW"
+    # The override that now fires is the suppression itself, and it is recorded
+    # with the score it replaced so the clamp is auditable rather than silent.
+    assert res["has_override"] is True
+    assert any("ROUTINE_FLARE_SUPPRESSION" in r for r in res["override_reasons"])
 
 def test_abnormal_thermal_surge_escalation():
     """Item 5: When a flare surges to 3.5x its P95 ceiling, trigger immediate High escalation."""

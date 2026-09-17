@@ -47,7 +47,7 @@ class FIRMSClient:
             logger.error(f"Error querying NASA FIRMS API: {e}")
             return None
 
-    def parse_csv(self, csv_content: str, product: str = "VIIRS_NRT") -> List[NormalizedObservation]:
+    def parse_csv(self, csv_content: str, product: str = settings.FIRMS_DEFAULT_PRODUCTS[0]) -> List[NormalizedObservation]:
         """
         Parses CSV string into a validated list of NormalizedObservation objects.
         Silently skips malformed rows with warning logs.
@@ -83,13 +83,11 @@ class FIRMSClient:
             return {"ingested": 0, "skipped_duplicate": 0, "total": 0}
 
         # Check existing external_ids in batch
-        external_ids = [obs.external_id for obs in observations]
-        existing_ids = set(
-            db.query(Observation.external_id)
-            .filter(Observation.external_id.in_(external_ids))
-            .all()
-        )
-        existing_ids = {row[0] for row in existing_ids}
+        external_ids = [obs.external_id for obs in observations if obs.external_id]
+        existing_ids = set()
+        if external_ids:
+            rows = db.query(Observation.external_id).filter(Observation.external_id.in_(external_ids)).all()
+            existing_ids = {row[0] for row in rows if row[0]}
 
         new_entities = []
         skipped = 0
@@ -100,9 +98,12 @@ class FIRMSClient:
                 foreign_skipped += 1
                 continue
 
-            if obs.external_id in existing_ids:
+            if obs.external_id and obs.external_id in existing_ids:
                 skipped += 1
                 continue
+
+            if obs.external_id:
+                existing_ids.add(obs.external_id)
 
             entity = Observation(
                 source=obs.source,
@@ -133,7 +134,7 @@ class FIRMSClient:
             "total": len(observations)
         }
 
-    def ingest_from_file(self, db: Session, file_path: str, product: str = "VIIRS_NRT") -> Dict[str, int]:
+    def ingest_from_file(self, db: Session, file_path: str, product: str = settings.FIRMS_DEFAULT_PRODUCTS[0]) -> Dict[str, int]:
         """
         Deterministic fixture ingestion from a local CSV file.
         """
