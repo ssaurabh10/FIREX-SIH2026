@@ -34,7 +34,9 @@ from app.alerts.engine import (
     acknowledge_alert,
     resolve_alert,
     dismiss_alert,
-    get_active_alerts
+    get_active_alerts,
+    AlertNotFound,
+    InvalidAlertTransition,
 )
 from app.main import app
 
@@ -314,6 +316,136 @@ def test_alert_escalation_from_high_to_critical(db_session):
     assert alert_crit.id != alert_high.id
     assert alert_crit.severity_level == "CRITICAL"
     assert db_session.query(AlertRecord).count() == 2
+
+    # Section 8's exactly-once rule is about the alert an operator can act on,
+    # so the escalation supersedes rather than joins. Leaving the HIGH row open
+    # meant two NEW alerts coexisted for one incident, and once the CRITICAL row
+    # was closed the stale HIGH row became active again -- at which point
+    # `CRITICAL > HIGH` held a second time and the same escalation was emitted
+    # again. Asserting only `count() == 2` is satisfied by both behaviours, so
+    # the original version of this test could not tell them apart.
+    db_session.refresh(alert_high)
+    assert alert_high.status == "RESOLVED"
+    assert alert_high.superseded_by == alert_crit.id
+    assert alert_high.resolved_at is not None
+
+    active = db_session.query(AlertRecord).filter(
+        AlertRecord.incident_id == incident.id,
+        AlertRecord.status.in_(["NEW", "ACKNOWLEDGED"])
+    ).all()
+    assert len(active) == 1
+    assert active[0].id == alert_crit.id
+
+    # Re-evaluating at the escalated severity changes nothing.
+    again = evaluate_and_emit_alert(
+        incident,
+        {"severity_level": "CRITICAL", "severity_score": 91.0},
+        db_session
+    )
+    assert again.id == alert_crit.id
+    assert db_session.query(AlertRecord).count() == 2
+
+    # And closing the CRITICAL alert does not resurrect the superseded HIGH one.
+    resolve_alert(alert_crit.id, db_session)
+    assert db_session.query(AlertRecord).filter(
+        AlertRecord.incident_id == incident.id,
+        AlertRecord.status.in_(["NEW", "ACKNOWLEDGED"])
+    ).count() == 0
+
+    # A later CRITICAL assessment raises a *fresh* alert (no active alert
+    # remains); it must not be an escalation of a closed row.
+    reopened = evaluate_and_emit_alert(
+        incident,
+        {"severity_level": "CRITICAL", "severity_score": 93.0},
+        db_session
+    )
+    assert reopened.status == "NEW"
+    assert reopened.title.startswith("[CRITICAL]")
+    assert not reopened.title.startswith("[ESCALATED]")
+    assert db_session.query(AlertRecord).count() == 3
+
+
+def test_alert_emission_is_distinguishable_from_deduplication(db_session):
+    """The dedup path and the emission path both return a record; `is_new` tells them apart.
+
+    Without it, `severity/service.py` reported `alert_emitted: True` on every
+    HIGH/CRITICAL re-evaluation, so the audit trail could not answer whether an
+    assessment raised an alert or was suppressed by one already open.
+    """
+    incident = Incident(
+        id="inc-dedup-01",
+        incident_code="INC-DEDUP-01",
+        status="ACTIVE",
+        latitude=20.0,
+        longitude=80.0,
+        first_detected_at=datetime.utcnow(),
+        last_detected_at=datetime.utcnow(),
+        current_max_frp=50.0,
+    )
+    db_session.add(incident)
+    db_session.commit()
+
+    emitted = evaluate_and_emit_alert(
+        incident, {"severity_level": "HIGH", "severity_score": 60.0}, db_session
+    )
+    assert emitted.is_new is True
+
+    deduplicated = evaluate_and_emit_alert(
+        incident, {"severity_level": "HIGH", "severity_score": 61.0}, db_session
+    )
+    assert deduplicated.is_new is False
+    assert deduplicated.id == emitted.id
+
+    # Below the alerting threshold there is no record at all.
+    assert evaluate_and_emit_alert(
+        incident, {"severity_level": "MEDIUM", "severity_score": 40.0}, db_session
+    ) is None
+
+
+def test_alert_transition_table_is_enforced(db_session):
+    """Closed alerts cannot be driven back onto the operator's board."""
+    incident = Incident(
+        id="inc-fsm-01",
+        incident_code="INC-FSM-01",
+        status="ACTIVE",
+        latitude=20.0,
+        longitude=80.0,
+        first_detected_at=datetime.utcnow(),
+        last_detected_at=datetime.utcnow(),
+        current_max_frp=50.0,
+    )
+    db_session.add(incident)
+    db_session.commit()
+
+    alert = evaluate_and_emit_alert(
+        incident, {"severity_level": "HIGH", "severity_score": 60.0}, db_session
+    )
+
+    # NEW -> ACKNOWLEDGED is legal, and repeating it is an idempotent no-op.
+    assert acknowledge_alert(alert.id, db_session).status == "ACKNOWLEDGED"
+    events_before = db_session.query(IncidentEvent).count()
+    assert acknowledge_alert(alert.id, db_session).status == "ACKNOWLEDGED"
+    assert db_session.query(IncidentEvent).count() == events_before
+
+    # ACKNOWLEDGED -> RESOLVED is legal; both terminal states then refuse.
+    assert resolve_alert(alert.id, db_session).status == "RESOLVED"
+    with pytest.raises(InvalidAlertTransition):
+        acknowledge_alert(alert.id, db_session)
+    with pytest.raises(InvalidAlertTransition):
+        dismiss_alert(alert.id, db_session)
+
+    # DISMISSED is terminal too.
+    second = evaluate_and_emit_alert(
+        incident, {"severity_level": "CRITICAL", "severity_score": 90.0}, db_session
+    )
+    assert dismiss_alert(second.id, db_session).status == "DISMISSED"
+    with pytest.raises(InvalidAlertTransition):
+        acknowledge_alert(second.id, db_session)
+
+    # An unknown id is a different failure and must stay distinguishable, so the
+    # API can answer 404 rather than 409.
+    with pytest.raises(AlertNotFound):
+        acknowledge_alert("no-such-alert", db_session)
 
 # ---------------------------------------------------------------------------
 # 5. ALERT OPERATOR LIFECYCLE TESTS

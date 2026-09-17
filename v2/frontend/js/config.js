@@ -6,6 +6,9 @@
 export const SOURCES = {
   incidents: "data/incidents.json",
   ambient: "data/ambient_firms.json",
+  /* The exporter writes the queue roll-up to a sibling file so incidents.json
+     stays a bare array for the fallback path. */
+  summary: "data/queue_summary.json",
 };
 
 export const MAP_HOME = { center: [22.4, 79.5], zoom: 5 };
@@ -20,10 +23,10 @@ export const MAP_HOME = { center: [22.4, 79.5], zoom: 5 };
    quietly resolved, but the bands still have to be right for the cases the feed
    leaves untiered. */
 export const TIERS = [
-  { id: "CRITICAL", min: 81, max: 100, label: "Critical" },
-  { id: "HIGH", min: 61, max: 80, label: "High" },
-  { id: "MEDIUM", min: 36, max: 60, label: "Medium" },
-  { id: "LOW", min: 0, max: 35, label: "Low" },
+  { id: "CRITICAL", min: 75, max: 100, label: "Critical" },
+  { id: "HIGH", min: 50, max: 74, label: "High" },
+  { id: "MEDIUM", min: 25, max: 49, label: "Medium" },
+  { id: "LOW", min: 0, max: 24, label: "Low" },
 ];
 
 export function tierOf(score) {
@@ -42,6 +45,7 @@ export const CLASSES = {
   industrial_fire: { label: "Industrial fire / Smelter", short: "Industrial", icon: "i-factory", group: "industrial" },
   gas_flare: { label: "Gas flare", short: "Flare", icon: "i-flare", group: "industrial" },
   mining_or_other_thermal_source: { label: "Mining / Coal seam fire", short: "Mining", icon: "i-mining", group: "industrial" },
+  mining_related: { label: "Mining / Coal seam fire", short: "Mining", icon: "i-mining", group: "industrial" },
   wildfire: { label: "Wildfire", short: "Wildfire", icon: "i-wildfire", group: "natural" },
   agricultural_burning: { label: "Agricultural burning", short: "Agricultural", icon: "i-crop", group: "natural" },
   uncertain: { label: "Not visually confirmable", short: "Uncertain", icon: "i-question", group: "unknown" },
@@ -49,8 +53,19 @@ export const CLASSES = {
 
 export const UNKNOWN_CLASS = CLASSES.uncertain;
 
+/* J2. The engine publishes `ai_classification` in lowercase snake_case, but the
+   DB column and older cached payloads carry the uppercase form (INDUSTRIAL_FIRE)
+   and the nine fixture rows that reached the committed feed did exactly that, so
+   a direct `CLASSES[id]` missed every one of them and they rendered as the
+   fallback "Not visually confirmable" with the question glyph. The lookup is
+   keyed on the normalised id instead, so either casing resolves to the same
+   entry; the exported map keeps its canonical lowercase keys. */
+const CLASS_BY_NORMALISED_ID = new Map(
+  Object.entries(CLASSES).map(([id, def]) => [id.toLowerCase(), def]),
+);
+
 export function classOf(id) {
-  return CLASSES[id] || UNKNOWN_CLASS;
+  return CLASS_BY_NORMALISED_ID.get(String(id ?? "").trim().toLowerCase()) || UNKNOWN_CLASS;
 }
 
 /* Filters, in the order the master brief specifies them. */
@@ -59,7 +74,7 @@ export const FILTERS = [
   { id: "critical", label: "Critical", test: (c) => c.risk.tier === "CRITICAL" || c.risk.tier === "HIGH" },
   { id: "industrial", label: "Industrial", test: (c) => c.classId === "industrial_fire" || c.classId === "uncontrolled_industrial_fire" },
   { id: "flare", label: "Flare", test: (c) => c.classId === "gas_flare" },
-  { id: "mining", label: "Mining", test: (c) => c.classId === "mining_or_other_thermal_source" },
+  { id: "mining", label: "Mining", test: (c) => c.classId === "mining_or_other_thermal_source" || c.classId === "mining_related" },
   { id: "wildfire", label: "Wildfire", test: (c) => c.classId === "wildfire" },
   { id: "agri", label: "Agricultural", test: (c) => c.classId === "agricultural_burning" },
   { id: "uncertain", label: "Unconfirmed", test: (c) => !c.confirmed },

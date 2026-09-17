@@ -29,11 +29,14 @@ class AlternativeHypothesis(BaseModel):
     )
 
 class ImageQualityAssessment(BaseModel):
-    score: int = Field(
-        80,
-        ge=0,
-        le=100,
-        description="Estimated optical image quality score (0-100)"
+    # Spec 6.2 serialises image_quality.score as 92.0, a JSON float literal, so the
+    # field is a float: an int field could not reproduce the spec's own example and
+    # int() coercion in the provider floored any fractional score a model returned.
+    score: float = Field(
+        80.0,
+        ge=0.0,
+        le=100.0,
+        description="Estimated optical image quality score (0.0-100.0)"
     )
     cloud_cover: str = Field(
         "low",

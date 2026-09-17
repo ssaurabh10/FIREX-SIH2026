@@ -22,16 +22,16 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin="anonymous">
 
-<link rel="stylesheet" href="styles/tokens.css">
-<link rel="stylesheet" href="styles/base.css">
-<link rel="stylesheet" href="styles/surfaces.css">
-<link rel="stylesheet" href="styles/layout.css">
-<link rel="stylesheet" href="styles/components.css">
-<link rel="stylesheet" href="styles/charts.css">
-<link rel="stylesheet" href="styles/cards.css">
-<link rel="stylesheet" href="styles/map.css">
-<link rel="stylesheet" href="styles/dossier.css">
-<link rel="stylesheet" href="styles/toggle.css">
+<link rel="stylesheet" href="styles/tokens.css?v=2">
+<link rel="stylesheet" href="styles/base.css?v=2">
+<link rel="stylesheet" href="styles/surfaces.css?v=2">
+<link rel="stylesheet" href="styles/layout.css?v=2">
+<link rel="stylesheet" href="styles/components.css?v=4">
+<link rel="stylesheet" href="styles/charts.css?v=2">
+<link rel="stylesheet" href="styles/cards.css?v=4">
+<link rel="stylesheet" href="styles/map.css?v=5">
+<link rel="stylesheet" href="styles/dossier.css?v=2">
+<link rel="stylesheet" href="styles/toggle.css?v=2">
 </head>
 <body>
 
@@ -80,6 +80,7 @@
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.4V12l3.4 2"/></symbol>
 <symbol id="i-database" viewBox="0 0 24 24"><path d="M4 6.8c0-1.6 3.6-2.9 8-2.9s8 1.3 8 2.9-3.6 2.9-8 2.9-8-1.3-8-2.9Z"/><path d="M4 6.8v10.4c0 1.6 3.6 2.9 8 2.9s8-1.3 8-2.9V6.8M4 12c0 1.6 3.6 2.9 8 2.9s8-1.3 8-2.9"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.4 19 6.3v5.4c0 4.5-3 7.7-7 9.5-4-1.8-7-5-7-9.5V6.3Z"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
 </svg>
 
 <a class="u-skip" href="#stage">Skip to console</a>
@@ -92,9 +93,9 @@
       <ul class="spotlight-nav__list">
         <li><button class="spotlight-nav__item tab" type="button" data-view="overview" data-index="0">Overview</button></li>
         <li><button class="spotlight-nav__item tab" type="button" data-view="map" data-index="1" aria-current="page">Live Map</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="investigations" data-index="2">Investigations</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="industrial" data-index="3">Industrial</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="analytics" data-index="4">Analytics</button></li>
+        <li><button class="spotlight-nav__item tab" type="button" data-view="industrial" data-index="2">Industry</button></li>
+        <li><button class="spotlight-nav__item tab" type="button" data-view="analytics" data-index="3">Analytics</button></li>
+        <li><button class="spotlight-nav__item tab" type="button" data-view="history" data-index="4">History</button></li>
         <li><button class="spotlight-nav__item tab" type="button" data-view="settings" data-index="5">Settings</button></li>
       </ul>
 
@@ -112,31 +113,42 @@
       <div class="mapview">
 
         <div class="mapview__rail">
-          <!-- 2x Daily Satellite Orbit & Persistence Sync Widget (Section 7 & 8) -->
-          <div class="glass glass--over panel" style="padding: 10px 14px; margin-bottom: 8px; flex-shrink: 0; border: 1px solid var(--line-strong);">
+          <!-- Satellite Orbit & Persistence Sync Widget -->
+          <div class="glass glass--over panel" style="padding: var(--s-3); margin-bottom: var(--s-2); flex-shrink: 0;">
             <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <div class="row" style="gap: 6px; align-items: center;">
-                <span class="tag tag--signal" style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 600; padding: 2px 6px;">
-                  <span class="tag__dot" style="background: #10b981; width: 6px; height: 6px; border-radius: 50%;"></span>
-                  <span id="daemon-pass-badge">NIGHT PASS ACTIVE</span>
-                </span>
-                <span class="u-micro u-quiet" style="font-size: 0.65rem;">2x Daily Sync</span>
-              </div>
-              <button class="btn btn--sm" id="btn-trigger-sync" type="button" title="Synchronize latest satellite pass into time-series DB" style="padding: 2px 8px; font-size: 0.68rem; height: 22px; cursor: pointer;">
-                <svg class="i i--sm" aria-hidden="true" style="width: 12px; height: 12px; vertical-align: middle;"><use href="#i-pulse"/></svg> Sync Pass
+              <span class="tag tag--signal" style="font-size: var(--fs-micro); font-weight: 600;">
+                <span class="tag__dot"></span>
+                <span id="daemon-pass-badge">NIGHT PASS ACTIVE</span>
+              </span>
+              <button class="btn btn--sm btn--primary" id="btn-run-analysis" type="button" title="Execute FIRMS AI analysis pipeline">
+                <svg class="i i--sm" aria-hidden="true"><use href="#i-pulse"/></svg>
+                <span>Sync Analysis</span>
               </button>
             </div>
-            <div class="row" style="justify-content: space-between; font-size: 0.67rem; color: var(--t-secondary);">
-              <span>Database: <strong id="daemon-total-hotspots" style="color: var(--t-primary); font-family: var(--font-mono, monospace);">2,548</strong> Hotspots</span>
-              <span id="daemon-runs-count" style="color: var(--t-tertiary);">4 cycles (12h)</span>
+            <div class="row" style="justify-content: space-between; font-size: var(--fs-micro); color: var(--t-secondary);">
+              <span>Database: <strong id="daemon-total-hotspots" style="color: var(--t-primary); font-family: var(--font-mono);">2,548</strong> Hotspots</span>
+              <span id="daemon-last-updated" style="color: var(--t-tertiary);">Last updated: Today</span>
             </div>
+          </div>
+
+          <!-- Queue roll-up published by GET /api/console/feed. Hidden until a
+               summary arrives: an older cached payload and the static fallback
+               have no queue_summary, and zeroes would read as a finding. -->
+          <div class="glass glass--over panel" id="queue-summary" hidden
+               style="display:none;padding:var(--s-2) var(--s-3);margin-bottom:var(--s-2);flex-shrink:0;">
+            <div class="row" style="justify-content:space-between;align-items:center;gap:var(--s-2);">
+              <span class="u-label" style="font-size:var(--fs-micro);">Published queue</span>
+              <span class="u-micro u-quiet" id="queue-summary-attention"></span>
+            </div>
+            <div class="row row--wrap" id="queue-summary-tiers" style="gap:4px;margin-top:5px;"></div>
+            <p class="u-micro u-quiet" id="queue-summary-closed" style="margin:5px 0 0;display:none;"></p>
           </div>
 
           <div class="glass glass--over panel queue-panel" style="flex:1;min-height:0">
             <div class="panel__head panel__head--tight">
               <div class="row">
                 <span class="tag tag--tier" style="--tier:var(--signal);font-weight:600">QUEUE</span>
-                <h2 class="u-label" style="margin:0;font-size:0.75rem;letter-spacing:0.06em">Priority Targets</h2>
+                <h2 class="u-label" style="margin:0;font-size:0.75rem;letter-spacing:0.06em">Priority Incidents</h2>
               </div>
               <span class="tag tag--signal" id="spine-count"></span>
             </div>
@@ -144,7 +156,7 @@
                  aria-label="Filter detections by classification" id="filterbar"></div>
             <div class="panel__body panel__body--flush panel__body--fill u-scroll" id="spine"></div>
             <div class="panel__foot">
-              <p class="u-micro u-quiet" style="margin:0">Click incident to open satellite dossier & evidence</p>
+              <p class="u-micro u-quiet" style="margin:0">Click incident to view satellite evidence & details</p>
             </div>
           </div>
         </div>
@@ -181,7 +193,7 @@
                         <svg id="star-1" class="theme-star" viewBox="0 0 20 20"><path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path></svg>
                         <svg id="star-2" class="theme-star" viewBox="0 0 20 20"><path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path></svg>
                         <svg id="star-3" class="theme-star" viewBox="0 0 20 20"><path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path></svg>
-                        <svg id="star-4" class="theme-star" viewBox="0 0 20 20"><path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path></svg>
+                        <svg id="star-4" class="theme-star" viewBox="0 0 20 20"><path d="M 0 10 C 10 10,10 10 ,0 10 C 10 10 , 10 10 , 10 20 C 10 10 , 10 10 , 20 10 C 10 10 , 10 10 , 10 0 C 10 10,10 10 ,0 10 Z"></path></svg>
                       </div>
                     </div>
                   </label>
@@ -193,6 +205,13 @@
                   <button class="seg__opt" type="button" role="radio" aria-checked="true" data-base="dark">Canvas</button>
                   <button class="seg__opt" type="button" role="radio" aria-checked="false" data-base="satellite">Imagery</button>
                 </div>
+
+                <div class="seg glass glass--frosted glass--over" role="radiogroup" aria-label="FRP Threshold Filter" id="frp-seg">
+                  <button class="seg__opt" type="button" role="radio" aria-checked="true" data-frp="0" title="Show all detections">All FRP</button>
+                  <button class="seg__opt" type="button" role="radio" aria-checked="false" data-frp="2" title="Filter thermal sources ≥ 2.0 MW">≥ 2 MW</button>
+                  <button class="seg__opt" type="button" role="radio" aria-checked="false" data-frp="5" title="Filter thermal sources ≥ 5.0 MW">≥ 5 MW</button>
+                </div>
+
                 <div class="zoombar glass glass--frosted glass--over glass--sm">
                   <button class="icon-btn" type="button" id="btn-zoom-in" aria-label="Zoom in">
                     <svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>
@@ -210,7 +229,7 @@
                   <svg class="i" aria-hidden="true"><use href="#i-expand"/></svg>
                 </button>
                 <button class="icon-btn glass glass--frosted glass--over glass--sm" type="button"
-                        id="btn-ambient" aria-pressed="true" aria-label="Toggle unclassified FIRMS pixels" title="Toggle unclassified FIRMS pixels">
+                        id="btn-ambient" aria-pressed="false" aria-label="Toggle background hotspots" title="Toggle background hotspots">
                   <svg class="i" aria-hidden="true"><use href="#i-satellite"/></svg>
                 </button>
               </div>
@@ -250,7 +269,7 @@
                   <div class="mapkey__group">
                     <p class="mapkey__title">Other marks</p>
                     <span class="mapkey__row"><span class="mapkey__mk mapkey__mk--dashed"></span>Vision model could not confirm</span>
-                    <span class="mapkey__row"><span class="mapkey__mk mapkey__mk--dot"></span>Unclassified FIRMS pixel</span>
+                    <span class="mapkey__row"><span class="mapkey__mk mapkey__mk--dot"></span>Background hotspot (raw detection)</span>
                   </div>
 
                   <p class="mapkey__foot">Colour carries risk only. Classification is the glyph, so the two never have to be read off the same channel.</p>
@@ -260,7 +279,7 @@
           </div>
         </div>
 
-        <aside class="drawer glass" id="drawer" data-open="0" aria-label="Case dossier"></aside>
+        <aside class="drawer glass" id="drawer" data-open="0" aria-label="Incident details dossier"></aside>
 
       </div>
     </section>
@@ -270,7 +289,7 @@
       <header class="view__head">
         <div class="view__title">
           <h1 class="u-display">Watch floor</h1>
-          <p class="view__sub">Everything the pipeline produced for this window, in the order an analyst should work it.</p>
+          <p class="view__sub">Active satellite thermal monitoring overview across India, ranked by priority.</p>
         </div>
         <div class="row" id="overview-window"></div>
       </header>
@@ -282,7 +301,7 @@
       <header class="view__head">
         <div class="view__title">
           <h1 class="u-display">Investigations</h1>
-          <p class="view__sub">Each case pairs a FIRMS detection with the satellite crop the vision model actually looked at. Open one to read the evidence before you triage it.</p>
+          <p class="view__sub">Each case pairs a satellite heat detection with the high-resolution optical image analyzed by AI vision. Open an incident to review the evidence and verify status.</p>
         </div>
         <div class="row" id="inv-filters"></div>
       </header>
@@ -291,10 +310,37 @@
 
     <!-- ================= INDUSTRIAL ================= -->
     <section class="view view--scroll" id="view-industrial" aria-label="Industrial sources">
-      <header class="view__head">
-        <div class="view__title">
-          <h1 class="u-display">Industrial and persistent sources</h1>
-          <p class="view__sub">Detections the model placed inside an industrial footprint, grouped by site. A persistent flare is a normal operation, not an incident, so these are separated from event-driven fires.</p>
+      <header class="view__head" style="flex-direction:column;align-items:stretch;gap:var(--s-3);">
+        <div class="row row--wrap" style="justify-content:space-between;align-items:center;gap:var(--s-3);">
+          <div class="view__title">
+            <h1 class="u-display">Industrial Intelligence & Baselines</h1>
+            <p class="view__sub">National industrial facility registry, historical 365-day baseline tracking, surge threshold alerts, and emission trends.</p>
+          </div>
+          <div class="searchbox glass glass--frosted" style="min-width: 280px; display: flex; align-items: center; padding: 6px 12px; border-radius: var(--r-sm); border: 1px solid var(--line-hair);">
+            <svg class="i i--sm" aria-hidden="true" style="width: 14px; height: 14px; color: var(--t-tertiary); margin-right: 8px;"><use href="#i-search"/></svg>
+            <input type="search" id="facility-search-input" placeholder="Search facility, operator, state (e.g. IOCL, Jamnagar, Odisha)..." autocomplete="off" style="background: transparent; border: none; color: var(--t-primary); font-size: 0.8rem; outline: none; width: 100%;">
+          </div>
+        </div>
+
+        <div class="row row--wrap" style="justify-content:space-between;align-items:center;gap:var(--s-2);padding-top:var(--s-2);border-top:1px solid var(--line-hair);">
+          <div class="seg seg--pills" role="radiogroup" aria-label="Sector Filter" id="industrial-sector-filter" style="display:flex;flex-wrap:wrap;gap:4px;">
+            <button class="seg__opt is-active" type="button" data-sector="all">All Sectors</button>
+            <button class="seg__opt" type="button" data-sector="flare">Refinery & Flares</button>
+            <button class="seg__opt" type="button" data-sector="steel">Steel & Metals</button>
+            <button class="seg__opt" type="button" data-sector="power">Thermal Power</button>
+            <button class="seg__opt" type="button" data-sector="mining">Mining & Smelting</button>
+            <button class="seg__opt" type="button" data-sector="cement">Cement & Kilns</button>
+          </div>
+
+          <div class="row" style="gap:var(--s-2);align-items:center;">
+            <span class="u-micro u-quiet">Sort by:</span>
+            <select id="industrial-sort-select" class="glass glass--frosted" style="background:var(--fill-1);border:1px solid var(--line-hair);color:var(--t-primary);font-size:0.75rem;padding:4px 8px;border-radius:var(--r-sm);outline:none;cursor:pointer;">
+              <option value="frp">Peak Thermal Output (MW)</option>
+              <option value="detections">Active Detections Count</option>
+              <option value="anomaly">Anomaly Deviation Severity</option>
+              <option value="name">Facility Name (A–Z)</option>
+            </select>
+          </div>
         </div>
       </header>
       <div class="stack-5" id="industrial-body"></div>
@@ -309,6 +355,17 @@
         </div>
       </header>
       <div class="stack-5" id="analytics-body"></div>
+    </section>
+
+    <!-- ================= HISTORY ================= -->
+    <section class="view view--scroll" id="view-history" aria-label="Historical observations archive">
+      <header class="view__head">
+        <div class="view__title">
+          <h1 class="u-display">Historical Observation Archive</h1>
+          <p class="view__sub">Search past satellite passes across 2.89M historical thermal detections in India. Filter by State, District, Date Range, and Fire Radiative Power (MW).</p>
+        </div>
+      </header>
+      <div class="stack-5" id="history-body"></div>
     </section>
 
     <!-- ================= SETTINGS ================= -->
@@ -330,25 +387,25 @@
        aria-labelledby="modal-title" aria-hidden="true"></div>
 </div>
 
-<!-- ================= TACTICAL ORBITAL PIPELINE SYNC MODAL ================= -->
+<!-- ================= PIPELINE SYNC MODAL ================= -->
 <div class="sync-scrim" id="sync-scrim" data-open="0" role="dialog" aria-modal="true" aria-labelledby="sync-title">
   <div class="sync-modal glass glass--frosted">
     <div class="sync-head">
       <div class="sync-title-group">
-        <span class="sync-badge" id="sync-badge-status">
-          <span class="tag__dot" style="background:#38bdf8;width:7px;height:7px;border-radius:50%;"></span>
-          ORBIT PIPELINE ACTIVE
+        <span class="sync-badge sync-badge--running" id="sync-badge-status">
+          <span class="tag__dot"></span>
+          PIPELINE ACTIVE
         </span>
         <h2 id="sync-title">
-          <svg class="i i--sm" aria-hidden="true" style="width:16px;height:16px;color:#38bdf8;vertical-align:-2px;"><use href="#i-pulse"/></svg>
-          Sovereign Satellite Pass Synchronization
+          <svg class="i i--sm" aria-hidden="true"><use href="#i-pulse"/></svg>
+          Thermal Anomaly Analysis
         </h2>
-        <p>Autonomous ingestion · Sovereign airspace triage · Zoom-16 optical synthesis · Multi-factor threat scoring</p>
+        <p>Automated satellite ingestion, optical image fetching, and AI vision threat analysis across India.</p>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span class="u-micro u-quiet" id="sync-timer-label" style="font-family: var(--font-mono, monospace);">ELAPSED: 00:00</span>
-        <button class="search__clear" id="sync-btn-close" type="button" aria-label="Close" title="Dismiss" style="width:26px;height:26px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;cursor:pointer;color:#94a3b8;display:grid;place-items:center;">
-          <svg class="i i--sm" aria-hidden="true" style="width:12px;height:12px;"><use href="#i-close"/></svg>
+      <div class="row" style="gap: var(--s-3); align-items: center;">
+        <span class="u-mono" id="sync-timer-label" style="font-size: var(--fs-label); color: var(--t-tertiary);">ELAPSED: 00:00</span>
+        <button class="search__clear" id="sync-btn-close" type="button" aria-label="Close" title="Dismiss" style="width: 28px; height: 28px; border-radius: var(--r-sm); cursor: pointer; display: grid; place-items: center;">
+          <svg class="i i--sm" aria-hidden="true" style="width: 14px; height: 14px;"><use href="#i-x"/></svg>
         </button>
       </div>
     </div>
@@ -357,8 +414,8 @@
     <div class="sync-progress-box">
       <div class="sync-progress-meta">
         <span class="sync-current-phase" id="sync-phase-label">
-          <span class="tag__dot" style="background:#38bdf8;width:6px;height:6px;border-radius:50%;"></span>
-          INITIALIZING TELEMETRY STREAM...
+          <span class="tag__dot"></span>
+          STARTING PIPELINE...
         </span>
         <span class="sync-pct-number" id="sync-pct-display">0%</span>
       </div>
@@ -372,8 +429,8 @@
       <div class="sync-stage-row" id="sync-stage-1" data-stage="1" data-status="pending">
         <div class="sync-stage-icon">1</div>
         <div class="sync-stage-content">
-          <div class="sync-stage-name">Stage 1: FIRMS Ingestion & Sovereign Filter</div>
-          <div class="sync-stage-desc" id="sync-desc-1">Parses VIIRS/MODIS passes and discards foreign/cross-border thermal noise.</div>
+          <div class="sync-stage-name">Stage 1: Satellite Thermal Feed</div>
+          <div class="sync-stage-desc" id="sync-desc-1">Download latest NASA VIIRS/MODIS thermal detections inside India.</div>
         </div>
         <div class="sync-stage-status-badge" id="sync-status-1">PENDING</div>
       </div>
@@ -381,8 +438,8 @@
       <div class="sync-stage-row" id="sync-stage-2" data-stage="2" data-status="pending">
         <div class="sync-stage-icon">2</div>
         <div class="sync-stage-content">
-          <div class="sync-stage-name">Stage 2: Historical Persistence & Diurnal Profiles</div>
-          <div class="sync-stage-desc" id="sync-desc-2">Archives pass into SQLite time-series DB and evaluates 24h continuous burn status.</div>
+          <div class="sync-stage-name">Stage 2: History & Baseline Matching</div>
+          <div class="sync-stage-desc" id="sync-desc-2">Check 365-day history to distinguish routine flaring from abnormal surges.</div>
         </div>
         <div class="sync-stage-status-badge" id="sync-status-2">PENDING</div>
       </div>
@@ -390,8 +447,8 @@
       <div class="sync-stage-row" id="sync-stage-3" data-stage="3" data-status="pending">
         <div class="sync-stage-icon">3</div>
         <div class="sync-stage-content">
-          <div class="sync-stage-name">Stage 3: Spatial Cluster Triage & Threat Qualification</div>
-          <div class="sync-stage-desc" id="sync-desc-3">Aggregates multi-pixel sensor detections into physical fire clusters and qualifies threats against strategic infrastructure.</div>
+          <div class="sync-stage-name">Stage 3: Hotspot Grouping & Priority Ranking</div>
+          <div class="sync-stage-desc" id="sync-desc-3">Group nearby heat points into incidents and prioritize top cases for inspection.</div>
         </div>
         <div class="sync-stage-status-badge" id="sync-status-3">PENDING</div>
       </div>
@@ -399,8 +456,8 @@
       <div class="sync-stage-row" id="sync-stage-4" data-stage="4" data-status="pending">
         <div class="sync-stage-icon">4</div>
         <div class="sync-stage-content">
-          <div class="sync-stage-name">Stage 4: High-Res Optical Satellite Tile Synthesis</div>
-          <div class="sync-stage-desc" id="sync-desc-4">Synthesizes Zoom-16 optical scenes with tactical thermal reticles (0 coordinate mismatches).</div>
+          <div class="sync-stage-name">Stage 4: Satellite Imagery Preparation</div>
+          <div class="sync-stage-desc" id="sync-desc-4">Fetch high-resolution optical satellite imagery for prioritized targets.</div>
         </div>
         <div class="sync-stage-status-badge" id="sync-status-4">PENDING</div>
       </div>
@@ -408,8 +465,15 @@
       <div class="sync-stage-row" id="sync-stage-5" data-stage="5" data-status="pending">
         <div class="sync-stage-icon">5</div>
         <div class="sync-stage-content">
-          <div class="sync-stage-name">Stage 5: Vision AI Deep Inspection & Threat Risk Engine</div>
-          <div class="sync-stage-desc" id="sync-desc-5">Extracts optical plume/structure features, verifies operational certainty, and computes 5-factor composite threat scores.</div>
+          <div class="sync-stage-name">Stage 5: AI Vision & Risk Assessment</div>
+          <div class="sync-stage-desc" id="sync-desc-5">Inspect satellite images with Multimodal AI vision to verify flaring/smoke and compute risk scores.</div>
+          <!-- Sub-progress bar for Stage 5 -->
+          <div class="sync-subprogress" id="sync-stage-5-subprogress" style="display: none;">
+            <div class="sync-subprogress-track">
+              <div class="sync-subprogress-fill" id="sync-stage-5-subfill" style="width: 0%;"></div>
+            </div>
+            <span class="sync-subprogress-text" id="sync-stage-5-subtext">Waiting to inspect targets...</span>
+          </div>
         </div>
         <div class="sync-stage-status-badge" id="sync-status-5">PENDING</div>
       </div>
@@ -419,13 +483,13 @@
     <div class="sync-log-terminal" id="sync-log-terminal">
       <div class="sync-log-entry">
         <span class="sync-log-ts">[SYSTEM]</span>
-        <span class="sync-log-msg">Ready to initiate sovereign pass synchronization.</span>
+        <span class="sync-log-msg">Ready to start thermal analysis pipeline.</span>
       </div>
     </div>
 
     <div class="sync-foot">
-      <span>NTRO / SIH 2026 Sovereign Airspace Thermal Intelligence Pipeline</span>
-      <span id="sync-footer-status" style="color: #38bdf8; font-family: var(--font-mono, monospace);">CONNECTING TO MISSION ORBIT...</span>
+      <span>FIREX Automated Thermal Intelligence Pipeline</span>
+      <span id="sync-footer-status">Connecting to pipeline engine...</span>
     </div>
   </div>
 </div>
@@ -435,7 +499,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin="anonymous"></script>
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=18"></script>
 
 </body>
 </html>

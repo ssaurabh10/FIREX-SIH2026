@@ -104,35 +104,38 @@ export function setBase(id) {
    states the risk tier, and a dashed ring means the source was not visually
    confirmable. Nothing on this map is an anonymous red dot. */
 
+export function getFrpScale(frp) {
+  const f = Number(frp) || 0;
+  if (f < 2.0) return "sm";
+  if (f < 5.0) return "md";
+  return "lg";
+}
+
 function markerHtml(c) {
+  const scale = getFrpScale(c.frp);
+  const iconClass = scale === "sm" ? "i i--xs" : (scale === "md" ? "i i--sm" : "i i--sm");
   return [
-    `<div class="mk" data-tier="${c.risk.tier}" data-confirmed="${c.confirmed ? 1 : 0}"`,
+    `<div class="mk" data-tier="${c.risk.tier}" data-frp-scale="${scale}" data-confirmed="${c.confirmed ? 1 : 0}"`,
     ` data-lead="${c.rank === 1 ? 1 : 0}" data-case="${escapeHtml(c.id)}">`,
-    icon(c.cls.icon, "i i--sm"),
+    icon(c.cls.icon, iconClass),
     `<span class="mk__rank">${c.rank}</span>`,
     `</div>`,
   ].join("");
 }
 
-function popupHtml(c) {
+function tooltipHtml(c) {
   const conf = c.firms.confidence;
+  const tierClass = c.risk.tier.toLowerCase();
   return `
-    <div class="pop" data-tier="${c.risk.tier}">
-      <div class="pop__top">
-        <span class="pop__id">${escapeHtml(c.id)}</span>
-        <span class="tag tag--tier">${c.risk.tier} ${c.risk.score}</span>
+    <div class="pop-tip" data-tier="${c.risk.tier}">
+      <div class="pop-tip__head">
+        <span class="pop-tip__rank">#${c.rank}</span>
+        <span class="pop-tip__title">${escapeHtml(c.place || c.id)}</span>
+        <span class="tag tag--tier" style="margin-left:auto;font-size:10px;padding:1px 5px;">${c.risk.tier} ${c.risk.score}</span>
       </div>
-      <div>
-        <p class="pop__name">${escapeHtml(c.place)}</p>
-        <p class="u-micro" style="margin-top:4px">
-          ${escapeHtml(c.cls.label)}${c.confirmed ? "" : ", not visually confirmed"}
-        </p>
+      <div class="pop-tip__body">
+        <span>${escapeHtml(c.cls.label)}</span> · <span>${fmt.dec(c.frp)} MW</span> · <span>${escapeHtml(conf.display || "Nominal")}</span>
       </div>
-      <dl class="pop__grid">
-        <div class="pop__cell"><dt>FRP</dt><dd>${fmt.dec(c.frp)} MW</dd></div>
-        <div class="pop__cell"><dt>Sensor</dt><dd>${escapeHtml(c.firms.instrument)}</dd></div>
-        <div class="pop__cell"><dt>Conf</dt><dd>${escapeHtml(conf.display)}</dd></div>
-      </dl>
     </div>`;
 }
 
@@ -143,17 +146,41 @@ export function drawCases(cases) {
   if (!mapState.map) { mapState.onViewChange(countInView()); return; }
   mapState.pins.clearLayers();
   mapState.markers.clear();
+  mapState.currentCases = cases;
 
   cases.forEach((c) => {
     if (!Number.isFinite(c.lat) || !Number.isFinite(c.lon)) return;
+
+    const scale = getFrpScale(c.frp);
+    const size = scale === "sm" ? 18 : (scale === "md" ? 23 : 28);
+    const half = size / 2;
+
     const marker = L.marker([c.lat, c.lon], {
-      icon: L.divIcon({ html: markerHtml(c), className: "", iconSize: [28, 28], iconAnchor: [14, 14] }),
+      icon: L.divIcon({
+        html: markerHtml(c),
+        className: "",
+        iconSize: [size, size],
+        iconAnchor: [half, half]
+      }),
       keyboard: true,
-      title: `${c.id}: ${c.place}`,
+      title: `#${c.rank}: ${c.id} - ${c.place}`,
       riseOnHover: true,
     });
-    marker.bindPopup(popupHtml(c), { closeButton: false, offset: [0, -6], autoPanPadding: [40, 40] });
-    marker.on("click", () => mapState.onSelect(c.id));
+
+    // Clean tactical tooltip on hover - never blocks optical satellite view
+    marker.bindTooltip(tooltipHtml(c), {
+      direction: "top",
+      offset: [0, -half],
+      className: "incident-tooltip",
+      sticky: false,
+    });
+
+    // Direct selection: opens right drawer & centers reticle without blocking popup
+    marker.on("click", (e) => {
+      L.DomEvent.stopPropagation(e);
+      mapState.onSelect(c.id);
+    });
+
     marker.addTo(mapState.pins);
     mapState.markers.set(c.id, marker);
   });

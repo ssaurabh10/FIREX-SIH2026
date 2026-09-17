@@ -12,6 +12,8 @@ build/
 *.sqlite3
 *.db-wal
 *.db-shm
+*.bak
+*.bak_*
 **/data/*.db
 data/*.db
 History data/
@@ -20,14 +22,19 @@ History data/
 **/.pytest_cache/
 
 # API keys / secrets - NEVER commit active keys
-config.py
-**/config.py
-pipeline/01_firms/config.py
-pipeline/04_vision_ai/config.py
-pipeline/05_orchestrator/config.py
-pipeline/05_orchestrator/key_pool.py
-
-# Legacy paths (for backward safety)
+#
+# v2 keeps its settings module in git on purpose: v2/backend/app/core/config.py
+# holds no credentials. Every secret lives in v2/backend/.env, which is ignored
+# below, and the committed template is v2/backend/.env.example.
+#
+# The previous blanket `config.py` / `**/config.py` rules excluded that module,
+# so a fresh clone crashed at `from app.core.config import settings` in
+# app/main.py, app/intelligence/provider.py and app/behavior/baseline.py.
+#
+# The legacy v1 tree still ships credential-bearing modules; anchor the ignores
+# to it instead of matching every path named config.py in the repository.
+v1/**/config.py
+v1/**/key_pool.py
 section1_firms/config.py
 section4_vision_ai/config.py
 section5_pipeline/config.py

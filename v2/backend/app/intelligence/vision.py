@@ -10,6 +10,7 @@ from app.intelligence.schemas import AIInvestigationReport
 from app.intelligence.prompts import build_investigation_prompt
 from app.intelligence.evidence import encode_satellite_image
 from app.intelligence.provider import get_ai_provider, BaseAIProvider
+from app.imagery import service as imagery_service
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +29,17 @@ def analyze_incident_scene(
 
     annotated_url = vis.get("annotated_image_url") or ""
     # Extract file path on disk: usually stored in data/imagery_cache/{incident_id}/annotated.jpg
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    disk_path = os.path.join(base_dir, "data", "imagery_cache", incident_id, "annotated.jpg")
-    
+    # The cache directory is owned by app.imagery.service (CACHE_DIR), which is what the imagery
+    # service and the REST route write through and what tests/conftest.py redirects. Re-deriving
+    # the same path here from this module's own __file__ defined the directory a second time and
+    # ignored every rebind of it, so this read kept pointing at the served cache in the source
+    # tree (F-106). It is read off the module at call time rather than imported by value, because
+    # an import-time copy would be bound before the suite's redirection and would drift again.
+    disk_path = os.path.join(imagery_service.CACHE_DIR, incident_id, "annotated.jpg")
+
     if not os.path.exists(disk_path):
         # Check raw image
-        raw_path = os.path.join(base_dir, "data", "imagery_cache", incident_id, "raw.jpg")
+        raw_path = os.path.join(imagery_service.CACHE_DIR, incident_id, "raw.jpg")
         if os.path.exists(raw_path):
             disk_path = raw_path
         else:

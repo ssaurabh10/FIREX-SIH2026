@@ -9,9 +9,9 @@ import { load, store, inWindow, setTriage, getTriage } from "./data.js";
 import {
   initMap, mapState, setBase, drawCases, drawAmbient,
   select, clearSelection, hover, fitAll, home, zoomBy, resize, countInView,
-} from "./map.js";
-import * as ui from "./render.js";
-import { initDossier, showDrawer, showModal, isModalOpen, refresh } from "./dossier.js";
+} from "./map.js?v=4";
+import * as ui from "./render.js?v=17";
+import { initDossier, showDrawer, showModal, isModalOpen, refresh } from "./dossier.js?v=15";
 
 const PREFS_KEY = "firex_prefs";
 
@@ -19,11 +19,17 @@ const state = {
   view: "map",
   window: "all",
   filter: "all",
+  frpThreshold: 0,
   query: "",
-  ambient: true,
+  ambient: false,
   base: "dark",
   theme: "dark",
   selected: null,
+  selectedFacility: null,
+  facilityQuery: "",
+  facilitySector: "all",
+  facilitySort: "frp",
+  facilityWindow: "365d",
 };
 
 const el = {};
@@ -33,22 +39,38 @@ function grab() {
     "brand-window", "map-sub", "rail-counts", "risk-hist", "risk-span", "spine", "spine-count",
     "filterbar", "map-strip", "in-view", "alert-flag", "q", "q-clear", "mapkey-glyphs",
     "overview-body", "overview-window", "inv-grid", "inv-filters",
-    "industrial-body", "analytics-body", "settings-body",
+    "industrial-body", "analytics-body", "history-body", "settings-body",
   ].forEach((id) => { el[id] = document.getElementById(id); });
 }
 
 /* --- Derived lists -------------------------------------------------------- */
 
+const frpMin = () => Number(state.frpThreshold) || 0;
+
 const windowed = () => store.cases.filter((c) => inWindow(c, state.window));
+
+const windowedWithFrp = () => {
+  const min = frpMin();
+  return windowed().filter((c) => !min || Number(c.frp || 0) >= min);
+};
 
 function visible() {
   const f = FILTERS.find((x) => x.id === state.filter) || FILTERS[0];
   const q = state.query.trim().toLowerCase();
-  return windowed().filter(f.test).filter((c) => !q ||
-    `${c.id} ${c.place} ${c.site} ${c.address} ${c.cls.label}`.toLowerCase().includes(q));
+  const min = frpMin();
+  return windowed()
+    .filter(f.test)
+    .filter((c) => !min || Number(c.frp || 0) >= min)
+    .filter((c) => !q ||
+      `${c.id} ${c.place} ${c.site} ${c.address} ${c.cls.label}`.toLowerCase().includes(q));
 }
 
-const ambientInWindow = () => store.ambient.filter((p) => inWindow(p, state.window));
+const ambientInWindow = () => {
+  const min = frpMin();
+  return store.ambient
+    .filter((p) => inWindow(p, state.window))
+    .filter((p) => !min || Number(p.frp || 0) >= min);
+};
 
 /* --- Preferences ----------------------------------------------------------
    Local to this browser. The console stores no case data and no credentials. */
@@ -61,9 +83,10 @@ const ambientInWindow = () => store.ambient.filter((p) => inWindow(p, state.wind
    a layer that does not exist, and a non-boolean ambient flag drove an
    aria-checked attribute that read "1" to a screen reader. */
 const PREF_VALID = {
-  view: (v) => ["map", "overview", "investigations", "industrial", "analytics", "settings"].includes(v),
+  view: (v) => ["map", "overview", "investigations", "industrial", "analytics", "history", "settings"].includes(v),
   window: (v) => Object.prototype.hasOwnProperty.call(WINDOWS, v),
   filter: (v) => FILTERS.some((f) => f.id === v),
+  frpThreshold: (v) => typeof v === "number" && v >= 0,
   base: (v) => Object.prototype.hasOwnProperty.call(BASES, v),
   ambient: (v) => typeof v === "boolean",
   theme: (v) => v === "dark" || v === "light",
@@ -83,6 +106,14 @@ function loadPrefs() {
     Object.entries(PREF_VALID).forEach(([key, valid]) => {
       if (saved[key] !== undefined && valid(saved[key])) state[key] = saved[key];
     });
+    // Ambient dots OFF by default unless explicitly activated in session
+    if (saved.ambient_v2_set !== true) {
+      state.ambient = false;
+    }
+    // In v2, default window to 'all' so detections are never silently filtered out
+    if (!saved.window || saved.window === "24h") {
+      state.window = "all";
+    }
   } catch { /* first run, or storage blocked */ }
   document.documentElement.setAttribute("data-theme", state.theme);
 }
@@ -91,7 +122,8 @@ function savePrefs() {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       view: state.view, window: state.window, filter: state.filter,
-      base: state.base, ambient: state.ambient, theme: state.theme,
+      frpThreshold: state.frpThreshold,
+      base: state.base, ambient: state.ambient, ambient_v2_set: true, theme: state.theme,
     }));
   } catch { /* private mode: preferences last for this session only */ }
 }
@@ -268,6 +300,10 @@ function syncControls() {
   document.querySelectorAll("button[data-base]").forEach((b) => {
     b.setAttribute("aria-checked", String(b.dataset.base === state.base));
   });
+  document.querySelectorAll("button[data-frp]").forEach((b) => {
+    const bVal = Number(b.dataset.frp) || 0;
+    b.setAttribute("aria-checked", String(bVal === state.frpThreshold));
+  });
   document.getElementById("btn-ambient")?.setAttribute("aria-pressed", String(state.ambient));
   document.querySelectorAll(".tab[data-view]").forEach((t) => {
     if (t.dataset.view === state.view) t.setAttribute("aria-current", "page");
@@ -285,8 +321,200 @@ const VIEW_BODY = {
   investigations: "inv-grid",
   industrial: "industrial-body",
   analytics: "analytics-body",
+  history: "history-body",
   settings: "settings-body",
 };
+
+const histState = {
+  query: "",
+  state: "",
+  startDate: "2026-09-01",
+  endDate: "",
+  minFrp: 0,
+  limit: 50,
+  offset: 0,
+  loading: false,
+  data: null,
+};
+
+async function executeHistorySearch() {
+  const qInput = document.getElementById("hist-input-query");
+  const stSelect = document.getElementById("hist-select-state");
+  const sInput = document.getElementById("hist-input-start");
+  const eInput = document.getElementById("hist-input-end");
+
+  if (qInput) histState.query = qInput.value.trim();
+  if (stSelect) histState.state = stSelect.value;
+  if (sInput) histState.startDate = sInput.value;
+  if (eInput) histState.endDate = eInput.value;
+
+  histState.loading = true;
+  if (el["history-body"]) ui.renderHistory(el["history-body"], histState);
+
+  try {
+    const params = new URLSearchParams();
+    if (histState.query) params.set("query", histState.query);
+    if (histState.state) params.set("state", histState.state);
+    if (histState.startDate) params.set("start_date", histState.startDate);
+    if (histState.endDate) params.set("end_date", histState.endDate);
+    if (histState.minFrp > 0) params.set("min_frp", String(histState.minFrp));
+    params.set("limit", String(histState.limit));
+    params.set("offset", String(histState.offset));
+
+    const res = await fetch(`/api/history/search?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    histState.data = data;
+  } catch (err) {
+    console.error("Historical search query failed:", err);
+    histState.data = { total_matches: 0, returned: 0, limit: histState.limit, offset: histState.offset, results: [], summary: null };
+  } finally {
+    histState.loading = false;
+    if (el["history-body"]) ui.renderHistory(el["history-body"], histState);
+  }
+}
+
+function exportHistoryCsv() {
+  if (!histState.data || !histState.data.results || !histState.data.results.length) return;
+  const rows = histState.data.results;
+  const headers = ["Observation ID", "Satellite", "Sensor", "Acquired (UTC)", "Day/Night", "Latitude", "Longitude", "State", "District", "Nearest Industrial Asset", "Distance (km)", "FRP (MW)", "Confidence"];
+  const csvContent = [
+    headers.join(","),
+    ...rows.map(r => [
+      `"${r.id}"`,
+      `"${r.satellite || ""}"`,
+      `"${r.sensor || ""}"`,
+      `"${r.acquired_at || ""}"`,
+      `"${r.daynight || ""}"`,
+      r.latitude,
+      r.longitude,
+      `"${(r.state || "").replace(/"/g, '""')}"`,
+      `"${(r.district || "").replace(/"/g, '""')}"`,
+      `"${(r.nearest_facility || "").replace(/"/g, '""')}"`,
+      r.distance_km != null ? r.distance_km.toFixed(3) : "",
+      r.frp_mw != null ? r.frp_mw : "",
+      `"${r.confidence || ""}"`
+    ].join(","))
+  ].join("\r\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const ts = new Date().toISOString().slice(0, 10);
+  link.setAttribute("href", url);
+  link.setAttribute("download", `FIREX_Historical_Observations_${histState.state || "India"}_${ts}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function wireHistorySearch() {
+  const container = el["history-body"];
+  if (!container) return;
+
+  container.addEventListener("click", (e) => {
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+
+    const submitBtn = t.closest("#btn-hist-submit");
+    if (submitBtn) {
+      histState.offset = 0;
+      executeHistorySearch();
+      return;
+    }
+
+    const resetBtn = t.closest("#btn-hist-reset");
+    if (resetBtn) {
+      histState.query = "";
+      histState.state = "";
+      histState.startDate = "2026-09-01";
+      histState.endDate = "";
+      histState.minFrp = 0;
+      histState.offset = 0;
+      histState.data = null;
+      ui.renderHistory(container, histState);
+      return;
+    }
+
+    const exportBtn = t.closest("#btn-hist-export");
+    if (exportBtn) {
+      exportHistoryCsv();
+      return;
+    }
+
+    const presetBtn = t.closest("button[data-preset]");
+    if (presetBtn) {
+      const pid = presetBtn.dataset.preset;
+      const today = new Date().toISOString().slice(0, 10);
+      if (pid === "24h") {
+        histState.startDate = today;
+        histState.endDate = today;
+      } else if (pid === "7d") {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        histState.startDate = d.toISOString().slice(0, 10);
+        histState.endDate = today;
+      } else if (pid === "30d") {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        histState.startDate = d.toISOString().slice(0, 10);
+        histState.endDate = today;
+      } else if (pid === "sep2026") {
+        histState.startDate = "2026-09-01";
+        histState.endDate = "2026-09-15";
+      } else if (pid === "all") {
+        histState.startDate = "";
+        histState.endDate = "";
+      }
+      histState.offset = 0;
+      executeHistorySearch();
+      return;
+    }
+
+    const frpBtn = t.closest("button[data-minfrp]");
+    if (frpBtn) {
+      histState.minFrp = Number(frpBtn.dataset.minfrp) || 0;
+      histState.offset = 0;
+      executeHistorySearch();
+      return;
+    }
+
+    const prevBtn = t.closest("#btn-hist-prev");
+    if (prevBtn) {
+      histState.offset = Math.max(0, histState.offset - histState.limit);
+      executeHistorySearch();
+      return;
+    }
+
+    const nextBtn = t.closest("#btn-hist-next");
+    if (nextBtn) {
+      histState.offset += histState.limit;
+      executeHistorySearch();
+      return;
+    }
+
+    const inspectBtn = t.closest(".btn-hist-inspect");
+    if (inspectBtn) {
+      const lat = Number(inspectBtn.dataset.lat);
+      const lon = Number(inspectBtn.dataset.lon);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        setView("map");
+        if (mapState.map) {
+          mapState.map.setView([lat, lon], 13);
+        }
+      }
+      return;
+    }
+  });
+
+  container.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target && e.target.id === "hist-input-query") {
+      histState.offset = 0;
+      executeHistorySearch();
+    }
+  });
+}
 
 const VIEWS = {
   map: () => {},
@@ -296,8 +524,14 @@ const VIEWS = {
       { cases: visible(), ambient: ambientInWindow(), selected: state.selected });
   },
   investigations: () => ui.renderInvestigations(el["inv-grid"], visible(), state.selected),
-  industrial: () => ui.renderIndustrial(el["industrial-body"], visible()),
-  analytics: () => ui.renderAnalytics(el["analytics-body"], visible(), ambientInWindow()),
+  industrial: () => ui.renderIndustrial(el["industrial-body"], windowed(), state.selectedFacility, state.facilityQuery, state.facilitySector, state.facilitySort, state.facilityWindow),
+  analytics: () => ui.renderAnalytics(el["analytics-body"], windowed(), ambientInWindow()),
+  history: () => {
+    ui.renderHistory(el["history-body"], histState);
+    if (!histState.data && !histState.loading) {
+      executeHistorySearch();
+    }
+  },
   settings: () => ui.renderSettings(el["settings-body"], state),
 };
 
@@ -328,14 +562,14 @@ function renderView() {
 let ambientKey = "";
 
 function drawAmbientIfChanged(points) {
-  const key = `${state.window}|${state.ambient}|${points.length}`;
+  const key = `${state.window}|${state.ambient}|${state.frpThreshold}|${points.length}`;
   if (key === ambientKey) return;
   ambientKey = key;
   drawAmbient(points, state.ambient);
 }
 
 function renderAll() {
-  const win = windowed();
+  const win = windowedWithFrp();
   const list = visible();
   const amb = ambientInWindow();
   const failed = store.errors.find((e) => e.source === "incidents");
@@ -373,6 +607,7 @@ function renderAll() {
   syncControls();
   updateAlerts(win);
   updateInView();
+  renderQueueSummary();
   renderView();
   markSelection();
   refresh();
@@ -471,6 +706,58 @@ function wireDelegates() {
     const filter = t.closest("button[data-filter]");
     if (filter) { state.filter = filter.dataset.filter; renderAll(); return; }
 
+    const frp = t.closest("button[data-frp]");
+    if (frp) {
+      const val = Number(frp.dataset.frp) || 0;
+      if (state.frpThreshold === val && val !== 0) {
+        state.frpThreshold = 0; // toggle off back to all
+      } else {
+        state.frpThreshold = val;
+      }
+      syncControls();
+      renderAll();
+      savePrefs();
+      return;
+    }
+
+    const fac = t.closest("[data-facility]");
+    if (fac) {
+      state.selectedFacility = fac.dataset.facility;
+      renderView();
+      return;
+    }
+
+    const secBtn = t.closest("#industrial-sector-filter button[data-sector]");
+    if (secBtn) {
+      state.facilitySector = secBtn.dataset.sector || "all";
+      document.querySelectorAll("#industrial-sector-filter button[data-sector]").forEach((b) => {
+        b.classList.toggle("is-active", b.dataset.sector === state.facilitySector);
+        b.setAttribute("aria-checked", String(b.dataset.sector === state.facilitySector));
+      });
+      renderView();
+      return;
+    }
+
+    const inspectMapBtn = t.closest("[data-inspect-facility-map]");
+    if (inspectMapBtn) {
+      const lat = Number(inspectMapBtn.dataset.lat);
+      const lon = Number(inspectMapBtn.dataset.lon);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        setView("map");
+        if (mapState.map) {
+          mapState.map.flyTo([lat, lon], 14, { duration: 1.2 });
+        }
+      }
+      return;
+    }
+
+    const facWinBtn = t.closest("[data-fac-window]");
+    if (facWinBtn) {
+      state.facilityWindow = facWinBtn.dataset.facWindow || "365d";
+      renderView();
+      return;
+    }
+
     if (t.closest("#set-ambient")) { state.ambient = !state.ambient; renderAll(); return; }
 
     const clear = t.closest("#set-clear-triage");
@@ -496,6 +783,23 @@ function wireControls() {
   on("btn-zoom-out", () => zoomBy(-1));
   on("btn-ambient", () => { state.ambient = !state.ambient; renderAll(); });
   on("btn-alerts", jumpToPriority);
+
+  const facInput = document.getElementById("facility-search-input");
+  if (facInput) {
+    const onFacSearch = debounce(() => {
+      state.facilityQuery = facInput.value;
+      renderView();
+    }, 120);
+    facInput.addEventListener("input", onFacSearch);
+  }
+
+  const sortSelect = document.getElementById("industrial-sort-select");
+  if (sortSelect) {
+    sortSelect.addEventListener("change", (e) => {
+      state.facilitySort = e.target.value || "frp";
+      renderView();
+    });
+  }
 
   const themeToggle = document.getElementById("theme-toggle-input");
   if (themeToggle) {
@@ -545,18 +849,94 @@ async function updatePersistenceWidget() {
     const data = await res.json();
     const passBadge = document.getElementById("daemon-pass-badge");
     const totalHotspots = document.getElementById("daemon-total-hotspots");
-    const runsCount = document.getElementById("daemon-runs-count");
+    const lastUpdated = document.getElementById("daemon-last-updated");
 
     if (passBadge) passBadge.textContent = `${data.current_pass} PASS ACTIVE`;
     if (totalHotspots) totalHotspots.textContent = Number(data.total_hotspots).toLocaleString();
-    if (runsCount) runsCount.textContent = `${data.total_runs} cycles`;
+    if (lastUpdated) lastUpdated.textContent = data.last_run ? `Last pass: ${data.last_run.split(" ")[1] || data.last_run}` : "Last updated: Today";
   } catch { /* graceful fallback */ }
+}
+
+/* --- Published queue roll-up ---------------------------------------------
+   GET /api/console/feed now carries the feed's own roll-up over the queue it
+   just published, which answers what no per-window count can: what tier mix the
+   board actually holds and how many of those are HIGH or CRITICAL. It is
+   optional by design -- the static fallback reads a bare array, and a payload
+   cached before the roll-up existed has neither key -- so an absent summary
+   hides the strip instead of drawing zeroes that read like a finding. The strip
+   describes the published queue, not the current window, so it is written from
+   the feed and not from the filtered list. */
+const QUEUE_TIER_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
+
+function renderQueueSummary() {
+  const box = document.getElementById("queue-summary");
+  if (!box) return;
+
+  const summary = store.queueSummary;
+  const hist = summary && summary.tier_histogram;
+  if (!hist || typeof hist !== "object") {
+    box.style.display = "none";
+    box.hidden = true;
+    return;
+  }
+
+  const count = (id) => Math.max(0, Number(hist[id]) || 0);
+  const num = (raw, fallback) => (raw === null || raw === undefined || raw === "" || !Number.isFinite(Number(raw))
+    ? fallback
+    : Number(raw));
+  const active = num(summary.active_count, null);
+  const attention = num(summary.attention_count, count("HIGH") + count("CRITICAL"));
+  const statuses = Array.isArray(summary.active_statuses) ? summary.active_statuses.join(", ") : "";
+
+  const tiersEl = document.getElementById("queue-summary-tiers");
+  if (tiersEl) {
+    tiersEl.innerHTML = QUEUE_TIER_ORDER.map((id) => {
+      const n = count(id);
+      const label = id.charAt(0) + id.slice(1).toLowerCase();
+      return `<span class="tag tag--tier" data-tier="${id}"${n ? "" : ' style="opacity:.55"'}
+        title="${fmt.int(n)} ${label} in the published queue">${fmt.int(n)} ${label}</span>`;
+    }).join("");
+  }
+
+  const attentionEl = document.getElementById("queue-summary-attention");
+  if (attentionEl) {
+    attentionEl.textContent = `${fmt.int(attention)} need attention`;
+    attentionEl.title = statuses
+      ? `${Number.isFinite(active) ? `${fmt.int(active)} active. ` : ""}Queue holds statuses: ${statuses}`
+      : "";
+  }
+
+  const closedEl = document.getElementById("queue-summary-closed");
+  if (closedEl) {
+    const closedCount = Number.isFinite(Number(summary.closed_attention_count))
+      ? Number(summary.closed_attention_count)
+      : store.closedAttention.length;
+    if (closedCount > 0) {
+      const codes = store.closedAttention
+        .slice(0, 3)
+        .map((c) => c.incident_code || c.id)
+        .filter(Boolean)
+        .join(", ");
+      closedEl.textContent = `${fmt.int(closedCount)} closed HIGH/CRITICAL ${closedCount === 1 ? "incident still carries" : "incidents still carry"} open alerts`;
+      if (codes) closedEl.title = codes;
+      closedEl.style.display = "";
+    } else {
+      closedEl.style.display = "none";
+    }
+  }
+
+  box.hidden = false;
+  box.style.display = "";
 }
 
 function wirePersistenceSync() {
   const syncBtn = document.getElementById("btn-trigger-sync");
+  const runBtn = document.getElementById("btn-run-analysis");
   const scrim = document.getElementById("sync-scrim");
-  if (!syncBtn || !scrim) return;
+  if (!scrim) return;
+
+  const triggerButtons = [syncBtn, runBtn].filter(Boolean);
+  if (!triggerButtons.length) return;
 
   const barFill = document.getElementById("sync-bar-fill");
   const pctDisplay = document.getElementById("sync-pct-display");
@@ -580,7 +960,7 @@ function wirePersistenceSync() {
       clearInterval(activeTimerInterval);
       activeTimerInterval = null;
     }
-    syncBtn.disabled = false;
+    triggerButtons.forEach((b) => { b.disabled = false; });
   }
 
   if (closeBtn) {
@@ -603,10 +983,12 @@ function wirePersistenceSync() {
     logTerminal.scrollTop = logTerminal.scrollHeight;
   }
 
-  syncBtn.addEventListener("click", () => {
-    syncBtn.disabled = true;
-    const origHtml = syncBtn.innerHTML;
-    syncBtn.innerHTML = `<span class="tag__dot" style="background:#38bdf8"></span> Syncing...`;
+  const startPipelineSync = () => {
+    triggerButtons.forEach((b) => { b.disabled = true; });
+    const origSyncHtml = syncBtn ? syncBtn.innerHTML : "";
+    const origRunHtml = runBtn ? runBtn.innerHTML : "";
+    if (syncBtn) syncBtn.innerHTML = `<span class="tag__dot" style="background:#38bdf8"></span> Syncing...`;
+    if (runBtn) runBtn.innerHTML = `<span class="tag__dot" style="background:#38bdf8"></span> Running...`;
 
     // Open Modal HUD
     scrim.setAttribute("data-open", "1");
@@ -618,7 +1000,7 @@ function wirePersistenceSync() {
       badgeStatus.innerHTML = `<span class="tag__dot" style="background:#38bdf8;width:7px;height:7px;border-radius:50%;"></span> ORBIT PIPELINE ACTIVE`;
     }
     if (footerStatus) {
-      footerStatus.textContent = "INITIALIZING SOVEREIGN PIPELINE WORKFLOW...";
+      footerStatus.textContent = "INITIALIZING SATELLITE ANALYSIS WORKFLOW...";
       footerStatus.style.color = "#38bdf8";
     }
 
@@ -635,10 +1017,17 @@ function wirePersistenceSync() {
       }
     }
 
+    const subprogressEl = document.getElementById("sync-stage-5-subprogress");
+    const subfillEl = document.getElementById("sync-stage-5-subfill");
+    const subtextEl = document.getElementById("sync-stage-5-subtext");
+    if (subprogressEl) subprogressEl.style.display = "none";
+    if (subfillEl) subfillEl.style.width = "0%";
+    if (subtextEl) subtextEl.textContent = "Waiting to inspect targets...";
+
     // Reset log terminal
     if (logTerminal) {
       logTerminal.innerHTML = "";
-      addLog("Initializing sovereign satellite telemetry stream...", "SYSTEM");
+      addLog("Starting automated thermal analysis pipeline...", "SYSTEM");
     }
 
     // Start timer
@@ -655,18 +1044,24 @@ function wirePersistenceSync() {
     activeEvtSource = new EventSource("/api/trigger-sync-stream");
     const evtSource = activeEvtSource;
 
-    evtSource.onmessage = async (event) => {
+    const handleSseMessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
         const stageNum = Number(data.stage || 0);
         const pct = Math.min(100, Math.max(0, Number(data.pct || 0)));
+        const cIdx = data.candidate_index || (data.data && data.data.candidate_index);
+        const cTotal = data.candidates_total || (data.data && data.data.candidates_total);
 
         // Update progress bar & percent
         if (barFill) barFill.style.width = `${pct}%`;
         if (pctDisplay) pctDisplay.textContent = `${pct}%`;
 
         if (data.label && phaseLabel) {
-          phaseLabel.innerHTML = `<span class="tag__dot" style="background:#38bdf8;width:6px;height:6px;border-radius:50%;"></span> STAGE ${stageNum}: ${data.label.toUpperCase()}`;
+          if (stageNum === 5 && cIdx && cTotal) {
+            phaseLabel.innerHTML = `<span class="tag__dot"></span> STAGE 5: AI VISION ANALYSIS (${cIdx}/${cTotal})`;
+          } else {
+            phaseLabel.innerHTML = `<span class="tag__dot"></span> STAGE ${stageNum}: ${data.label.toUpperCase()}`;
+          }
         }
 
         // Add to terminal log
@@ -693,7 +1088,13 @@ function wirePersistenceSync() {
             } else {
               if (row) row.setAttribute("data-status", "active");
               if (icon) icon.textContent = `${i}`;
-              if (statusBadge) statusBadge.textContent = "PROCESSING...";
+              if (statusBadge) {
+                if (i === 5 && cIdx && cTotal) {
+                  statusBadge.textContent = `TARGET ${cIdx}/${cTotal} (${Math.round((cIdx/cTotal)*100)}%)`;
+                } else {
+                  statusBadge.textContent = "PROCESSING...";
+                }
+              }
             }
             if (desc && data.detail) desc.textContent = data.detail;
           } else {
@@ -703,15 +1104,35 @@ function wirePersistenceSync() {
           }
         }
 
+        // Handle Stage 5 specific sub-progress
+        if (stageNum === 5 && cIdx && cTotal) {
+          const subPct = Math.min(100, Math.round((cIdx / cTotal) * 100));
+          if (subprogressEl) subprogressEl.style.display = "flex";
+          if (subfillEl) subfillEl.style.width = `${subPct}%`;
+          if (subtextEl) {
+            const incCode = data.incident_code || (data.data && data.data.incident_code) || "";
+            subtextEl.textContent = `Inspecting Target ${cIdx} of ${cTotal} (${subPct}%)${incCode ? ` — ${incCode}` : ""}`;
+          }
+        } else if (stageNum > 5 || (data.done && pct >= 100)) {
+          if (subprogressEl) {
+            subprogressEl.style.display = "flex";
+            if (subfillEl) subfillEl.style.width = "100%";
+            if (subtextEl) subtextEl.textContent = "All targets analyzed with Vision AI";
+          }
+        }
+
         if (footerStatus && data.detail) {
-          footerStatus.textContent = data.detail.slice(0, 75) + "...";
+          footerStatus.textContent = data.detail.slice(0, 80);
         }
 
         // Check if finished
         if (data.done || pct >= 100) {
           if (isCompleted) return;
           isCompleted = true;
-          clearInterval(timerInterval);
+          if (activeTimerInterval) {
+            clearInterval(activeTimerInterval);
+            activeTimerInterval = null;
+          }
           evtSource.close();
 
           // Mark all stages complete
@@ -727,18 +1148,17 @@ function wirePersistenceSync() {
           if (barFill) barFill.style.width = "100%";
           if (pctDisplay) pctDisplay.textContent = "100%";
           if (badgeStatus) {
-            badgeStatus.className = "sync-badge";
-            badgeStatus.innerHTML = `<span class="tag__dot" style="background:#10b981;width:7px;height:7px;border-radius:50%;"></span> MISSION COMPLETE`;
+            badgeStatus.className = "sync-badge sync-badge--done";
+            badgeStatus.innerHTML = `<span class="tag__dot"></span> ANALYSIS COMPLETE`;
           }
           if (phaseLabel) {
-            phaseLabel.innerHTML = `<span class="tag__dot" style="background:#10b981;width:6px;height:6px;border-radius:50%;"></span> ALL 5 PIPELINE STAGES SYNCHRONIZED`;
+            phaseLabel.innerHTML = `<span class="tag__dot"></span> ALL 5 STAGES COMPLETE`;
           }
           if (footerStatus) {
-            footerStatus.textContent = "SYNCHRONIZATION VERIFIED · DEPLOYING INCIDENTS TO FEED...";
-            footerStatus.style.color = "#10b981";
+            footerStatus.textContent = "Analysis complete. Incident dossiers updated.";
           }
 
-          addLog("Pipeline synchronization complete. Deploying incident dossiers to live feed...", "SUCCESS");
+          addLog("Pipeline synchronization complete. Updated incident dossiers deployed.", "SUCCESS");
 
           // Reload data and refresh feed
           await load();
@@ -748,21 +1168,42 @@ function wirePersistenceSync() {
           // Smooth close after brief pause for verification
           setTimeout(() => {
             scrim.setAttribute("data-open", "0");
-            syncBtn.disabled = false;
-            syncBtn.innerHTML = `✓ Synced!`;
-            setTimeout(() => {
-              syncBtn.innerHTML = origHtml;
-            }, 2500);
-          }, 1200);
+            triggerButtons.forEach((b) => {
+              b.disabled = false;
+              if (syncBtn) syncBtn.innerHTML = origSyncHtml;
+              if (runBtn) runBtn.innerHTML = origRunHtml;
+            });
+          }, 2400);
         }
       } catch (err) {
-        console.error("SSE stream parsing error:", err);
+        console.error("Pipeline stream error:", err);
       }
     };
 
+    evtSource.onmessage = handleSseMessage;
+    /* F-055. The wire form of an SSE event name is the `event:` line, and it was
+       changed from the dotted lowercase form this list used (analysis.started)
+       to the spec's uppercase protocol name (ANALYSIS_STARTED). An
+       addEventListener name that never arrives fails silently, which would have
+       left the progress bar and the stage list dead with no error anywhere, so
+       both spellings are registered from the one blueprint: the console reads
+       the stream before, during and after the backend's transition. */
+    const BLUEPRINT_EVENTS = [
+      "analysis.started", "firms.fetched", "gis.completed", "clustering.completed",
+      "selection.completed", "imagery.started", "ai.started", "ai.completed",
+      "severity.completed", "alert.created", "analysis.completed", "analysis.failed"
+    ];
+    BLUEPRINT_EVENTS.forEach((evtName) => {
+      evtSource.addEventListener(evtName, handleSseMessage);
+      evtSource.addEventListener(evtName.replace(/\./g, "_").toUpperCase(), handleSseMessage);
+    });
+
     evtSource.onerror = (err) => {
       if (isCompleted) return;
-      clearInterval(timerInterval);
+      if (activeTimerInterval) {
+        clearInterval(activeTimerInterval);
+        activeTimerInterval = null;
+      }
       evtSource.close();
       console.warn("SSE connection error or closed:", err);
       addLog("Stream connection closed or completed. Refreshing live telemetry layers...", "INFO");
@@ -774,11 +1215,16 @@ function wirePersistenceSync() {
         renderAll();
         setTimeout(() => {
           scrim.setAttribute("data-open", "0");
-          syncBtn.disabled = false;
-          syncBtn.innerHTML = origHtml;
+          triggerButtons.forEach((b) => { b.disabled = false; });
+          if (syncBtn) syncBtn.innerHTML = origSyncHtml;
+          if (runBtn) runBtn.innerHTML = origRunHtml;
         }, 1000);
       })();
     };
+  };
+
+  triggerButtons.forEach((btn) => {
+    btn.addEventListener("click", startPipelineSync);
   });
 }
 
@@ -854,9 +1300,10 @@ async function boot() {
   initSpotlightNav();
   wirePersistenceSync();
   updatePersistenceWidget();
+  wireHistorySearch();
 
   /* Skeletons in the real panel geometry, so nothing shifts when data lands. */
-  ["overview-body", "inv-grid", "industrial-body", "analytics-body", "settings-body"]
+  ["overview-body", "inv-grid", "industrial-body", "analytics-body", "history-body", "settings-body"]
     .forEach((id) => ui.skeleton(el[id], 3));
   setView(state.view);
 

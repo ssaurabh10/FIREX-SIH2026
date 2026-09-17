@@ -25,7 +25,9 @@ from app.storage.database import SessionLocal
 from app.storage.models import IndustrialAsset
 from app.behavior.baseline import get_or_create_facility_baseline
 
-DATA_DIR = r"c:\Users\ssaur\OneDrive\Desktop\PS162\History data"
+_ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+_REL_DATA_DIR = os.path.join(_ROOT_DIR, "History data")
+DATA_DIR = _REL_DATA_DIR if os.path.exists(_REL_DATA_DIR) else r"c:\Users\ssaur\OneDrive\Desktop\PS162\History data"
 DB_PATH = os.path.join(BASE_DIR, "data", "firex_v2.db")
 
 # Sovereign India Bounding Box

@@ -4,6 +4,7 @@ Implements Section 14 of Blueprint:
 1. Log2-normalized FRP scoring.
 2. FIRMS confidence mapping (0-100).
 3. Mandatory selection overrides (Extreme FRP, High Persistence, Strong Anomaly).
+   The strong-anomaly input is R_frp = FRP_current / max(1.0, Median_FRP).
 4. Dual-mode investigation priority model (with history vs without history - Rule 6).
 """
 import math
@@ -118,7 +119,16 @@ def compute_investigation_priority(
 
     frp_ratio = 1.0
     if has_history and historical_median_frp and historical_median_frp > 0.0:
-        frp_ratio = round(frp_mw / historical_median_frp, 2)
+        # Section 4.5 / 4.4: R_frp = FRP_current / max(1.0, Median_FRP). The 1.0
+        # floor on the denominator is load-bearing. Without it a detection below
+        # its own baseline median yields a sub-1.0 ratio, which is meaningless for
+        # an anomaly test, and the same clamp feeds the STRONG_HISTORICAL_ANOMALY
+        # override below (>= 3.0 -> priority forced to >= 90.0). Measured
+        # divergence: median 0.5 MW with FRP 1.6 MW is a 1.6x ratio (below the
+        # 2.0x "notable thermal excursion" band) but reads 3.2x unfloored, which
+        # fires the override (defect F-063). behavior/anomaly.py floors the same
+        # denominator, and the two modules must not disagree.
+        frp_ratio = round(frp_mw / max(1.0, historical_median_frp), 2)
 
     override_triggered, override_reasons = evaluate_selection_overrides(
         frp_mw=frp_mw,

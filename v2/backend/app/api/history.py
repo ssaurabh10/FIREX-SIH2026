@@ -27,6 +27,8 @@ from app.behavior.profile import (
     refresh_behavior_features
 )
 from app.gis.spatial import haversine_distance_km
+from app.gis.boundaries import INDIAN_STATE_REGIONS, resolve_admin_boundary
+from app.gis.assets import find_nearest_asset
 import math
 from datetime import datetime, timedelta
 
@@ -156,6 +158,8 @@ def get_incident_trend(
     trend["incident_id"] = incident_id
     return trend
 
+from app.core.cache import cache
+
 @router.get("/industries/{facility_id}/history", response_model=Dict[str, Any])
 def get_facility_history(
     facility_id: str,
@@ -166,9 +170,15 @@ def get_facility_history(
     Retrieves the full Facility History Profile for an industrial site.
     Includes 30d/90d/365d breakdowns, daily summaries, and abnormal event count.
     """
+    cache_key = f"facility:history:{facility_id}:{window_days}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     profile = get_or_create_facility_profile(facility_id, db, window_days=window_days)
     if "error" in profile:
         raise HTTPException(status_code=404, detail=profile["error"])
+    cache.set(cache_key, profile, ttl=120)
     return profile
 
 @router.get("/industries/{facility_id}/baseline", response_model=Dict[str, Any])
@@ -181,9 +191,15 @@ def get_facility_baseline(
     Returns the statistical baseline (Median, P90, P95, Mean, Min, Max FRP)
     for a specific industrial facility.
     """
+    cache_key = f"facility:baseline:{facility_id}:{window_days}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     baseline = get_or_create_facility_baseline(facility_id, db, window_days=window_days)
     if "error" in baseline:
         raise HTTPException(status_code=404, detail=baseline["error"])
+    cache.set(cache_key, baseline, ttl=120)
     return baseline
 
 @router.get("/industries/{facility_id}/trends", response_model=Dict[str, Any])
@@ -235,3 +251,117 @@ def trigger_history_refresh(
     and recent incidents to update behavior profiles and baseline caches.
     """
     return refresh_behavior_features(db)
+
+@router.get("/history/search", response_model=Dict[str, Any])
+def search_historical_observations(
+    query: Optional[str] = Query(None, description="Search state, district, or facility"),
+    state: Optional[str] = Query(None, description="Filter by Indian State"),
+    start_date: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="End date YYYY-MM-DD"),
+    min_frp: float = Query(2.0, ge=0.0, description="Minimum FRP in MW"),
+    max_frp: Optional[float] = Query(None, description="Maximum FRP in MW"),
+    satellite: Optional[str] = Query(None, description="Satellite or sensor filter (VIIRS/MODIS)"),
+    limit: int = Query(50, ge=1, le=200, description="Page limit"),
+    offset: int = Query(0, ge=0, description="Page offset"),
+    db: Session = Depends(get_db)
+):
+    """
+    Interactive Search across 2.89M historical satellite observations.
+    Filters by Date Range, Sovereign State/District, and Min FRP.
+    Enriches results with administrative resolution and nearest industrial facility.
+    """
+    filters = [Observation.frp_mw >= min_frp]
+
+    if max_frp is not None:
+        filters.append(Observation.frp_mw <= max_frp)
+
+    # 1. Date range filters
+    if start_date:
+        try:
+            s_dt = datetime.fromisoformat(start_date)
+            filters.append(Observation.acquired_at >= s_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format, use YYYY-MM-DD")
+
+    if end_date:
+        try:
+            e_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
+            filters.append(Observation.acquired_at <= e_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format, use YYYY-MM-DD")
+
+    # 2. State bounding box resolution
+    target_state = state or query
+    state_bbox = None
+    if target_state:
+        target_clean = target_state.strip().lower()
+        for s_name, bbox in INDIAN_STATE_REGIONS.items():
+            if target_clean in s_name.lower():
+                state_bbox = bbox
+                break
+
+    if state_bbox:
+        min_lat, max_lat, min_lon, max_lon, _ = state_bbox
+        filters.append(Observation.latitude >= min_lat)
+        filters.append(Observation.latitude <= max_lat)
+        filters.append(Observation.longitude >= min_lon)
+        filters.append(Observation.longitude <= max_lon)
+
+    # 3. Satellite filter
+    if satellite and satellite.upper() != "ALL":
+        sat_clean = f"%{satellite.strip()}%"
+        filters.append(
+            (Observation.satellite.ilike(sat_clean)) | (Observation.sensor.ilike(sat_clean))
+        )
+
+    # Query matching records
+    q = db.query(Observation).filter(*filters).order_by(Observation.acquired_at.desc())
+    total_matches = q.count()
+    rows = q.offset(offset).limit(limit).all()
+
+    # Calculate summary metrics
+    max_val = 0.0
+    sum_val = 0.0
+    results = []
+
+    for r in rows:
+        f_val = float(r.frp_mw or 0.0)
+        max_val = max(max_val, f_val)
+        sum_val += f_val
+
+        # Sovereign administrative resolution
+        admin = resolve_admin_boundary(r.latitude, r.longitude)
+        nearest = find_nearest_asset(r.latitude, r.longitude, db)
+
+        results.append({
+            "id": r.id,
+            "latitude": round(r.latitude, 4),
+            "longitude": round(r.longitude, 4),
+            "frp_mw": round(f_val, 2),
+            "acquired_at": r.acquired_at.isoformat() if r.acquired_at else None,
+            "satellite": r.satellite or "VIIRS",
+            "sensor": r.sensor or "VIIRS",
+            "confidence": r.confidence_raw or "nominal",
+            "daynight": r.daynight or "N",
+            "state": admin.get("state") or "India",
+            "district": admin.get("district") or "Unknown",
+            "nearest_facility": nearest.get("facility_name"),
+            "distance_km": nearest.get("distance_km")
+        })
+
+    mean_val = round(sum_val / len(rows), 2) if rows else 0.0
+
+    return {
+        "total_matches": total_matches,
+        "returned": len(results),
+        "limit": limit,
+        "offset": offset,
+        "summary": {
+            "max_frp": round(max_val, 2),
+            "mean_frp": mean_val,
+            "min_frp": min_frp,
+            "state_filter": target_state if state_bbox else None
+        },
+        "results": results
+    }
+

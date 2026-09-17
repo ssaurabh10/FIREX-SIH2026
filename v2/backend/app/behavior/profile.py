@@ -126,7 +126,7 @@ def get_or_create_location_profile(
     lat: float,
     lon: float,
     db: Session,
-    window_days: int = 90,
+    window_days: int = 365,
     search_radius_km: float = 3.0,
     force_refresh: bool = False
 ) -> Dict[str, Any]:
@@ -137,6 +137,12 @@ def get_or_create_location_profile(
     - How often does activity recur?
     - Is the source persistent?
     - How reliable is the historical evidence?
+
+    `window_days` defaults to the specification's 365-day Stage-4 window
+    (spec line 150); the 90-day default this used to carry made every
+    "365-day baseline" quarter-length (defect F-018 / C2). Callers that want a
+    shorter horizon -- the REST layer, which exposes it as a query parameter --
+    can still pass one.
     """
     spatial_key = generate_spatial_key(lat, lon)
     now = datetime.utcnow()
@@ -188,6 +194,9 @@ def get_or_create_location_profile(
             "persistence_score": profile.persistence_score,
             "history_reliability": profile.history_reliability,
             "history_reliability_label": classify_history_reliability(profile.observation_count or 0),
+            "day_passes_count": profile.day_passes_count or 0,
+            "night_passes_count": profile.night_passes_count or 0,
+            "is_continuous_24h": bool(profile.is_continuous_24h),
             "daily_summaries": daily_summaries,
             "answers": {
                 "what_is_normal_here": f"Typical median FRP is {profile.median_frp} MW (P95 upper limit: {profile.p95_frp} MW).",
@@ -233,14 +242,23 @@ def get_or_create_location_profile(
     reliability_label = classify_history_reliability(len(matching_window))
 
     # 3. Materialize profile record
+    # window_days / day_passes_count / night_passes_count / is_continuous_24h
+    # are live columns on behavior_profiles that the profiler used to leave at
+    # their defaults, so a rebuilt-from-ORM profile could not reproduce the
+    # running table's content (defect F-061). They are written from the
+    # persistence evaluation below, which is what computes them.
     if not profile:
         profile = BehaviorProfile(
             profile_type="location",
             spatial_reference=spatial_key,
             window_start=window_start,
             window_end=now,
+            window_days=window_days,
             observation_count=len(matching_window),
             active_days=active_days,
+            day_passes_count=persistence_info["day_pass_count"],
+            night_passes_count=persistence_info["night_pass_count"],
+            is_continuous_24h=persistence_info["day_night_continuous"],
             median_frp=stats["median"],
             mean_frp=stats["mean"],
             p90_frp=stats["p90"],
@@ -256,8 +274,14 @@ def get_or_create_location_profile(
         db.commit()
         db.refresh(profile)
     else:
+        profile.window_start = window_start
+        profile.window_end = now
+        profile.window_days = window_days
         profile.observation_count = len(matching_window)
         profile.active_days = active_days
+        profile.day_passes_count = persistence_info["day_pass_count"]
+        profile.night_passes_count = persistence_info["night_pass_count"]
+        profile.is_continuous_24h = persistence_info["day_night_continuous"]
         profile.median_frp = stats["median"]
         profile.mean_frp = stats["mean"]
         profile.p90_frp = stats["p90"]
@@ -280,6 +304,9 @@ def get_or_create_location_profile(
         "window_days": window_days,
         "observation_count": len(matching_window),
         "active_days": active_days,
+        "day_passes_count": persistence_info["day_pass_count"],
+        "night_passes_count": persistence_info["night_pass_count"],
+        "is_continuous_24h": persistence_info["day_night_continuous"],
         "median_frp": stats["median"],
         "mean_frp": stats["mean"],
         "p90_frp": stats["p90"],
@@ -305,7 +332,7 @@ def get_or_create_location_profile(
 def get_or_create_facility_profile(
     facility_id: str,
     db: Session,
-    window_days: int = 90,
+    window_days: int = 365,
     force_refresh: bool = False
 ) -> Dict[str, Any]:
     """
@@ -317,6 +344,9 @@ def get_or_create_facility_profile(
     - Normal activity range [min, p95]
     - Multi-window summaries (30d / 90d / 365d)
     - Daily summaries
+
+    `window_days` defaults to the specification's 365-day Stage-4 window
+    (spec line 150); see get_or_create_location_profile.
     """
     asset = db.query(IndustrialAsset).filter(IndustrialAsset.id == facility_id).first()
     if not asset:
@@ -390,6 +420,9 @@ def get_or_create_facility_profile(
             "persistence_score": profile.persistence_score,
             "history_reliability": profile.history_reliability,
             "history_reliability_label": classify_history_reliability(profile.observation_count or 0),
+            "day_passes_count": profile.day_passes_count or 0,
+            "night_passes_count": profile.night_passes_count or 0,
+            "is_continuous_24h": bool(profile.is_continuous_24h),
             "daily_summaries": daily_summaries
         }
 
@@ -429,6 +462,9 @@ def get_or_create_facility_profile(
     reliability_label = classify_history_reliability(len(matching_window))
 
     # 3. Materialize profile
+    # Same F-061 columns as the location branch above: window_days,
+    # day_passes_count, night_passes_count and is_continuous_24h are written
+    # from the persistence evaluation instead of being left at their defaults.
     if not profile:
         profile = BehaviorProfile(
             profile_type="facility",
@@ -436,8 +472,12 @@ def get_or_create_facility_profile(
             spatial_reference=f"FACILITY_{facility_id}",
             window_start=window_start,
             window_end=now,
+            window_days=window_days,
             observation_count=len(matching_window),
             active_days=active_days,
+            day_passes_count=persistence_info["day_pass_count"],
+            night_passes_count=persistence_info["night_pass_count"],
+            is_continuous_24h=persistence_info["day_night_continuous"],
             median_frp=stats["median"],
             mean_frp=stats["mean"],
             p90_frp=stats["p90"],
@@ -453,8 +493,14 @@ def get_or_create_facility_profile(
         db.commit()
         db.refresh(profile)
     else:
+        profile.window_start = window_start
+        profile.window_end = now
+        profile.window_days = window_days
         profile.observation_count = len(matching_window)
         profile.active_days = active_days
+        profile.day_passes_count = persistence_info["day_pass_count"]
+        profile.night_passes_count = persistence_info["night_pass_count"]
+        profile.is_continuous_24h = persistence_info["day_night_continuous"]
         profile.median_frp = stats["median"]
         profile.mean_frp = stats["mean"]
         profile.p90_frp = stats["p90"]
@@ -483,6 +529,9 @@ def get_or_create_facility_profile(
         "window_days": window_days,
         "observation_count": len(matching_window),
         "active_days": active_days,
+        "day_passes_count": persistence_info["day_pass_count"],
+        "night_passes_count": persistence_info["night_pass_count"],
+        "is_continuous_24h": persistence_info["day_night_continuous"],
         "median_frp": stats["median"],
         "mean_frp": stats["mean"],
         "p90_frp": stats["p90"],
@@ -510,7 +559,9 @@ def refresh_behavior_features(db: Session) -> Dict[str, Any]:
     refreshed_facilities = 0
     for asset in assets:
         try:
-            get_or_create_facility_profile(asset.id, db, window_days=90, force_refresh=True)
+            # 365 days: Stage 4 is a 365-day rolling window (spec line 150). The
+            # 90-day value this call used to pass was defect F-018/C2.
+            get_or_create_facility_profile(asset.id, db, window_days=365, force_refresh=True)
             refreshed_facilities += 1
         except Exception as e:
             logger.warning(f"Error refreshing facility profile for {asset.id}: {e}")
@@ -525,7 +576,7 @@ def refresh_behavior_features(db: Session) -> Dict[str, Any]:
     refreshed_locations = 0
     for inc in recent_incidents:
         try:
-            get_or_create_location_profile(inc.latitude, inc.longitude, db, window_days=90, force_refresh=True)
+            get_or_create_location_profile(inc.latitude, inc.longitude, db, window_days=365, force_refresh=True)
             refreshed_locations += 1
         except Exception as e:
             logger.warning(f"Error refreshing location profile for incident {inc.id}: {e}")

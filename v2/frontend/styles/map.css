@@ -67,16 +67,14 @@
   color: var(--t-quiet) !important;
   font-family: var(--font-mono);
   font-size: 9px !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 [data-theme="light"] .leaflet-control-attribution {
   background: rgba(255, 255, 255, 0.85) !important;
   color: rgba(15, 23, 42, 0.55) !important;
-}
-
-backdrop-filter: blur(8px);
--webkit-backdrop-filter: blur(8px);
 }
 
 .leaflet-control-attribution a {
@@ -96,15 +94,65 @@ backdrop-filter: blur(8px);
   height: 28px;
   border-radius: 99px;
   border: 1.5px solid var(--tier);
-  background: rgba(6, 8, 10, 0.78);
+  background: rgba(6, 8, 10, 0.82);
   color: var(--tier);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 0 4px color-mix(in srgb, var(--tier) 12%, transparent);
-  transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
   cursor: pointer;
+  contain: layout paint;
+  will-change: transform;
+  transform: translateZ(0);
+  transition: transform 140ms ease-out;
+}
+
+/* Dynamic Live Marker Sizing by FRP */
+.mk[data-frp-scale="sm"] {
+  width: 18px;
+  height: 18px;
+  border-width: 1.2px;
+}
+.mk[data-frp-scale="sm"] .i {
+  width: 10px;
+  height: 10px;
+}
+.mk[data-frp-scale="sm"] .mk__rank {
+  min-width: 11px;
+  height: 11px;
+  font-size: 7.5px;
+  top: -4px;
+  right: -5px;
+  padding: 0 2px;
+}
+
+.mk[data-frp-scale="md"] {
+  width: 23px;
+  height: 23px;
+  border-width: 1.4px;
+}
+.mk[data-frp-scale="md"] .i {
+  width: 12px;
+  height: 12px;
+}
+.mk[data-frp-scale="md"] .mk__rank {
+  min-width: 13px;
+  height: 13px;
+  font-size: 8.5px;
+  top: -4px;
+  right: -6px;
+}
+
+.mk[data-frp-scale="lg"] {
+  width: 28px;
+  height: 28px;
+  border-width: 1.5px;
+}
+.mk[data-frp-scale="lg"] .i {
+  width: 14px;
+  height: 14px;
 }
 
 .mk:hover {
-  transform: scale(1.14);
+  transform: scale(1.18) translateZ(0);
+  z-index: 1000 !important;
 }
 
 /* An unconfirmed source gets a dashed ring. The brief requires that
@@ -115,8 +163,9 @@ backdrop-filter: blur(8px);
 }
 
 .mk[data-selected="1"] {
-  transform: scale(1.2);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 0 6px color-mix(in srgb, var(--tier) 20%, transparent);
+  transform: scale(1.22) translateZ(0);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tier) 30%, transparent), 0 4px 14px rgba(0, 0, 0, 0.7);
+  z-index: 1001 !important;
 }
 
 /* Slow single pulse on the top-ranked case only. One live indicator, not
@@ -124,10 +173,11 @@ backdrop-filter: blur(8px);
 .mk[data-lead="1"]::after {
   content: "";
   position: absolute;
-  inset: -6px;
+  inset: -5px;
   border-radius: 99px;
-  border: 1px solid var(--tier);
+  border: 1.5px solid var(--tier);
   opacity: 0;
+  pointer-events: none;
   animation: mk-pulse 2600ms var(--ease-out) infinite;
 }
 
@@ -171,6 +221,45 @@ backdrop-filter: blur(8px);
   font-size: 9px;
   line-height: 1;
   color: var(--t-secondary);
+}
+
+/* --- Cluster Marker (Dynamic Map De-cluttering) --------------------------- */
+.mk-cluster {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 99px;
+  border: 1.5px solid var(--tier, var(--line-strong));
+  background: rgba(10, 14, 18, 0.88);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 0 3px color-mix(in srgb, var(--tier, #38bdf8) 18%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: transform var(--d-base) var(--ease-out), box-shadow var(--d-base) var(--ease-out);
+}
+
+.mk-cluster:hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8), 0 0 0 5px color-mix(in srgb, var(--tier, #38bdf8) 28%, transparent);
+}
+
+.mk-cluster__count {
+  line-height: 1;
+}
+
+.mk-cluster__icon {
+  width: 12px;
+  height: 12px;
+  color: var(--tier, #38bdf8);
 }
 
 /* Ambient, unclassified FIRMS pixels. There is deliberately no rule for the
@@ -225,12 +314,68 @@ backdrop-filter: blur(8px);
   pointer-events: none !important;
 }
 
+/* Incident tactical hover card tooltip */
+.incident-tooltip,
+.leaflet-tooltip.incident-tooltip {
+  padding: 6px 10px !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: var(--r-sm) !important;
+  background: rgba(8, 11, 14, 0.94) !important;
+  color: var(--t-primary) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(12px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(120%) !important;
+  pointer-events: none !important;
+}
+
+.pop-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 170px;
+}
+
+.pop-tip__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pop-tip__rank {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--signal, #38bdf8);
+}
+
+.pop-tip__title {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--t-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.pop-tip__body {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--t-secondary);
+}
+
 [data-theme="light"] .tactical-tooltip,
-[data-theme="light"] .leaflet-tooltip.tactical-tooltip {
+[data-theme="light"] .leaflet-tooltip.tactical-tooltip,
+[data-theme="light"] .incident-tooltip,
+[data-theme="light"] .leaflet-tooltip.incident-tooltip {
   background: rgba(255, 255, 255, 0.96) !important;
   color: #0f172a !important;
   border-color: rgba(15, 23, 42, 0.15) !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .pop-tip__title {
+  color: #0f172a;
 }
 
 /* Leaflet draws the arrow as a border triangle and hard codes white, one
@@ -586,4 +731,12 @@ backdrop-filter: blur(8px);
   .mapkey__btn svg {
     transition: none;
   }
+}
+
+/* FRP Threshold Segmented Toggle Styling */
+.seg__opt[data-frp]:not([data-frp="0"])[aria-checked="true"] {
+  color: #ffaa33;
+  background: rgba(255, 170, 51, 0.16);
+  box-shadow: 0 0 10px rgba(255, 170, 51, 0.25), var(--bezel);
+  border: 1px solid rgba(255, 170, 51, 0.35);
 }

@@ -23,6 +23,10 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+from app.core.ratelimit import RateLimitMiddleware
+from fastapi.responses import JSONResponse
+from fastapi import Request
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
@@ -31,6 +35,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate Limiting Middleware (Stage 10 Hardening)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=settings.RATE_LIMIT_PER_MINUTE)
+
+# Global Unhandled Exception Error Boundary
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"[GlobalBoundary] Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "InternalServerError",
+            "message": "An unexpected error occurred within the sovereign processing engine.",
+            "path": request.url.path
+        }
+    )
 
 # Root route
 @app.get("/")
@@ -76,10 +96,41 @@ from fastapi.staticfiles import StaticFiles
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
+V2_CROPS_DIR = os.path.abspath(os.path.join(BASE_DIR, "data", "imagery_cache"))
 V1_CROPS_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "v1", "pipeline", "03_imagery", "crops"))
 
-if os.path.exists(V1_CROPS_DIR):
-    app.mount("/crops", StaticFiles(directory=V1_CROPS_DIR), name="crops")
+from fastapi import Depends, HTTPException
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+from app.storage.database import get_db
+from app.storage.models import Incident
+from app.imagery.service import get_or_create_incident_imagery
+
+@app.get("/crops/{incident_id}/{filename}")
+def serve_crop_image(incident_id: str, filename: str, db: Session = Depends(get_db)):
+    # 1. Check v2 imagery cache
+    file_path = os.path.abspath(os.path.join(V2_CROPS_DIR, incident_id, filename))
+    if file_path.startswith(V2_CROPS_DIR) and os.path.exists(file_path):
+        media_type = "application/json" if filename.endswith(".json") else "image/jpeg"
+        return FileResponse(file_path, media_type=media_type)
+
+    # 2. Check v1 crops dir
+    v1_path = os.path.abspath(os.path.join(V1_CROPS_DIR, incident_id, filename))
+    if v1_path.startswith(V1_CROPS_DIR) and os.path.exists(v1_path):
+        media_type = "application/json" if filename.endswith(".json") else "image/jpeg"
+        return FileResponse(v1_path, media_type=media_type)
+
+    # 3. Dynamic On-Demand Synthesis: if incident exists in DB, render high-res tiles now!
+    inc = db.query(Incident).filter((Incident.id == incident_id) | (Incident.incident_code == incident_id)).first()
+    if inc:
+        try:
+            get_or_create_incident_imagery(inc.id, db)
+            if os.path.exists(file_path):
+                return FileResponse(file_path, media_type="image/jpeg")
+        except Exception as e:
+            logger.error(f"[Crops] Dynamic rendering failed for {incident_id}: {e}")
+
+    raise HTTPException(status_code=404, detail=f"Satellite crop for {incident_id} not found")
 
 if os.path.exists(FRONTEND_DIR):
     app.mount("/console", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

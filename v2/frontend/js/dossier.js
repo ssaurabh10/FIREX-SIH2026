@@ -56,7 +56,7 @@ function shot(src, label, cls = "shot") {
     <figure class="bezel ${cls}"${src ? "" : ' data-missing="1"'}>
       <div class="bezel__core">
         ${src ? `<img src="${escapeHtml(src)}" alt="${escapeHtml(label)}" loading="lazy" decoding="async">` : ""}
-        <span class="shot__tag tag">${escapeHtml(src ? label : "No crop")}</span>
+        <span class="shot__tag tag">${escapeHtml(src ? label : "No image available")}</span>
       </div>
     </figure>`;
 }
@@ -101,17 +101,70 @@ function factors(c) {
 function classification(c) {
   const raw = Number(c.aiConfidence);
   const pct = Number.isFinite(raw) ? Math.round(raw <= 1 ? raw * 100 : raw) : null;
+  const unc = String(c.uncertainty || "unreported").toLowerCase();
+  const uncClass = unc === "low" || unc === "none" ? "tag--signal" : (unc === "medium" ? "tag--muted" : "tag--unconfirmed");
+
   return `
     <div class="well tile stack">
       <div class="row">
         ${icon(c.cls.icon, "i i--lg")}
         <span>${escapeHtml(c.cls.label)}</span>
         <span class="spacer"></span>
+        <span class="tag ${uncClass}" style="font-size:0.65rem;text-transform:uppercase;">${escapeHtml(unc)} uncertainty</span>
         <span class="u-num u-micro">${pct === null ? "unreported" : `${pct}%`}</span>
       </div>
       <div class="meter meter--signal"><span class="meter__fill" style="--v:${pct ?? 0}%"></span></div>
-      <p class="u-micro">Model certainty ${pct === null ? "was not reported" : `${pct}%`}, stated uncertainty ${escapeHtml(c.uncertainty || "unreported")}. Satellite confidence ${escapeHtml(c.firms.confidence.display)}.</p>
+      <p class="u-micro">Model certainty ${pct === null ? "was not reported" : `${pct}%`}, stated uncertainty: <strong>${escapeHtml(c.uncertainty || "unreported")}</strong>. Satellite confidence: ${escapeHtml(c.firms.confidence.display)}.</p>
     </div>`;
+}
+
+function priorityAndSeverity(c) {
+  const prio = c.investigationPriority || c.risk.score;
+  const sevScore = c.severity?.score ?? c.risk.score;
+  const sevLevel = c.severity?.level ?? c.risk.tier;
+  const isRoutine = c.climatology?.isRoutine;
+  const p95 = c.climatology?.p95 || 0;
+
+  return `
+    <div class="well tile stack" style="gap: 8px;">
+      <div class="row" style="justify-content: space-between; align-items: center;">
+        <div>
+          <span class="u-micro u-quiet">INVESTIGATION PRIORITY</span>
+          <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--signal);">${prio} <span style="font-size: 0.75rem; color: var(--t-secondary);">/ 100</span></p>
+        </div>
+        <div style="text-align: right;">
+          <span class="u-micro u-quiet">THREAT SEVERITY</span>
+          <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--t-primary);">${escapeHtml(sevLevel)} <span style="font-size: 0.85rem; color: var(--t-secondary);">(${sevScore})</span></p>
+        </div>
+      </div>
+      ${c.priorityExplanation ? `<p class="prose" style="font-size: 0.75rem; line-height: 1.4; color: var(--t-primary); background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: var(--r-sm); border-left: 2px solid var(--signal); margin: 2px 0 0 0;">${escapeHtml(c.priorityExplanation)}</p>` : ""}
+      <p class="u-micro u-quiet" style="margin: 0;">
+        ${isRoutine
+          ? `Historical Baseline: Routine industrial flaring. FRP (${fmt.dec(c.frp)} MW) is within normal threshold (P95: ${fmt.dec(p95)} MW). Severity suppressed to prevent false alarm.`
+          : (p95 > 0 && c.frp > p95
+            ? `Anomaly Warning: Current FRP (${fmt.dec(c.frp)} MW) exceeds 95th percentile historical baseline (${fmt.dec(p95)} MW).`
+            : `Calibrated against Indian national satellite percentiles (P50: 4.05 MW, P90: 13.32 MW, P99: 64.49 MW).`)}
+      </p>
+    </div>`;
+}
+
+function climatologyBaseline(c) {
+  if (!c.climatology) return "";
+  const { median, p90, p95, activeDays, isRoutine } = c.climatology;
+  const anomaly = c.historicalAnomaly || "NEW_UNEXPECTED";
+  const anomalyBadge = isRoutine
+    ? `<span class="tag tag--signal">ROUTINE FLARE</span>`
+    : (anomaly === "ABNORMAL_SURGE"
+      ? `<span class="tag tag--tier">ABNORMAL SURGE</span>`
+      : `<span class="tag tag--muted">${escapeHtml(anomaly.replace(/_/g, " "))}</span>`);
+
+  return kv([
+    ["Typical Baseline FRP (P50)", `${fmt.dec(median)} MW`],
+    ["Surge Alert Threshold (P95)", `${fmt.dec(p95)} MW`],
+    ["Annual Flare Days", `${activeDays} active days/year`],
+    ["Routine Flare Status", isRoutine ? `<span class="tag tag--signal">PERMITTED INDUSTRIAL SITE</span>` : `<span class="tag">EPISODIC / EVENT</span>`],
+    ["Historical Baseline Status", anomalyBadge]
+  ]);
 }
 
 function detection(c) {
@@ -173,13 +226,13 @@ function drawerEmptyHtml() {
   return `
     <div class="state drawer__empty">
       <span class="state__icon">${icon("i-crosshair", "i i--xl")}</span>
-      <p class="state__title">No detection selected</p>
-      <p class="state__body">Pick a row in the priority spine, or a marker on the map. The dossier opens here, beside the map, so the location stays in view.</p>
+      <p class="state__title">No incident selected</p>
+      <p class="state__body">Pick an incident from the priority list, or select a marker on the map. Full details and satellite evidence will appear here.</p>
       <dl class="drawer__hint">
         <dt>Arrow keys</dt>
-        <dd>Step through the filtered list in rank order.</dd>
-        <dt>Ranking</dt>
-        <dd>Deterministic, from five weighted factors. No model is asked to sort the list.</dd>
+        <dd>Step through the filtered incidents in priority order.</dd>
+        <dt>Priority Ranking</dt>
+        <dd>Calculated from multi-factor risk, satellite thermal radiance, and proximity to infrastructure.</dd>
       </dl>
     </div>`;
 }
@@ -190,7 +243,7 @@ function drawerHtml(c) {
     <div class="drawer__head">
       <div class="drawer__top">
         <div style="min-width:0">
-          <p class="drawer__id">${escapeHtml(c.id)}, rank ${c.rank}</p>
+          <p class="drawer__id">${escapeHtml(c.id)}, priority rank ${c.rank}</p>
           <h2 class="drawer__title">${escapeHtml(c.place)}</h2>
           <p class="drawer__where">${escapeHtml(where)}</p>
         </div>
@@ -202,14 +255,16 @@ function drawerHtml(c) {
     </div>
 
     <div class="drawer__body u-scroll">
-      ${shot(c.images.annotated || c.images.raw, c.images.annotated ? "Annotated" : "Raw crop")}
+      ${shot(c.images.annotated || c.images.raw, c.images.annotated ? "AI Annotated" : "Satellite Image")}
+      ${sect("Investigation Priority vs Severity", "", priorityAndSeverity(c))}
       ${sect("Classification", "", classification(c))}
-      ${sect("Detection", `<span class="u-micro">As published by FIRMS</span>`, detection(c))}
+      ${sect("Detection Details", `<span class="u-micro">NASA Satellite Data</span>`, detection(c))}
+      ${c.climatology ? sect("Historical Heat Baseline", `<span class="u-micro">365-Day Baseline</span>`, climatologyBaseline(c)) : ""}
       ${c.persistence ? sect("Multi-Pass Persistence", `<span class="u-micro">Historical DB</span>`, persistence(c)) : ""}
       ${sect("Verify on the ground", "", links(c))}
-      ${sect("Risk", `<span class="u-num u-micro">${c.risk.score} of 100</span>`, factors(c))}
+      ${sect("Risk Assessment", `<span class="u-num u-micro">${c.risk.score} of 100</span>`, factors(c))}
       ${c.risk.action ? sect("Recommended action", "", `<p class="prose well">${escapeHtml(c.risk.action)}</p>`) : ""}
-      ${sect("Model observations", `<span class="u-micro u-num">${c.evidence.length}</span>`, evidence(c.evidence, 3))}
+      ${sect("AI Vision Observations", `<span class="u-micro u-num">${c.evidence.length}</span>`, evidence(c.evidence, 3))}
     </div>
 
     <div class="drawer__foot">
@@ -221,7 +276,7 @@ function drawerHtml(c) {
       </button>
       <span class="spacer"></span>
       <button class="btn btn--sm btn--primary" type="button" data-act="open-modal">
-        ${icon("i-expand", "i i--sm")}Full dossier
+        ${icon("i-expand", "i i--sm")}Full Details & Evidence
       </button>
     </div>`;
 }
@@ -229,10 +284,10 @@ function drawerHtml(c) {
 /* --- Modal ---------------------------------------------------------------- */
 
 function modeSeg(c, mode) {
-  const opts = [["annotated", "Annotated", c.images.annotated], ["raw", "Raw", c.images.raw]]
+  const opts = [["annotated", "AI Annotated", c.images.annotated], ["raw", "Satellite Image", c.images.raw]]
     .filter(([, , src]) => Boolean(src));
   if (opts.length < 2) return "";
-  return `<div class="seg" role="radiogroup" aria-label="Which crop to show">${opts
+  return `<div class="seg" role="radiogroup" aria-label="Which image to show">${opts
     .map(([id, label]) => `<button class="seg__opt" type="button" role="radio"
       aria-checked="${id === mode}" data-act="mode" data-mode="${id}">${label}</button>`)
     .join("")}</div>`;
@@ -251,7 +306,7 @@ function modalHtml(c, mode) {
       </div>
       <div class="row row--wrap" style="justify-content:flex-end">
         ${tierTag(c)}${confTag(c)}
-        <button class="icon-btn" type="button" data-act="close-modal" aria-label="Close the dossier">
+        <button class="icon-btn" type="button" data-act="close-modal" aria-label="Close details">
           ${icon("i-x")}
         </button>
       </div>
@@ -261,23 +316,25 @@ function modalHtml(c, mode) {
       <div class="modal__col">
         <section class="sect">
           <div class="sect__head">
-            <h3 class="u-label">What the model looked at</h3>
+            <h3 class="u-label">Satellite Optical Imagery</h3>
             ${modeSeg(c, mode)}
           </div>
-          ${shot(src, mode === "raw" ? "Raw crop" : "Annotated", "modal__shot")}
+          ${shot(src, mode === "raw" ? "Satellite Image" : "AI Annotated", "modal__shot")}
           <p class="u-micro">${escapeHtml(c.categoryTarget
-            ? `Crop pulled for the ${c.categoryTarget} category target at ${fmt.coord(c.lat, c.lon)}.`
-            : `Crop centred on ${fmt.coord(c.lat, c.lon)}.`)}</p>
+            ? `Optical imagery centered on target at ${fmt.coord(c.lat, c.lon)}.`
+            : `Optical imagery centered on ${fmt.coord(c.lat, c.lon)}.`)}</p>
         </section>
-        ${sect("Model observations", `<span class="u-micro u-num">${c.evidence.length}</span>`, evidence(c.evidence))}
-        ${c.reasoning ? sect("Model reasoning", "", `<p class="prose well">${escapeHtml(c.reasoning)}</p>`) : ""}
+        ${sect("AI Vision Observations", `<span class="u-micro u-num">${c.evidence.length}</span>`, evidence(c.evidence))}
+        ${c.reasoning ? sect("AI Model Reasoning", "", `<p class="prose well">${escapeHtml(c.reasoning)}</p>`) : ""}
       </div>
 
       <div class="modal__col">
+        ${sect("Investigation Priority vs Severity", "", priorityAndSeverity(c))}
         ${sect("Classification", "", classification(c))}
-        ${sect("Detection", `<span class="u-micro">As published by FIRMS</span>`, detection(c))}
+        ${sect("Detection Details", `<span class="u-micro">NASA Satellite Data</span>`, detection(c))}
+        ${c.climatology ? sect("Historical Heat Baseline", `<span class="u-micro">365-Day Baseline</span>`, climatologyBaseline(c)) : ""}
         ${c.persistence ? sect("Multi-Pass Persistence", `<span class="u-micro">Historical DB</span>`, persistence(c)) : ""}
-        ${sect("Risk", `<span class="u-num u-micro">${c.risk.score} of 100</span>`, factors(c))}
+        ${sect("Risk Assessment", `<span class="u-num u-micro">${c.risk.score} of 100</span>`, factors(c))}
         ${c.risk.action ? sect("Recommended action", "", `<p class="prose well">${escapeHtml(c.risk.action)}</p>`) : ""}
         ${sect("Verify on the ground", "", links(c))}
       </div>
@@ -291,7 +348,7 @@ function modalHtml(c, mode) {
       </div>
       <span class="spacer"></span>
       <button class="btn btn--sm btn--ghost" type="button" data-act="triage" data-status="UNREVIEWED">
-        Clear decision
+        Reset review status
       </button>
     </div>`;
 }

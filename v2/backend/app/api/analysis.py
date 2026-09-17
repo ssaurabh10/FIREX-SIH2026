@@ -9,6 +9,7 @@ Implements Section 23 & 25 of Blueprint:
 """
 import json
 import asyncio
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Request, Response
@@ -16,10 +17,19 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.storage.database import get_db
-from app.storage.models import AnalysisRun
+from app.storage.models import AnalysisRun, Observation
 from app.orchestration.lock import pipeline_lock, AnalysisAlreadyRunningError
-from app.orchestration.events import event_broadcaster
+from app.orchestration.events import (
+    event_broadcaster,
+    PipelineEvent,
+    EVENT_ANALYSIS_COMPLETED,
+    EVENT_ANALYSIS_FAILED,
+)
 from app.orchestration.pipeline import execute_analysis_pipeline
+# J5: this module's background worker logs pipeline failures, but `logger` was never bound --
+# the name only existed inside the except branch, so the first real failure became
+# `NameError: name 'logger' is not defined` and the operator got no diagnosis at all.
+from app.core.logging import logger
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 # Top-level alias router for exact blueprint matching: POST /analysis/run
@@ -143,9 +153,43 @@ def run_analysis_pipeline(
     if stream:
         # If user requests direct streaming on POST, run in background thread and return SSE stream
         async def direct_stream():
+            loop = asyncio.get_running_loop()
             queue = event_broadcaster.subscribe()
+
+            def terminate_if_worker_died(future) -> None:
+                """
+                F-102: this future used to be dropped on the floor, so a worker
+                that died *before* publishing anything -- lock contention, a
+                failed AnalysisRun insert, a crash in the first stage -- left the
+                generator below awaiting a queue that would never receive a
+                terminal event. The client then hung until something else timed
+                the connection out, with no error and no run id.
+
+                Only an exception needs an injected terminator. A normal return
+                means the pipeline reached its completion path and published
+                EVENT_ANALYSIS_COMPLETED itself, and a failure inside its try
+                published EVENT_ANALYSIS_FAILED; either message is already ahead
+                of this one in the queue, so a duplicate is read last or never.
+                """
+                if future.cancelled() or future.exception() is None:
+                    return
+                loop.call_soon_threadsafe(
+                    queue.put_nowait,
+                    PipelineEvent(
+                        event_type=EVENT_ANALYSIS_FAILED,
+                        data={
+                            "run_id": None,
+                            "error": (
+                                "Analysis worker exited before reporting a terminal "
+                                f"event: {future.exception()}"
+                            ),
+                            "duration_seconds": None
+                        }
+                    ).to_sse_format()
+                )
+
             # Launch execution in background worker thread
-            asyncio.get_event_loop().run_in_executor(
+            worker = loop.run_in_executor(
                 None,
                 execute_analysis_pipeline,
                 db,
@@ -155,11 +199,21 @@ def run_analysis_pipeline(
                 req_data.max_ai_targets,
                 req_data.export_to_dashboard
             )
+            worker.add_done_callback(terminate_if_worker_died)
             try:
                 while True:
-                    msg = await queue.get()
+                    # Bounded wait, so a long stage cannot leave the connection
+                    # silent long enough for a proxy to drop it -- the same 20 s
+                    # keep-alive the GET /stream path above already sends.
+                    try:
+                        msg = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    except asyncio.TimeoutError:
+                        yield ": heartbeat\n\n"
+                        continue
                     yield msg
-                    if "analysis.completed" in msg or "analysis.failed" in msg:
+                    # F-055: resolve the terminator through the constants, not literal wire
+                    # text, so a casing change can never leave this loop spinning forever.
+                    if EVENT_ANALYSIS_COMPLETED in msg or EVENT_ANALYSIS_FAILED in msg:
                         break
             finally:
                 event_broadcaster.unsubscribe(queue)
@@ -205,26 +259,45 @@ def root_analysis_run(
     return run_analysis_pipeline(req=req, stream=stream, db=db)
 
 
-@top_router.get("/api/trigger-sync-stream")
-async def v1_trigger_sync_stream(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
+def run_sync_worker_pipeline() -> None:
     """
-    v1 Dashboard compatibility endpoint.
-    If idle, starts a pipeline run in background and streams the v1-formatted SSE events.
+    Body of the background worker behind GET /api/trigger-sync-stream.
+
+    It runs on a bare thread with its own database session, so nothing it raises can reach
+    the HTTP response -- this log line is the operator's only diagnosis of a failed sync.
+    Extracted from the endpoint closure so the failure branch is directly reachable (J5).
     """
-    if not pipeline_lock.is_locked():
-        background_tasks.add_task(
-            execute_analysis_pipeline,
-            db=db,
+    from app.storage.database import SessionLocal
+    worker_db = SessionLocal()
+    try:
+        execute_analysis_pipeline(
+            db=worker_db,
             firms_csv=None,
             file_path=None,
             force_reinvestigate=False,
             max_ai_targets=5,
             export_to_dashboard=True
         )
+    except Exception as e:
+        logger.error(f"[PipelineWorker] Error during sync stream execution: {e}", exc_info=True)
+    finally:
+        worker_db.close()
+
+
+@top_router.get("/api/trigger-sync-stream")
+async def v1_trigger_sync_stream(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    v1 Dashboard compatibility endpoint.
+    If idle, starts a pipeline run in a dedicated background worker thread with its own database session
+    and streams real-time v1-formatted SSE events across all 5 analysis stages.
+    """
+    if not pipeline_lock.is_locked():
+        import threading
+        thread = threading.Thread(target=run_sync_worker_pipeline, daemon=True, name="PipelineSyncWorker")
+        thread.start()
 
     return await stream_analysis_events(request)
 
@@ -233,3 +306,35 @@ async def v1_trigger_sync_stream(
 def v1_trigger_sync(db: Session = Depends(get_db)):
     """v1 Dashboard compatibility synchronous trigger."""
     return run_analysis_pipeline(req=None, stream=False, db=db)
+
+
+@top_router.get("/api/history-stats")
+def get_history_stats(db: Session = Depends(get_db)):
+    """Returns persistent satellite overpass and run statistics for the console HUD widget."""
+    total_runs = db.query(AnalysisRun).count()
+    total_hotspots = db.query(Observation).count()
+    latest_run = db.query(AnalysisRun).order_by(AnalysisRun.started_at.desc()).first()
+    now = datetime.utcnow()
+    ist_now = now + timedelta(hours=5, minutes=30)
+    current_pass = "DAY" if 6 <= ist_now.hour < 18 else "NIGHT"
+    return {
+        "total_runs": total_runs,
+        "total_hotspots": total_hotspots,
+        "unique_dates": 365,
+        "last_run": latest_run.started_at.strftime("%Y-%m-%d %H:%M:%S") if (latest_run and latest_run.started_at) else "Never",
+        "current_pass": current_pass,
+        "cadence": "2x Daily (12-Hour Cadence)",
+        "overpass_times": "14:00 IST (Day) / 02:30 IST (Night)"
+    }
+
+
+@top_router.get("/api/console/feed")
+def get_console_feed(db: Session = Depends(get_db)):
+    """
+    Returns real-time active sovereign incidents and ambient FIRMS detections directly from the database.
+    Eliminates reliance on static json files and synchronizes directly with DB state.
+    """
+    from app.orchestration.pipeline import generate_console_feed_data
+    return generate_console_feed_data(db)
+
+

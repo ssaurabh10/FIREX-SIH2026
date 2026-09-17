@@ -16,6 +16,7 @@ from app.storage.models import Incident, IndustrialAsset
 from app.selection.engine import evaluate_incident_selection
 from app.behavior.baseline import get_or_create_location_baseline, get_or_create_facility_baseline
 from app.imagery.service import get_or_create_incident_imagery
+from app.gis.mining_basins import get_mining_basin_metadata
 
 def build_investigation_package(
     incident_id: str,
@@ -70,6 +71,10 @@ def build_investigation_package(
                 "district": facility.district
             })
 
+    mining_info = get_mining_basin_metadata(incident.latitude, incident.longitude)
+    if mining_info:
+        gis_context["mining_basin"] = mining_info
+
     # 3. Historical Features
     if incident.nearest_asset_id:
         hist_baseline = get_or_create_facility_baseline(incident.nearest_asset_id, db, window_days=90)
@@ -88,15 +93,29 @@ def build_investigation_package(
         force_refresh=force_refresh_imagery
     )
 
+    # Compute surge multiplier over local median
+    hist_median = hist_baseline.get("median_frp", 0.0) or 1.0
+    surge_mult = round(float(incident.current_max_frp or 0.0) / max(1.0, float(hist_median)), 2)
+
+    is_routine_flare_val = False if mining_info else hist_baseline.get("is_routine_flare", False)
+    site_hint_val = "COAL_MINING_BASIN" if mining_info else hist_baseline.get("site_classification_hint", "EPISODIC_THERMAL")
+
     # 6. Assemble Full Investigation Package
     package = {
         "incident": incident_data,
         "gis_context": gis_context,
         "historical_features": {
             "observation_count_90d": hist_baseline.get("observation_count", 0),
+            "active_days_365d": hist_baseline.get("active_days_365d", hist_baseline.get("active_days", 0)),
             "median_frp_mw": hist_baseline.get("median_frp", 0.0),
             "p90_frp_mw": hist_baseline.get("p90_frp", 0.0),
             "p95_frp_mw": hist_baseline.get("p95_frp", 0.0),
+            "max_frp_mw": hist_baseline.get("max_frp", 0.0),
+            "night_ratio": hist_baseline.get("night_ratio", 0.0),
+            "surge_multiplier": surge_mult,
+            "is_routine_flare": is_routine_flare_val,
+            "site_classification_hint": site_hint_val,
+            "is_mining_basin": bool(mining_info),
             "history_reliability_label": hist_baseline.get("history_reliability_label", "NONE"),
             "is_persistent": hist_baseline.get("is_persistent", False)
         },

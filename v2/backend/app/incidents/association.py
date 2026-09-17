@@ -2,6 +2,9 @@
 Incident Association & Lifecycle Resolution Engine
 Associates candidate clusters to existing active incidents or promotes them to new incidents.
 Criteria enforced from Section 35 Stage 3:
+0. Sovereign filtering: members outside Indian sovereign territory are discarded
+   before association (Invariant 3), and cluster statistics are re-derived from
+   the surviving members.
 1. Spatial compatibility: cluster overlaps or is within incident footprint (radius + 1500m).
 2. Temporal continuity: last observation within configurable continuity window (default 48h).
 3. Facility context compatibility: observations inside the same industrial perimeter match the asset incident.
@@ -14,7 +17,7 @@ from app.storage.models import Incident, IncidentObservation, Observation
 from app.incidents.clustering import ThermalCluster
 from app.incidents.state import record_incident_event
 from app.gis.assets import find_nearest_asset
-from app.gis.boundaries import resolve_admin_boundary
+from app.gis.boundaries import resolve_admin_boundary, is_within_indian_sovereign_territory
 from app.gis.spatial import haversine_distance_meters
 from app.core.logging import logger
 
@@ -62,6 +65,22 @@ def match_cluster_to_incident(
 
     return best_match, best_method, best_score
 
+def _cluster_of_sovereign_members(
+    cluster: ThermalCluster,
+    members: List[Observation]
+) -> ThermalCluster:
+    """
+    Rebuilds a cluster over a subset of its observations, re-deriving every
+    summary statistic (centroid, footprint radius, max/mean/min FRP, time range).
+    Used to drop members that fail the sovereign-territory test without leaving
+    the cluster geometry describing observations the incident no longer owns.
+    """
+    filtered = ThermalCluster(cluster.cluster_id)
+    for obs in members:
+        filtered.add_observation(obs)
+    filtered.finalize()
+    return filtered
+
 def sync_clusters_to_incidents(
     db: Session,
     clusters: List[ThermalCluster]
@@ -84,17 +103,47 @@ def sync_clusters_to_incidents(
     result_incidents: List[Incident] = []
 
     for cluster in clusters:
+        # Invariant 3 (V2_LOGIC_SPECIFICATION.md:31): out-of-sovereign-territory
+        # telemetry is discarded, never associated. The test used to run on the
+        # cluster *centroid* alone, which let a cluster anchored inside India
+        # carry members that are not -- every one of them was then linked as an
+        # IncidentObservation at the bottom of this loop and fed max-FRP,
+        # severity and imagery. Filter per member instead, and re-derive the
+        # cluster's centroid, footprint and FRP statistics from the survivors so
+        # the persisted incident describes only sovereign detections.
+        sovereign_members = [
+            obs for obs in cluster.observations
+            if is_within_indian_sovereign_territory(obs.latitude, obs.longitude)
+        ]
+        if not sovereign_members:
+            logger.info(
+                f"Discarding cluster {cluster.cluster_id}: no observation in sovereign Indian territory."
+            )
+            continue
+        if len(sovereign_members) != len(cluster.observations):
+            logger.info(
+                f"Cluster {cluster.cluster_id}: discarded "
+                f"{len(cluster.observations) - len(sovereign_members)} of "
+                f"{len(cluster.observations)} observation(s) outside sovereign Indian territory."
+            )
+            cluster = _cluster_of_sovereign_members(cluster, sovereign_members)
+
         matched_inc, method, score = match_cluster_to_incident(cluster, active_incidents)
 
         if matched_inc:
             # Update existing incident
             logger.info(f"Associating cluster {cluster.cluster_id} to existing incident {matched_inc.incident_code}")
             
-            # Update temporal envelope
-            if cluster.last_detected_at > matched_inc.last_detected_at:
-                matched_inc.last_detected_at = cluster.last_detected_at
-            if cluster.first_detected_at < matched_inc.first_detected_at:
-                matched_inc.first_detected_at = cluster.first_detected_at
+            # Update temporal envelope (with timezone-naive safety)
+            c_last = cluster.last_detected_at.replace(tzinfo=None) if (cluster.last_detected_at and getattr(cluster.last_detected_at, "tzinfo", None)) else cluster.last_detected_at
+            m_last = matched_inc.last_detected_at.replace(tzinfo=None) if (matched_inc.last_detected_at and getattr(matched_inc.last_detected_at, "tzinfo", None)) else matched_inc.last_detected_at
+            if c_last and m_last and c_last > m_last:
+                matched_inc.last_detected_at = c_last
+
+            c_first = cluster.first_detected_at.replace(tzinfo=None) if (cluster.first_detected_at and getattr(cluster.first_detected_at, "tzinfo", None)) else cluster.first_detected_at
+            m_first = matched_inc.first_detected_at.replace(tzinfo=None) if (matched_inc.first_detected_at and getattr(matched_inc.first_detected_at, "tzinfo", None)) else matched_inc.first_detected_at
+            if c_first and m_first and c_first < m_first:
+                matched_inc.first_detected_at = c_first
 
             # Update FRP statistics enforcing non-summation rule
             matched_inc.current_max_frp = max(matched_inc.current_max_frp, cluster.max_frp)
@@ -131,14 +180,30 @@ def sync_clusters_to_incidents(
             # Create brand new incident
             incident_count += 1
             code = generate_incident_code(incident_count)
+            while db.query(Incident).filter(Incident.incident_code == code).first() is not None:
+                incident_count += 1
+                code = generate_incident_code(incident_count)
             logger.info(f"Promoting cluster {cluster.cluster_id} to new incident {code}")
 
             # GIS Enrichment at incident creation
             asset_info = find_nearest_asset(cluster.center_lat, cluster.center_lon, db)
             admin_info = resolve_admin_boundary(cluster.center_lat, cluster.center_lon)
 
-            state = asset_info.get("state") or admin_info.get("state")
-            district = asset_info.get("district") or admin_info.get("district")
+            # Proximity Gating: Only associate asset if within facility perimeter or <= 5.0 km
+            is_near_facility = asset_info.get("is_inside_facility") or ((asset_info.get("distance_km") or 999.0) <= 5.0)
+
+            if is_near_facility and asset_info.get("state"):
+                state = asset_info.get("state")
+                district = asset_info.get("district") or admin_info.get("district")
+                nearest_asset_id = asset_info.get("asset_id")
+                distance_to_asset_km = asset_info.get("distance_km")
+                is_inside_facility = asset_info.get("is_inside_facility", False)
+            else:
+                state = admin_info.get("state")
+                district = admin_info.get("district")
+                nearest_asset_id = None
+                distance_to_asset_km = asset_info.get("distance_km")
+                is_inside_facility = False
 
             target_incident = Incident(
                 incident_code=code,
@@ -152,9 +217,9 @@ def sync_clusters_to_incidents(
                 observation_count=0,
                 current_max_frp=cluster.max_frp,
                 current_mean_frp=cluster.mean_frp,
-                nearest_asset_id=asset_info.get("asset_id"),
-                distance_to_asset_km=asset_info.get("distance_km"),
-                is_inside_facility=asset_info.get("is_inside_facility", False),
+                nearest_asset_id=nearest_asset_id,
+                distance_to_asset_km=distance_to_asset_km,
+                is_inside_facility=is_inside_facility,
                 state=state,
                 district=district,
                 created_at=datetime.utcnow()

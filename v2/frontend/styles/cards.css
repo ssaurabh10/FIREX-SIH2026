@@ -304,3 +304,246 @@
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; }
 }
+
+/* --- Industrial Intelligence & Baseline Workspace ------------------------- */
+
+.industrial-workspace {
+  display: grid;
+  grid-template-columns: 370px minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .industrial-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+.industrial-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.industrial-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.industrial-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.industrial-sidebar::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 4px;
+}
+
+.facility-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: var(--fill-1);
+  border: 1px solid var(--line-hair);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--d-fast) var(--ease-out);
+}
+
+.facility-card:hover {
+  background: var(--fill-2);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+.facility-card[data-active="true"] {
+  background: var(--fill-2);
+  border-color: var(--signal);
+  box-shadow: 0 0 0 1px var(--signal), 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.facility-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.facility-card__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--t-primary);
+  line-height: 1.3;
+}
+
+.facility-card__meta {
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.facility-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-hair);
+  margin-top: 2px;
+}
+
+.facility-card__metric {
+  display: flex;
+  flex-direction: column;
+}
+
+.facility-card__metric-lbl {
+  font-size: 9px;
+  color: var(--t-quiet);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.facility-card__metric-val {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--t-secondary);
+}
+
+/* Detail Workspace Styles */
+.industrial-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.pointgraph-card {
+  position: relative;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+}
+
+.pointgraph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line-hair);
+}
+
+.pointgraph-legend {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  font-size: var(--fs-micro);
+  color: var(--t-tertiary);
+  flex-wrap: wrap;
+}
+
+.pointgraph-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pointgraph-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.pointgraph-legend-line {
+  width: 14px;
+  height: 2px;
+}
+
+.pointgraph-plot-wrap {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+
+.pointgraph-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.pointgraph-pt {
+  cursor: pointer;
+  transition: r 120ms ease, filter 120ms ease;
+}
+
+.pointgraph-pt:hover {
+  filter: drop-shadow(0 0 6px var(--signal));
+}
+
+.diurnal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+}
+
+@media (max-width: 768px) {
+  .diurnal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.diurnal-box {
+  background: var(--fill-1);
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+}
+
+/* Multi-Window Baseline Cards (30d / 90d / 365d) */
+.multiwindow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-3);
+}
+
+@media (max-width: 900px) {
+  .multiwindow-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.multiwindow-card {
+  background: var(--fill-1);
+  border: 1px solid var(--line-hair);
+  border-radius: var(--r-sm);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 180ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  text-align: left;
+}
+
+.multiwindow-card:hover {
+  background: var(--fill-2);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+.multiwindow-card.is-active {
+  background: rgba(56, 189, 248, 0.06);
+  border-color: var(--signal);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.14);
+}
+

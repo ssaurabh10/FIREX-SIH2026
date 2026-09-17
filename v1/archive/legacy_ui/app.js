@@ -209,7 +209,13 @@ function renderSidebarList() {
 function renderRiskFactorsHTML(factors) {
   if (!factors || factors.length === 0) return "";
   return factors.map(f => {
-    const pct = Math.min(100, Math.round((f.score / f.max) * 100));
+    // `max` is 0 for the routine-flare suppression row, which carries a NEGATIVE
+    // score (it subtracts from the composite). Dividing by it gives -Infinity, and
+    // `width: -Infinity%` is invalid CSS: the declaration is dropped, and a block
+    // div left with no width fills its track -- so the row that REDUCES the score
+    // was drawn at full length, reading as a row pressed against its ceiling.
+    // dossier.js:85 guards this the same way.
+    const pct = f.max ? Math.min(100, Math.round((f.score / f.max) * 100)) : 0;
     return `
       <div class="risk-factor-item">
         <div class="factor-header">
