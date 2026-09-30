@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="styles/tokens.css?v=2">
 <link rel="stylesheet" href="styles/base.css?v=2">
 <link rel="stylesheet" href="styles/surfaces.css?v=2">
-<link rel="stylesheet" href="styles/layout.css?v=3">
+<link rel="stylesheet" href="styles/layout.css?v=4">
 <link rel="stylesheet" href="styles/components.css?v=6">
 <link rel="stylesheet" href="styles/charts.css?v=2">
 <link rel="stylesheet" href="styles/cards.css?v=5">
@@ -113,6 +113,9 @@
     <!-- ================= LIVE MAP ================= -->
     <section class="view" id="view-map" data-active="1" aria-label="Live map">
       <div class="mapview">
+
+        <!-- Mobile Backdrop Scrim -->
+        <div class="mobile-scrim" id="mobile-scrim" aria-hidden="true"></div>
 
         <!-- Mobile Floating Queue Trigger Pill -->
         <button class="mobile-queue-btn glass glass--frosted" id="btn-toggle-mobile-queue" type="button" aria-expanded="false" aria-label="Toggle Priority Incidents Queue">
@@ -523,10 +526,13 @@
 
 <div class="vignette" aria-hidden="true"></div>
 
+<!-- Micro Toast Notifications Container -->
+<div class="toast-container" id="toast-container" aria-live="polite"></div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin="anonymous"></script>
-<script type="module" src="js/main.js?v=22"></script>
+<script type="module" src="js/main.js?v=23"></script>
 
 </body>
 </html>

@@ -199,12 +199,24 @@ function revealSelected() {
   else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom;
 }
 
+export function showToast(message, iconName = "i-check") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerHTML = `<svg class="i i--sm" style="color:var(--signal)"><use href="#${iconName}"/></svg><span>${escapeHtml(message)}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => { if (toast.isConnected) toast.remove(); }, 3000);
+}
+
 function setMobileQueueOpen(open) {
   const rail = document.getElementById("mapview-rail");
   const btn = document.getElementById("btn-toggle-mobile-queue");
+  const scrim = document.getElementById("mobile-scrim");
   if (!rail) return;
   rail.setAttribute("data-mobile-open", open ? "1" : "0");
   if (btn) btn.setAttribute("aria-expanded", String(open));
+  if (scrim) scrim.setAttribute("data-active", open ? "1" : "0");
 }
 
 function closeMobileQueue() {
@@ -217,6 +229,28 @@ function toggleMobileQueue() {
   const rail = document.getElementById("mapview-rail");
   const isOpen = rail?.getAttribute("data-mobile-open") === "1";
   setMobileQueueOpen(!isOpen);
+}
+
+function initMobileGestures() {
+  const handleBar = document.getElementById("mobile-sheet-bar");
+  let startY = 0;
+  if (handleBar) {
+    handleBar.addEventListener("touchstart", (e) => {
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    handleBar.addEventListener("touchend", (e) => {
+      const endY = e.changedTouches[0].clientY;
+      if (endY - startY > 35) {
+        setMobileQueueOpen(false);
+      }
+    }, { passive: true });
+  }
+
+  const scrim = document.getElementById("mobile-scrim");
+  if (scrim) {
+    scrim.addEventListener("click", () => setMobileQueueOpen(false));
+  }
 }
 
 function pick(id, { modal = false, fly = true } = {}) {
@@ -723,7 +757,12 @@ function renderAll() {
   if (el["risk-hist"]) ui.renderRiskHist(el["risk-hist"], win, el["risk-span"]);
   if (el.spine) ui.renderSpine(el.spine, list, state.selected, el["spine-count"]);
   const mobBadge = document.getElementById("mobile-queue-badge");
-  if (mobBadge) mobBadge.textContent = String(list.length);
+  if (mobBadge) {
+    mobBadge.textContent = String(list.length);
+    const highOrCrit = list.filter((c) => (c.risk?.score || 0) >= 50).length;
+    if (highOrCrit > 0) mobBadge.classList.add("has-alerts");
+    else mobBadge.classList.remove("has-alerts");
+  }
   if (el.filterbar) ui.renderFilterBar(el.filterbar, win, state.filter);
   if (el["inv-filters"]) ui.renderFilterBar(el["inv-filters"], win, state.filter);
   if (el["map-strip"]) ui.renderStrip(el["map-strip"], list, amb);
@@ -936,6 +975,7 @@ function wireControls() {
   on("btn-ambient", () => { state.ambient = !state.ambient; renderAll(); });
   on("btn-toggle-mobile-queue", () => toggleMobileQueue());
   on("btn-close-mobile-rail", () => setMobileQueueOpen(false));
+  initMobileGestures();
 
   const facInput = document.getElementById("facility-search-input");
   if (facInput) {
@@ -1476,7 +1516,10 @@ async function boot() {
   mapState.onViewChange = updateInView;
 
   initDossier({
-    onTriage: () => renderAll(),
+    onTriage: (id, status) => {
+      renderAll();
+      showToast(status === "UNREVIEWED" ? "Review status reset" : `Triage marked: ${status.replace(/_/g, " ")}`);
+    },
     onStep: (delta) => step(delta),
     onClose: () => { state.selected = null; clearSelection(); renderAll(); },
   });
