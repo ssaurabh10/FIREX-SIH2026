@@ -29,7 +29,7 @@
 <link rel="stylesheet" href="styles/components.css?v=7">
 <link rel="stylesheet" href="styles/charts.css?v=2">
 <link rel="stylesheet" href="styles/cards.css?v=5">
-<link rel="stylesheet" href="styles/map.css?v=6">
+<link rel="stylesheet" href="styles/map.css?v=7">
 <link rel="stylesheet" href="styles/dossier.css?v=3">
 <link rel="stylesheet" href="styles/toggle.css?v=2">
 </head>
@@ -179,8 +179,42 @@
             <div class="filterbar" role="group"
                  aria-label="Filter detections by classification" id="filterbar"></div>
             <div class="panel__body panel__body--flush panel__body--fill u-scroll" id="spine"></div>
-            <div class="panel__foot">
-              <p class="u-micro u-quiet" style="margin:0">Click incident to view satellite evidence & details</p>
+            <div class="panel__foot queue-foot" style="display: flex; justify-content: space-between; align-items: center; position: relative; gap: var(--s-2);">
+              <p class="u-micro u-quiet" style="margin:0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Click incident to inspect details</p>
+              <details class="mapkey" id="mapkey">
+                <summary class="mapkey__btn glass glass--frosted glass--over glass--sm" title="Toggle Map Marker Legend">
+                  <svg class="i i--sm" aria-hidden="true" style="width: 13px; height: 13px;"><use href="#i-layers"/></svg>
+                  <span>Marker key</span>
+                  <svg class="i i--sm" aria-hidden="true" style="width: 12px; height: 12px;"><use href="#i-chev-up"/></svg>
+                </summary>
+
+                <div class="mapkey__panel glass glass--frosted glass--over">
+                  <div class="mapkey__group">
+                    <p class="mapkey__title">Ring, risk tier</p>
+                    <div class="mapkey__cols">
+                      <span class="mapkey__row"><span class="mapkey__mk" data-tier="CRITICAL"></span>Critical</span>
+                      <span class="mapkey__row"><span class="mapkey__mk" data-tier="HIGH"></span>High</span>
+                      <span class="mapkey__row"><span class="mapkey__mk" data-tier="MEDIUM"></span>Medium</span>
+                      <span class="mapkey__row"><span class="mapkey__mk" data-tier="LOW"></span>Low</span>
+                    </div>
+                  </div>
+
+                  <div class="mapkey__group">
+                    <p class="mapkey__title">Glyph, classification</p>
+                    <!-- Written by renderMapKey from the CLASSES taxonomy rather than
+                         typed here. -->
+                    <div class="mapkey__cols" id="mapkey-glyphs"></div>
+                  </div>
+
+                  <div class="mapkey__group">
+                    <p class="mapkey__title">Other marks</p>
+                    <span class="mapkey__row"><span class="mapkey__mk mapkey__mk--dashed"></span>Vision model could not confirm</span>
+                    <span class="mapkey__row"><span class="mapkey__mk mapkey__mk--dot"></span>Background hotspot (raw detection)</span>
+                  </div>
+
+                  <p class="mapkey__foot">Colour carries risk only. Classification is the glyph, so the two never have to be read off the same channel.</p>
+                </div>
+              </details>
             </div>
           </div>
         </div>
@@ -257,48 +291,6 @@
                   <svg class="i" aria-hidden="true"><use href="#i-satellite"/></svg>
                 </button>
               </div>
-
-              <!-- Nothing sits bottom-centre: the class filters moved into the
-                   rail, beside the list they filter, which is where the section 6
-                   console keeps them too. The map keeps only navigation and the
-                   key, one cluster per corner. -->
-
-              <details class="ovl ovl--br mapkey" id="mapkey">
-                <summary class="mapkey__btn glass glass--frosted glass--over glass--sm">
-                  <svg class="i i--sm" aria-hidden="true"><use href="#i-layers"/></svg>
-                  Marker key
-                  <svg class="i i--sm" aria-hidden="true"><use href="#i-chev-up"/></svg>
-                </summary>
-
-                <div class="mapkey__panel glass glass--frosted glass--over">
-                  <div class="mapkey__group">
-                    <p class="mapkey__title">Ring, risk tier</p>
-                    <div class="mapkey__cols">
-                      <span class="mapkey__row"><span class="mapkey__mk" data-tier="CRITICAL"></span>Critical</span>
-                      <span class="mapkey__row"><span class="mapkey__mk" data-tier="HIGH"></span>High</span>
-                      <span class="mapkey__row"><span class="mapkey__mk" data-tier="MEDIUM"></span>Medium</span>
-                      <span class="mapkey__row"><span class="mapkey__mk" data-tier="LOW"></span>Low</span>
-                    </div>
-                  </div>
-
-                  <div class="mapkey__group">
-                    <p class="mapkey__title">Glyph, classification</p>
-                    <!-- Written by renderMapKey from the CLASSES taxonomy rather than
-                         typed here. Typed by hand it had already drifted: the key
-                         showed a factory for an industrial fire while the map drew a
-                         flame, and it named four of the six classes. -->
-                    <div class="mapkey__cols" id="mapkey-glyphs"></div>
-                  </div>
-
-                  <div class="mapkey__group">
-                    <p class="mapkey__title">Other marks</p>
-                    <span class="mapkey__row"><span class="mapkey__mk mapkey__mk--dashed"></span>Vision model could not confirm</span>
-                    <span class="mapkey__row"><span class="mapkey__mk mapkey__mk--dot"></span>Background hotspot (raw detection)</span>
-                  </div>
-
-                  <p class="mapkey__foot">Colour carries risk only. Classification is the glyph, so the two never have to be read off the same channel.</p>
-                </div>
-              </details>
             </div>
           </div>
         </div>

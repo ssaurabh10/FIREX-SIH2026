@@ -594,32 +594,30 @@
   color: var(--t-tertiary);
 }
 
-/* --- Marker key ----------------------------------------------------------
-   The section 6 console keeps a legend on the map, which is right: a reader
-   should not have to guess what a mark means. This one explains the encoding
-   rather than repeating the class list already in the filter bar, because the
-   encoding is the part nothing else on screen states: ring colour is risk,
-   a dashed ring is unconfirmed, the glyph is class, a bare dot is an
-   unclassified pixel. A native <details> keeps it closed by default, so on a
-   narrow map it costs one chip of space and no script. */
+/* --- Marker key (Located at the bottom of the Priority Queue) ------------ */
 
-/* No position of its own: .ovl--br already places it and already makes it the
-   containing block the panel anchors to. Setting position:relative here would
-   win on source order, drop the key into normal flow, and open the panel off
-   the top edge of the map. */
+.mapkey {
+  position: relative;
+  flex-shrink: 0;
+}
 
 .mapkey__btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 var(--s-3);
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: var(--r-sm);
-  font-size: var(--fs-label);
-  color: var(--t-tertiary);
-  cursor: default;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--t-secondary);
+  cursor: pointer;
   list-style: none;
-  transition: color var(--d-fast) var(--ease-out);
+  white-space: nowrap;
+  user-select: none;
+  border: 1px solid var(--line-hair);
+  background: rgba(255, 255, 255, 0.05);
+  transition: color var(--d-fast) var(--ease-out), background var(--d-fast) var(--ease-out), border-color var(--d-fast) var(--ease-out);
 }
 
 .mapkey__btn::-webkit-details-marker {
@@ -627,29 +625,49 @@
 }
 
 .mapkey__btn:hover {
-  color: var(--t-primary);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--line);
 }
 
 .mapkey[open] .mapkey__btn {
-  color: var(--t-primary);
+  color: var(--signal);
+  background: var(--signal-fade);
+  border-color: var(--signal-line);
 }
 
 .mapkey__btn svg {
-  transition: rotate var(--d-base) var(--ease-out);
+  transition: transform var(--d-base) var(--ease-out);
 }
 
-.mapkey[open] .mapkey__btn svg {
-  rotate: 180deg;
+.mapkey[open] .mapkey__btn svg:last-child {
+  transform: rotate(180deg);
 }
 
 .mapkey__panel {
   position: absolute;
   right: 0;
-  bottom: calc(100% + var(--s-2));
-  width: 244px;
-  padding: var(--s-3) var(--s-4) var(--s-4);
+  bottom: calc(100% + 8px);
+  width: 270px;
+  max-width: calc(100vw - 32px);
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: 12px 14px 14px;
   display: grid;
-  gap: var(--s-3);
+  gap: 10px;
+  z-index: 120;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
+  background: rgba(10, 14, 18, 0.95);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+[data-theme="light"] .mapkey__panel {
+  background: rgba(250, 252, 255, 0.96);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.15);
 }
 
 .mapkey__group {
