@@ -1,13 +1,13 @@
 {
-  "active_count": 220,
+  "active_count": 56,
   "tier_histogram": {
-    "LOW": 18,
-    "MEDIUM": 135,
-    "HIGH": 54,
-    "CRITICAL": 13
+    "LOW": 25,
+    "MEDIUM": 30,
+    "HIGH": 1,
+    "CRITICAL": 0
   },
-  "attention_count": 67,
-  "closed_attention_count": 34,
+  "attention_count": 1,
+  "closed_attention_count": 44,
   "active_statuses": [
     "NEW",
     "INVESTIGATING",
@@ -18,6 +18,17 @@
     "REOPENED"
   ],
   "closed_attention": [
+    {
+      "id": "35936483-cb90-487d-8c49-d7cafddf132a",
+      "incident_code": "INC-2026-0113",
+      "latitude": 22.369217,
+      "longitude": 87.289724,
+      "status": "RESOLVED",
+      "severity_level": "HIGH",
+      "severity_score": 61.8,
+      "last_detected_at": "2026-09-13T19:55:00",
+      "open_alerts": 1
+    },
     {
       "id": "2b8692af-9263-4ff4-be98-861d892fc5cd",
       "incident_code": "INC-2026-0114",
@@ -41,6 +52,17 @@
       "open_alerts": 1
     },
     {
+      "id": "0125455c-d172-4325-903f-d89685b8fd95",
+      "incident_code": "INC-2026-0139",
+      "latitude": 23.558357,
+      "longitude": 87.239049,
+      "status": "RESOLVED",
+      "severity_level": "HIGH",
+      "severity_score": 58.6,
+      "last_detected_at": "2026-09-13T19:55:00",
+      "open_alerts": 1
+    },
+    {
       "id": "aa6a8d97-b8ee-4300-9b3c-3687c11c8973",
       "incident_code": "INC-2026-0211",
       "latitude": 21.7441,
@@ -48,6 +70,28 @@
       "status": "RESOLVED",
       "severity_level": "HIGH",
       "severity_score": 71.7,
+      "last_detected_at": "2026-09-13T19:55:00",
+      "open_alerts": 1
+    },
+    {
+      "id": "75fe9d2e-c3d0-4171-906a-3d0070bff49f",
+      "incident_code": "INC-2026-0348",
+      "latitude": 21.376125,
+      "longitude": 81.679175,
+      "status": "RESOLVED",
+      "severity_level": "CRITICAL",
+      "severity_score": 80.0,
+      "last_detected_at": "2026-09-13T19:55:00",
+      "open_alerts": 1
+    },
+    {
+      "id": "36d48279-f6c1-47b7-bf60-a9c9defc33fb",
+      "incident_code": "INC-2026-0349",
+      "latitude": 21.37559,
+      "longitude": 81.64102,
+      "status": "RESOLVED",
+      "severity_level": "CRITICAL",
+      "severity_score": 80.0,
       "last_detected_at": "2026-09-13T19:55:00",
       "open_alerts": 1
     },
@@ -60,6 +104,50 @@
       "severity_level": "CRITICAL",
       "severity_score": 85.0,
       "last_detected_at": "2026-09-13T19:55:00",
+      "open_alerts": 1
+    },
+    {
+      "id": "f97a5b16-a030-4541-a625-3746a0ec78b6",
+      "incident_code": "INC-2026-0324",
+      "latitude": 9.79456,
+      "longitude": 78.816416,
+      "status": "RESOLVED",
+      "severity_level": "HIGH",
+      "severity_score": 53.9,
+      "last_detected_at": "2026-09-13T08:28:00",
+      "open_alerts": 1
+    },
+    {
+      "id": "74f2cb0c-2f34-41bc-96af-5ff712debd8a",
+      "incident_code": "INC-2026-0118",
+      "latitude": 20.794424,
+      "longitude": 85.258166,
+      "status": "RESOLVED",
+      "severity_level": "HIGH",
+      "severity_score": 63.8,
+      "last_detected_at": "2026-09-13T07:46:00",
+      "open_alerts": 1
+    },
+    {
+      "id": "48a96656-bbb0-4783-9e44-70e51298ce1b",
+      "incident_code": "INC-2026-0175",
+      "latitude": 20.760301,
+      "longitude": 85.295987,
+      "status": "RESOLVED",
+      "severity_level": "HIGH",
+      "severity_score": 57.7,
+      "last_detected_at": "2026-09-13T07:29:00",
+      "open_alerts": 1
+    },
+    {
+      "id": "a797445c-aca6-40a6-8333-60af506b4370",
+      "incident_code": "INC-2026-0119",
+      "latitude": 20.967563,
+      "longitude": 85.172323,
+      "status": "RESOLVED",
+      "severity_level": "CRITICAL",
+      "severity_score": 79.5,
+      "last_detected_at": "2026-09-12T22:31:00",
       "open_alerts": 1
     },
     {
@@ -104,6 +192,28 @@
       "severity_level": "HIGH",
       "severity_score": 65.0,
       "last_detected_at": "2026-09-12T20:19:00",
+      "open_alerts": 1
+    },
+    {
+      "id": "11734dd0-67fd-4733-a09f-5fa514b7f5f6",
+      "incident_code": "INC-2026-0364",
+      "latitude": 14.588345,
+      "longitude": 78.58012,
+      "status": "RESOLVED",
+      "severity_level": "HIGH",
+      "severity_score": 57.6,
+      "last_detected_at": "2026-09-12T20:19:00",
+      "open_alerts": 1
+    },
+    {
+      "id": "af595321-4454-4efd-9b2e-6f3baeb5ab53",
+      "incident_code": "INC-2026-0218",
+      "latitude": 27.91693,
+      "longitude": 96.77547,
+      "status": "RESOLVED",
+      "severity_level": "HIGH",
+      "severity_score": 50.5,
+      "last_detected_at": "2026-09-12T07:48:00",
       "open_alerts": 1
     },
     {

@@ -320,9 +320,7 @@ function modalHtml(c, mode) {
             ${modeSeg(c, mode)}
           </div>
           ${shot(src, mode === "raw" ? "Satellite Image" : "AI Annotated", "modal__shot")}
-          <p class="u-micro">${escapeHtml(c.categoryTarget
-            ? `Optical imagery centered on target at ${fmt.coord(c.lat, c.lon)}.`
-            : `Optical imagery centered on ${fmt.coord(c.lat, c.lon)}.`)}</p>
+          <p class="u-micro">${escapeHtml(`Optical imagery centered on ${fmt.coord(c.lat, c.lon)}.`)}</p>
         </section>
         ${sect("AI Vision Observations", `<span class="u-micro u-num">${c.evidence.length}</span>`, evidence(c.evidence))}
         ${c.reasoning ? sect("AI Model Reasoning", "", `<p class="prose well">${escapeHtml(c.reasoning)}</p>`) : ""}

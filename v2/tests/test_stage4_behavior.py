@@ -31,6 +31,7 @@ from app.behavior.baseline import (
     get_or_create_facility_baseline
 )
 from app.behavior.persistence import calculate_persistence_score
+from app.gis.spatial import CLIMATOLOGY_GRID_DEGREES, climatology_cell
 from app.behavior.anomaly import (
     calculate_frp_ratio_score,
     classify_behavior_synthesis,
@@ -558,3 +559,56 @@ def test_location_baseline_365_day_window_is_real():
         except Exception:
             db.rollback()
         db.close()
+
+
+def test_baseline_lookup_snaps_to_the_producers_climatology_lattice():
+    """
+    The live baseline lookup and the offline climatology producer must quantise
+    a coordinate to the *same* cell, and they did not.
+
+    `generate_spatial_key` rounded to `precision=2` -- a 0.01 degree lattice --
+    while `scripts/build_thermal_climatology.py` builds `thermal_climatology`
+    through `climatology_cell` at the documented 0.02 degrees. A 0.01 degree key
+    matches a 0.02 degree row only where the two lattices intersect, so the live
+    lookup reached 82,581 of the deployed table's 331,418 rows (24.9%), and every
+    `historical_baselines` row was unreachable because the console's
+    `_read_cached_location_baseline` keys both tables through `climatology_cell`.
+    That is why 32 of the 56 published console rows carried `baseline_p95 = 0`
+    and the browser invented a P50/P95 from its own fallback.
+
+    The rest of this suite could not have caught it. `BASELINE_LAT`/`BASELINE_LON`
+    are 21.5/78.5, which are both multiples of 0.02, so the two conventions yield
+    the *identical* key for that fixture -- the one coordinate pair every other
+    test in this file exercises sits exactly on the intersection. The coordinates
+    below are chosen to fall on the 0.01 lattice *between* 0.02 cells, which is
+    where the two disagree.
+    """
+    # One definition, not two implementations that happen to agree today.
+    for lat, lon in [(21.5, 78.5), (8.41, 77.41), (23.07, 72.63), (19.99, 70.01)]:
+        assert generate_spatial_key(lat, lon) == climatology_cell(lat, lon)[2], (
+            f"({lat}, {lon}) resolves to two different cells depending on which "
+            f"side of the lookup asks; the producer's rows are unreachable"
+        )
+
+    # Every key the reader can build is a cell the producer can write. This is
+    # the property that actually failed: the row need not exist, but it must be
+    # addressable.
+    for lat, lon in [(8.41, 77.41), (23.07, 72.63), (19.99, 70.01)]:
+        key = generate_spatial_key(lat, lon)
+        cell_lat, cell_lon = (float(part) for part in key[len("GRID_"):].split("_"))
+        for value in (cell_lat, cell_lon):
+            multiple = value / CLIMATOLOGY_GRID_DEGREES
+            assert abs(multiple - round(multiple)) < 1e-9, (
+                f"{key} is off the {CLIMATOLOGY_GRID_DEGREES} degree lattice the "
+                f"producer writes, so no stored row could ever sit on it"
+            )
+
+    # The falsifier. Without it the assertions above would also hold for an
+    # implementation that still rounded to a hundredth of a degree, because a
+    # 0.01 degree key is *also* a valid-looking GRID_ key.
+    for lat, lon in [(8.41, 77.41), (23.07, 72.63), (19.99, 70.01)]:
+        legacy = f"GRID_{round(lat, 2):.2f}_{round(lon, 2):.2f}"
+        assert generate_spatial_key(lat, lon) != legacy, (
+            f"({lat}, {lon}) still resolves to its 0.01 degree key {legacy}: the "
+            f"lookup is back on the half-size lattice the producer does not write"
+        )

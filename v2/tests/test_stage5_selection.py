@@ -31,17 +31,33 @@ from app.selection.engine import (
     evaluate_incident_selection,
     select_investigation_candidates,
 )
+from app.behavior.baseline import generate_spatial_key
 from app.selection.scoring import compute_investigation_priority, evaluate_selection_overrides
+
+
+def cell(lat: float, lon: float) -> str:
+    """The climatology cell a test's coordinate resolves to.
+
+    Derived through the same function the lookup uses, never written down as a
+    literal. The literals that used to sit here (`GRID_0.75_0.75` and friends)
+    were correct only while the reader rounded to a hundredth of a degree; when
+    it moved to the producer's 0.02 degree lattice every one of them stopped
+    matching the incident's own coordinate, so a seeded baseline became
+    invisible and `has_history` silently read False. Asking the lookup which
+    cell it will visit makes that class of drift impossible.
+    """
+    return generate_spatial_key(lat, lon)
+
 
 # Coordinates deliberately outside the fixture climatology grid (tests/fixtures/
 # reference_data.json is India-only), one pair per test, so no test can inherit
 # another's materialized baseline cell.
 SPATIAL_KEYS = [
-    "GRID_0.50_0.50",
-    "GRID_0.60_0.60",
-    "GRID_0.75_0.75",
-    "GRID_0.85_0.85",
-    "GRID_0.95_0.95",
+    cell(0.50, 0.50),
+    cell(0.60, 0.60),
+    cell(0.75, 0.75),
+    cell(0.85, 0.85),
+    cell(0.95, 0.95),
 ]
 
 
@@ -189,7 +205,7 @@ def test_has_history_requires_positive_baseline_p95(db):
     and the same cell once a p95 exists takes the with-history weights.
     """
     baseline = HistoricalBaseline(
-        spatial_key="GRID_0.75_0.75",
+        spatial_key=cell(0.75, 0.75),
         window_start=datetime.utcnow() - timedelta(days=90),
         window_end=datetime.utcnow(),
         detection_count_90d=12,
@@ -226,7 +242,7 @@ def test_has_history_requires_positive_baseline_p95(db):
 def test_anomaly_score_consumed_on_0_100_scale(db):
     """F-064: S_anom is the Section 4.4 table score (0-100), unscaled."""
     db.add(HistoricalBaseline(
-        spatial_key="GRID_0.95_0.95",
+        spatial_key=cell(0.95, 0.95),
         detection_count_90d=5,
         median_frp=4.0,
         p90_frp=8.0,
@@ -271,7 +287,7 @@ def test_engine_persistence_score_reaches_high_persistence_override(db):
     this incident 75.0 and could never fire the override.
     """
     db.add(HistoricalBaseline(
-        spatial_key="GRID_0.85_0.85",
+        spatial_key=cell(0.85, 0.85),
         detection_count_90d=120,
         median_frp=4.0,
         p90_frp=40.0,

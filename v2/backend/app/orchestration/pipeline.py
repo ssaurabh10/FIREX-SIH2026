@@ -29,7 +29,7 @@ from app.core.logging import logger
 from app.storage.models import (
     Observation, Incident, IndustrialAsset, AIInvestigation,
     SeverityAssessment, AlertRecord, AnalysisRun, ThermalClimatology,
-    HistoricalBaseline
+    HistoricalBaseline, IncidentObservation
 )
 from app.ingestion.firms import FIRMSClient
 from app.gis.enrichment import enrich_coordinate_gis_context
@@ -44,6 +44,7 @@ from app.behavior.baseline import get_or_create_facility_baseline, get_or_create
 from app.selection.engine import select_investigation_candidates
 from app.imagery.service import get_or_create_incident_imagery
 from app.intelligence.service import run_incident_investigation
+from app.intelligence.provider import FALLBACK_CONFIDENCE_CEILING
 from app.severity.service import evaluate_incident_severity
 from app.severity.scoring import (
     calculate_frp_severity,
@@ -80,11 +81,38 @@ from app.orchestration.events import (
 # caller that exports overwrites the console's fallback files. A conftest rebind
 # covers neither a caller outside v2/tests/ nor a re-exec of this module body,
 # which recomputes both names from __file__.
+#
+# v2 stands alone: `v1/` is an archived prototype that v2 mirrors as a courtesy,
+# never a dependency. See `_export_targets`.
 _REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 )
 FRONTEND_DATA_DIR = os.environ.get("FIREX_FRONTEND_DATA_DIR") or os.path.join(_REPO_ROOT, "v2", "frontend", "data")
 V1_DATA_DIR = os.environ.get("FIREX_V1_DATA_DIR") or os.path.join(_REPO_ROOT, "v1", "dashboard", "data")
+
+# Whether V1_DATA_DIR was set by the environment rather than derived from the
+# source tree. An explicit setting is an operator instruction and is honoured
+# wherever it points, including at a directory that does not exist yet; the
+# source-tree default is only written to when it is already there.
+_V1_DATA_DIR_IS_EXPLICIT = "FIREX_V1_DATA_DIR" in os.environ
+
+
+def _export_targets() -> List[str]:
+    """Directories ``export_v1_dashboard_data`` writes the console feed into.
+
+    The console target is unconditional -- it is v2's own data directory and the
+    export exists for it. The v1 target is conditional. The export used to
+    ``os.makedirs`` both unconditionally, so running v2 on a checkout with no
+    ``v1/`` beside it silently created ``../v1/dashboard/data``: a directory tree
+    outside v2, belonging to a project that is not installed there, holding files
+    nothing reads. Mirroring the feed is worth doing while v1 is present --
+    that is what keeps the archived dashboard current -- but conjuring the tree
+    is not, and v2 must run without it either way.
+    """
+    targets = [FRONTEND_DATA_DIR]
+    if V1_DATA_DIR and (_V1_DATA_DIR_IS_EXPLICIT or os.path.isdir(V1_DATA_DIR)):
+        targets.append(V1_DATA_DIR)
+    return targets
 
 # Statuses the console queue displays. SUBSIDING was missing: an incident whose
 # thermal output is declining but which is still burning is operationally live,
@@ -252,11 +280,11 @@ def _reconciliation_row(
     the recorded score, labelled by what actually caused it.
 
     A gap with a cause is a fact about the incident -- an override raised the
-    floor, or INV-4 clamped a routine flare -- and belongs in the breakdown. A
-    gap without one is a fact about the *record*, and saying so is the point:
-    the alternative, which shipped, was a "Routine Flare Suppression" row worth
-    0.0 that silently let the operator's breakdown overstate the score by
-    whatever the clamp had removed.
+    floor, or INV-4 clamped a routine flare or a chronic thermal source -- and
+    belongs in the breakdown. A gap without one is a fact about the *record*, and
+    saying so is the point: the alternative, which shipped, was a "Routine Flare
+    Suppression" row worth 0.0 that silently let the operator's breakdown
+    overstate the score by whatever the clamp had removed.
 
     ``cause`` is ``None`` when an override or the clamp accounts for the
     difference, ``"stale"`` for an assessment written by an older scoring model,
@@ -275,15 +303,37 @@ def _reconciliation_row(
         }
 
     ratio = factors.get("p95_ratio")
-    if score < 0 and factors.get("is_routine_flare") and cause is None:
+    # INV-4 clamps on `is_routine_flare or is_chronic` (scoring.py:449) and
+    # records both flags, but this gate read only the first, so a chronic
+    # non-flare source -- a steel plant hot on 90+ days -- fell past it to the
+    # row below and was told "no override or INV-4 clamp in the assessment
+    # accounts for the difference (overrides on record:
+    # CHRONIC_SOURCE_SUPPRESSION (...))". The sentence denying the clamp was
+    # printed in the same string as the reason it quoted. `generate_console_feed_data`
+    # then read that label at :967 and logged a second false claim -- that the
+    # assessment "predates the current scoring model" -- for a row written
+    # seconds earlier by the current model. Fuzzing the real scoring path over
+    # 30,000 cases produced 2,618 of these; every one was chronic-source, none
+    # was a routine flare, which is why the flare-only gate looked correct.
+    #
+    # The two cases are labelled apart rather than sharing "Routine Flare
+    # Suppression": scoring.py:437 is explicit that "a steel plant is not a
+    # flare", and naming it one is the mislabel this fix exists to remove.
+    #
+    # `cause is None` is retained so an assessment written by an older scoring
+    # model keeps its own, different explanation.
+    is_flare_clamp = bool(factors.get("is_routine_flare"))
+    is_chronic_clamp = bool(factors.get("is_chronic_source"))
+    if score < 0 and cause is None and (is_flare_clamp or is_chronic_clamp):
         envelope = f"P95 {float(ratio):.2f}x ratio" if ratio is not None else "P95 envelope"
         return {
-            "factor": "Routine Flare Suppression",
+            "factor": "Routine Flare Suppression" if is_flare_clamp else "Chronic Source Suppression",
             "score": score,
             "max": 0.0,
             "detail": (
-                f"Continuous flare site inside its own 365-day {envelope}; INV-4 clamps the "
-                f"composite at 20.0, reducing it by {abs(score):.1f}"
+                f"{'Continuous flare site' if is_flare_clamp else 'Chronic thermal source'} inside "
+                f"its own 365-day {envelope}; INV-4 clamps the composite at 20.0, leaving the "
+                f"published score {abs(score):.1f} below the pre-override base"
             ),
         }
 
@@ -409,7 +459,18 @@ def _weighted_risk_factors(
     )
     routine = bool(factors.get("is_routine_flare"))
 
-    frp_key = "india_calibrated_frp_score" if routine else "frp_score"
+    # Which FRP curve this record was scored on. The engine now measures FRP
+    # against the sovereign Indian FIRMS distribution (scoring.py), but a record
+    # written earlier used the uncalibrated curve whenever it was not a routine
+    # flare -- and the renderer has to reproduce the engine's arithmetic to size
+    # its reconciliation row. `frp_curve` is the engine's own marker; a record
+    # predating it has no marker, so the earlier rule is reconstructed from
+    # `is_routine_flare`, which is what the old selection keyed on.
+    if "frp_curve" in factors:
+        calibrated = factors.get("frp_curve") == "india_calibrated"
+    else:
+        calibrated = routine
+    frp_key = "india_calibrated_frp_score" if calibrated else "frp_score"
     if factors.get(frp_key) is None:
         frp_key = "frp_score"
     frp_raw = float(factors.get(frp_key) or 0.0)
@@ -572,6 +633,38 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
         Incident.status.in_(list(CONSOLE_ACTIVE_STATUSES))
     ).all()
 
+    # Sensor provenance for each incident: the satellite, sensor and FIRMS
+    # product of its most recent detection. Prefetched in one pass rather than
+    # per incident -- the loop below already queries twice per row, and this
+    # reads a 1,278-row association table against a 2.9M-row observation table,
+    # so doing it 295 times to answer the same question is pure waste.
+    #
+    # 93 of the 295 console-active incidents are built from detections spanning
+    # more than one product, so there is no single right answer for the whole
+    # incident and the choice has to be stated: this is the product of the
+    # detection the row is stamped with (`acq_date`/`acq_time`, which come from
+    # `inc.last_detected_at`), so the provenance line describes the same pass as
+    # the timestamp beside it. `is_primary` is not used for this: it marks the
+    # association the clusterer seeded from, which need not be the latest.
+    detection_meta: Dict[str, Any] = {}
+    if incidents:
+        link_rows = (
+            db.query(
+                IncidentObservation.incident_id,
+                Observation.acquired_at,
+                Observation.satellite,
+                Observation.sensor,
+                Observation.product,
+            )
+            .join(Observation, Observation.id == IncidentObservation.observation_id)
+            .filter(IncidentObservation.incident_id.in_([inc.id for inc in incidents]))
+            .all()
+        )
+        for inc_id, acquired_at, sat, sensor, product in link_rows:
+            prev = detection_meta.get(inc_id)
+            if prev is None or (acquired_at is not None and (prev[0] is None or acquired_at > prev[0])):
+                detection_meta[inc_id] = (acquired_at, sat, sensor, product)
+
     v1_incidents = []
     for inc in incidents:
         # Enforce sovereign airspace boundary (strictly Indian territory)
@@ -635,21 +728,49 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
         is_cropland = landcover.get("primary_landcover") == "agricultural_cropland"
         is_protected = bool(landcover.get("is_protected_area", False))
 
+        # INV-1 provenance. A `latest_inv` row is the only evidence that a vision
+        # model actually looked at this detection. Everything else in the cascade
+        # below -- a stored `inc.classification` written by a geometry script, or
+        # a mining-basin / facility inference -- is a spatial prior, not a
+        # verification. Once published as `ai_classification`/`ai_confidence` the
+        # two are indistinguishable, so the distinction is carried explicitly
+        # here and the unverified branches are held at the same ceiling
+        # `intelligence/provider.py` applies when the model is unavailable. That
+        # cap also keeps an unverified label below the `ai_confidence >= 80`
+        # severity override gate in `severity/scoring.py`.
+        ai_verified = bool(
+            latest_inv and latest_inv.classification and latest_inv.classification != "uncertain"
+        )
+        unverified_conf = FALLBACK_CONFIDENCE_CEILING / 100.0
+
         if latest_inv and latest_inv.classification and latest_inv.classification != "uncertain":
             cls_name = latest_inv.classification
+            # Geometry can override a vision verdict here, but the override is
+            # reported rather than written back. `generate_console_feed_data` is
+            # documented as a pure read, and assigning to `latest_inv.reasoning`
+            # mutated a mapped object that any later commit on the shared session
+            # would flush into the investigation record (D-13) -- overwriting the
+            # model's own reasoning with text no model produced.
+            rectified_reason = None
             if cls_name == "mining_related":
                 cls_name = "mining_or_other_thermal_source"
             elif is_in_mining and cls_name == "gas_flare":
                 # Rectify misclassification caused by old routine flare metadata
                 cls_name = "mining_or_other_thermal_source"
-                latest_inv.reasoning = f"Verified open-cast coal/mineral mining thermal emission inside {mining_basin_meta['name']} ({mining_basin_meta['operator']})."
+                rectified_reason = (
+                    f"Geometric reclassification to open-cast coal/mineral mining inside "
+                    f"{mining_basin_meta['name']} ({mining_basin_meta['operator']}); vision returned gas_flare."
+                )
             elif is_metal_fac and cls_name == "gas_flare":
                 # Rectify misclassification of steel plant / smelter furnace
                 cls_name = "industrial_fire"
-                latest_inv.reasoning = f"Verified operational metallurgical furnace / smelter process at {fac_name} ({fac_operator})."
+                rectified_reason = (
+                    f"Geometric reclassification to metallurgical furnace / smelter process at "
+                    f"{fac_name} ({fac_operator}); vision returned gas_flare."
+                )
             ai_conf = (latest_inv.confidence or 85.0) / 100.0
             ai_unc = "low" if ai_conf >= 0.75 else "medium"
-            ai_reason = latest_inv.reasoning or f"Multimodal AI inspection classified thermal event as {cls_name}."
+            ai_reason = rectified_reason or latest_inv.reasoning or f"Multimodal AI inspection classified thermal event as {cls_name}."
         elif inc.classification and inc.classification != "uncertain":
             cls_name = inc.classification
             if cls_name == "mining_related":
@@ -658,29 +779,37 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
                 cls_name = "mining_or_other_thermal_source"
             elif is_metal_fac and cls_name == "gas_flare":
                 cls_name = "industrial_fire"
-            ai_conf = (inc.classification_confidence or 85.0) / 100.0
-            ai_unc = "low" if ai_conf >= 0.75 else "medium"
-            ai_reason = f"Verified thermal source classification: {cls_name}."
+            # This branch is only reached when `latest_inv` is absent, so the
+            # stored label is a spatial prior, not a verdict. It is capped
+            # rather than trusted: `refresh_*_incidents.py` writes 88.0/90.0 here
+            # from pure geometry, and those values previously satisfied the
+            # CRITICAL industrial override in `severity/scoring.py` on their own.
+            ai_conf = unverified_conf
+            ai_unc = "medium"
+            ai_reason = (
+                "Spatial prior only -- no vision investigation on record. "
+                f"Stored classification: {cls_name}."
+            )
         elif is_in_mining:
             cls_name = "mining_or_other_thermal_source"
-            ai_conf = 0.90
-            ai_unc = "low"
-            ai_reason = f"Verified sovereign mining concession / coalfield ({mining_basin_meta['name']}) operated by {mining_basin_meta['operator']}."
+            ai_conf = unverified_conf
+            ai_unc = "medium"
+            ai_reason = f"Geometric context only: detection inside the mapped {mining_basin_meta['name']} concession ({mining_basin_meta['operator']}). No vision investigation."
         elif is_metal_fac:
             cls_name = "industrial_fire"
-            ai_conf = 0.88
-            ai_unc = "low"
-            ai_reason = f"Verified operational metallurgical furnace / smelter process at {fac_name} ({fac_industry})."
+            ai_conf = unverified_conf
+            ai_unc = "medium"
+            ai_reason = f"Geometric context only: detection inside the mapped metallurgical facility {fac_name} ({fac_industry}). No vision investigation."
         elif is_flare_fac:
             cls_name = "gas_flare"
-            ai_conf = 0.90
-            ai_unc = "low"
-            ai_reason = f"Hydrocarbon flare stack emission verified at {fac_name} ({fac_operator})."
+            ai_conf = unverified_conf
+            ai_unc = "medium"
+            ai_reason = f"Geometric context only: detection at the mapped flaring facility {fac_name} ({fac_operator}). No vision investigation."
         elif is_routine:
             cls_name = "gas_flare"
-            ai_conf = 0.90
-            ai_unc = "low"
-            ai_reason = f"Routine operational industrial flare verified against historical 365-day baseline ({active_days_365} active days, median {median_frp:.1f} MW)."
+            ai_conf = unverified_conf
+            ai_unc = "medium"
+            ai_reason = f"Baseline-only routine flare: {active_days_365} active days against the 365-day baseline (median {median_frp:.1f} MW). No vision investigation."
         # Authoritative industrial classification gate: requires physical containment or <= 1.5 km buffer.
         #
         # This branch used to promote a pure geometry-plus-FRP heuristic to
@@ -720,21 +849,77 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             ai_conf = 0.80
             ai_unc = "low"
             ai_reason = f"Biomass combustion inside mapped cropland in {inc.district or inc.state or 'the agricultural belt'}."
-        elif inc.current_max_frp >= 25.0:
-            cls_name = "wildfire"
-            ai_conf = 0.84
-            ai_unc = "low"
-            ai_reason = f"Large-scale high-intensity thermal front ({inc.current_max_frp:.1f} MW) spreading across open terrain."
-        elif inc.current_max_frp >= 6.0:
-            cls_name = "wildfire"
-            ai_conf = 0.78
-            ai_unc = "low"
-            ai_reason = f"Vegetative biomass combustion observed in natural terrain at {inc.latitude:.3f}°N, {inc.longitude:.3f}°E."
+        # Open terrain, no landcover evidence. These two branches used to name a
+        # cause from radiance alone -- `wildfire`, at 0.84 and 0.78 confidence
+        # with "low" uncertainty, for anything at or above 6 MW, reasoned as
+        # "Vegetative biomass combustion observed in natural terrain". Nothing
+        # was observed. `is_protected` above is the only vegetation test this
+        # platform can actually run, and `resolve_landcover`'s final fallback is
+        # `mixed_vegetation_and_shrubland`, a catch-all meaning "unclassified"
+        # rather than "vegetated". The FRP threshold was F-036's replacement for
+        # a cropland mask, and it reproduced that defect's false precision with
+        # the sign flipped: from an FRP number it asserted a land cover.
+        #
+        # The measurements contradicted the label besides. Of the 13 incidents
+        # these branches served, four sat in cells with no measurable envelope at
+        # all, and four more were at or *below* their own cell's 365-day P95
+        # (11.33 MW against 11.7, 7.04 against 6.8) -- a site inside its normal
+        # operating range, which is the opposite of a front "spreading across
+        # open terrain".
+        #
+        # INV-1 is why that matters: `ai_unc` gates the console's "optically
+        # confirmed" badge, and although the cap below held these at "medium"
+        # rather than "low", the class name itself still reached the operator as
+        # a wildfire. Radiance cannot separate a vegetation fire from
+        # agricultural residue burning, a landfill or a smouldering tip, so the
+        # documented output for an unverified open-terrain detection is
+        # `uncertain` -- the conclusion the facility branch above already reaches
+        # for the same reason.
+        #
+        # Magnitude is a priority signal, not a class signal, and it is still
+        # published as one: `MAJOR_FIRE_SURGE` in `triggers` below and the
+        # major-surge wording in `p_expl` both key on FRP. What the platform does
+        # know about this detection is carried in the reason and in
+        # `historical_anomaly` rather than promoted into the class name. Naming a
+        # cause here would need an optical pass, which is what `latest_inv` is.
         else:
             cls_name = "uncertain"
             ai_conf = 0.45
             ai_unc = "medium"
-            ai_reason = f"Low-intensity thermal anomaly ({inc.current_max_frp:.1f} MW) pending close-range optical pass verification."
+            if p95_frp > 0 and inc.current_max_frp > p95_frp:
+                ai_reason = (
+                    f"Unverified open-terrain thermal anomaly ({inc.current_max_frp:.1f} MW) at "
+                    f"{inc.latitude:.3f}°N, {inc.longitude:.3f}°E, above this cell's 365-day P95 "
+                    f"({p95_frp:.1f} MW). No vegetation or landcover evidence on record, so the cause "
+                    f"is not visually confirmable."
+                )
+            elif p95_frp > 0:
+                ai_reason = (
+                    f"Unverified open-terrain thermal anomaly ({inc.current_max_frp:.1f} MW) at "
+                    f"{inc.latitude:.3f}°N, {inc.longitude:.3f}°E, within this cell's 365-day P95 "
+                    f"({p95_frp:.1f} MW) over {active_days_365} active days. A recurring source "
+                    f"behaving inside its measured envelope; the cause is not visually confirmable."
+                )
+            else:
+                ai_reason = (
+                    f"Unverified open-terrain thermal anomaly ({inc.current_max_frp:.1f} MW) at "
+                    f"{inc.latitude:.3f}°N, {inc.longitude:.3f}°E. This cell has no measurable 365-day "
+                    f"baseline, so neither the anomaly nor the cause can be established (INV-5)."
+                )
+
+        # INV-1, applied once for the whole cascade rather than branch by branch.
+        # Every branch above that is reached without a `latest_inv` row is an
+        # inference -- from a basin polygon, a facility perimeter, a landcover
+        # class or an FRP threshold -- however specific its wording. The console
+        # derives its "optically confirmed" badge from `ai_unc`
+        # (frontend/js/data.js: `confirmed = uncertainty is low|none and FIRMS
+        # confidence >= 30`), so an uncapped inference is published to the
+        # operator as a confirmed detection. Capping here keeps a geometric guess
+        # from ever rendering as one, and keeps it below the `ai_confidence >= 80`
+        # override gate.
+        if not ai_verified:
+            ai_conf = min(ai_conf, unverified_conf)
+            ai_unc = "high" if cls_name == "uncertain" else "medium"
 
         # Note on two removed branches. The cascade used to classify mining by
         # state membership (`inc.state in ["Jharkhand", "Odisha", "Chhattisgarh"]`)
@@ -904,6 +1089,10 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             else "NEW_DETECTION")))
         )
 
+        det_satellite, det_sensor, det_product = (
+            detection_meta.get(inc.id, (None, None, None, None))[1:]
+        )
+
         v1_inc = {
             "id": inc.id,
             "incident_code": inc.incident_code,
@@ -911,6 +1100,17 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             "longitude": inc.longitude,
             "facility_distance_km": round(dist_km, 3) if is_near else None,
             "nearest_facility_name": fac_name if is_near else (mining_basin_meta["name"] if is_in_mining else None),
+            # The registry key for the facility `nearest_facility_name` names.
+            # The name alone is not an identifier: `mining_basin_meta["name"]` is
+            # a *basin* label, not an `industrial_assets` row, so four of the
+            # seven names the feed published were coal basins standing in for
+            # facilities -- and one site appeared twice under two spellings
+            # ("Talcher Coalfields & NTPC Super Thermal Corridor (Angul)" from the
+            # basin registry and "... Super Thermal Power Complex" from the asset
+            # registry), which the console's name-grouping counted as two
+            # monitored facilities. `is_near` is the same gate the name uses, so
+            # the id and the name always describe the same row or neither is set.
+            "nearest_asset_id": asset_info.get("asset_id") if is_near else None,
             "facility_type": fac_type if is_near else ("open_cast_coal_mine" if is_in_mining else None),
             "operator": fac_operator if is_near else (mining_basin_meta["operator"] if is_in_mining else None),
             "frp": inc.current_max_frp,
@@ -934,8 +1134,25 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             # `parseConfidence` reads a numeric percent directly, so no band has
             # to be invented for a value the satellite did report.
             "confidence": f"{float(inc.firms_confidence):.1f}%" if inc.firms_confidence is not None else "",
-            "satellite": "VIIRS / MODIS",
-            "instrument": "VIIRS",
+            "satellite": det_satellite or "unreported",
+            # These two were literals here -- "VIIRS / MODIS" and "VIIRS" -- so
+            # every incident in the payload claimed the same provenance: the
+            # Aqua and Terra (MODIS) detections in the active set were published
+            # as VIIRS, and 93 incidents built from more than one product were
+            # published as if there were only one. Both columns are populated on
+            # all 2,895,133 observations, so nothing had to be invented.
+            #
+            # `satellite` is the platform code the FIRMS row carries (SNPP, N20,
+            # N21, Aqua, Terra). The instrument is read out of the product id
+            # rather than taken from `sensor`, because `sensor` disagrees with
+            # itself: on the 894,307 SNPP rows it holds the platform ("SNPP")
+            # where the other 2,000,826 rows hold the instrument ("VIIRS" /
+            # "MODIS"). The product id is consistently `{INSTRUMENT}_{PLATFORM}_
+            # {TYPE}` across all nine combinations in the corpus, so its first
+            # token is the instrument on every row. `sensor` is the fallback for
+            # a row with no product.
+            "instrument": (det_product or "").split("_")[0] or det_sensor or "unreported",
+            "product": det_product or "unreported",
             "acq_date": inc.last_detected_at.strftime("%Y-%m-%d") if inc.last_detected_at else "",
             "acq_time": inc.last_detected_at.strftime("%H:%M") if inc.last_detected_at else "",
             "location_name": location_label,
@@ -943,6 +1160,11 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             "ai_classification": cls_name,
             "ai_confidence": round(ai_conf, 2),
             "ai_uncertainty": ai_unc,
+            # Whether a vision model actually ran on this detection, as opposed
+            # to a spatial prior having supplied the label. Published so the
+            # console can distinguish the two without inferring it from the
+            # confidence value.
+            "ai_verified": ai_verified,
             "ai_evidence": ai_ev if isinstance(ai_ev, list) else [str(ai_ev)],
             "ai_reasoning": ai_reason,
             "image_url": f"/crops/{inc.id}/annotated.jpg",
@@ -980,6 +1202,15 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             "is_routine_flare": is_routine,
             "action_recommendation": rec_action,
             "risk_factors": factors_list,
+            # The state the incident sits in, published so the console's site
+            # search can match on it. `index.html:321` advertises the field --
+            # "Search facility, operator, state (e.g. IOCL, Jamnagar, Odisha)"
+            # -- and `render.js:1347` filters on `s.top.state`, which
+            # `normaliseCase` never set because nothing here emitted it, so the
+            # third of the three advertised search terms could never match
+            # anything. Populated on all 386 incident rows (295 of them
+            # console-active) and already used for the location labels above.
+            "state": inc.state,
             "status": inc.status
         }
         v1_incidents.append(v1_inc)
@@ -1137,16 +1368,26 @@ def _write_json_atomic(path: str, payload: Any) -> None:
     os.replace(tmp_path, path)
 
 
-def export_v1_dashboard_data(db: Session) -> None:
+def export_v1_dashboard_data(db: Session) -> List[str]:
     """
-    Exports latest active incidents and ambient detections to v2 console and v1 dashboard
-    to preserve 100% backward compatibility and keep the live console up to date.
+    Exports latest active incidents and ambient detections to the v2 console and,
+    where the archived v1 dashboard is present, mirrors them there too.
 
     Writes a bare array to ``incidents.json`` because that is what
     ``frontend/js/data.js`` expects on its static-fallback path; the queue
     summary and the closed-alert roll-up go to a sibling file so the fallback
     keeps working unchanged.
+
+    Returns the directories actually written. Callers report that rather than a
+    fixed claim: ``cli.py`` used to print "frontend/data/ and v1/dashboard/data/"
+    whether or not a v1 tree was there to write to, and the caller in
+    ``scripts/clean_foreign_and_refresh.py`` already prints this return value.
+
+    Never raises on a write failure -- a console that cannot persist its feed is
+    a warning, not a failed analysis run -- so an empty return plus the logged
+    warning is how a caller learns nothing was written.
     """
+    written: List[str] = []
     try:
         data = generate_console_feed_data(db)
         v1_incidents = data["incidents"]
@@ -1154,7 +1395,7 @@ def export_v1_dashboard_data(db: Session) -> None:
         summary = data.get("queue_summary", {})
         closed_attention = data.get("closed_attention", [])
 
-        for target_dir in [FRONTEND_DATA_DIR, V1_DATA_DIR]:
+        for target_dir in _export_targets():
             try:
                 os.makedirs(target_dir, exist_ok=True)
                 inc_path = os.path.join(target_dir, "incidents.json")
@@ -1165,16 +1406,18 @@ def export_v1_dashboard_data(db: Session) -> None:
                 _write_json_atomic(
                     sum_path, {**summary, "closed_attention": closed_attention}
                 )
+                written.append(target_dir)
             except Exception as ex:
                 logger.warning(f"[Export] Could not write data to {target_dir}: {ex}")
 
         logger.info(
             f"[Export] Synchronized {len(v1_incidents)} incidents and {len(ambient)} ambient points "
-            f"to console & dashboard. Tiers: {summary.get('tier_histogram')}; "
+            f"to {', '.join(written) or 'no target'}. Tiers: {summary.get('tier_histogram')}; "
             f"{len(closed_attention)} closed HIGH/CRITICAL incidents carry open alerts."
         )
     except Exception as e:
         logger.warning(f"[Export] Could not export data to dashboard data dir: {e}")
+    return written
 
 
 def execute_analysis_pipeline(

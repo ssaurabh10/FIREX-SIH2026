@@ -6,8 +6,9 @@ Command-line entrypoints for the v2 backend. The console itself is served by
 covers the operations that must be runnable without a browser: an analysis run,
 regenerating the console data files, the severity sweep, and schema migration.
 
-Invoked via the repository-root dispatcher -- ``python run.py <command>`` --
-but works standalone as ``python cli.py <command>`` too.
+Invoked via the v2 dispatcher -- ``python run.py <command>`` from ``v2/`` --
+or via the repository-root dispatcher, which forwards the same four commands
+here. Works standalone as ``python cli.py <command>`` too.
 
 Bootstrapping
 -------------
@@ -101,6 +102,7 @@ def cmd_data(args) -> int:
     from app.orchestration import pipeline as pipeline_mod
 
     db = SessionLocal()
+    written = []
     try:
         sweep = pipeline_mod.run_severity_sweep(db, force=args.force_sweep)
         print(
@@ -111,14 +113,20 @@ def cmd_data(args) -> int:
             for failure in sweep["failed"][:10]:
                 print(f"    {failure['incident_code']}: {failure['error']}")
 
-        pipeline_mod.export_v1_dashboard_data(db)
+        written = pipeline_mod.export_v1_dashboard_data(db)
     except Exception as exc:  # noqa: BLE001 - CLI boundary
         print(f"[ERROR] Data regeneration failed: {exc}")
         return 1
     finally:
         db.close()
 
-    print("[FIREX v2] Console data written to frontend/data/ and v1/dashboard/data/.")
+    # Report what was written rather than the fixed pair of directories this
+    # used to name. The v1 mirror is only written when a v1 tree is present, so
+    # the old message named a directory that a v2-only checkout never had.
+    if written:
+        print(f"[FIREX v2] Console data written to {', '.join(written)}.")
+    else:
+        print("[FIREX v2] Console data export wrote nothing -- see the warnings above.")
     return 0
 
 

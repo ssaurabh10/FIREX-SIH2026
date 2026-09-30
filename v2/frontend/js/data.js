@@ -15,6 +15,16 @@ export const store = {
   loaded: false,
   errors: [],
   notices: [],       // the feed loaded, but something in it does not add up
+  /* The authoritative industrial registry (`GET /api/industries`, the
+     `industrial_assets` table). It is read separately from the feed because it
+     describes *facilities*, while the feed describes *detections*: the console
+     used to synthesise a facility list by grouping detections on their short
+     place label, which made a coal basin ("Mand-Raigarh & Gharghoda Coal Mining
+     Basin") a monitored facility and counted one site twice when its basin
+     registry and its asset registry spelled the name differently. Empty means
+     the registry is unavailable, and the industry view says so rather than
+     falling back to the grouping that caused that. */
+  registry: [],
   /* The feed's own roll-up over the published queue. Optional: an older cached
      payload and the static fallback (which reads data/incidents.json, a bare
      array) may not carry one, and every reader of these has to cope with null. */
@@ -35,6 +45,7 @@ export async function load() {
   store.notices = [];
   store.queueSummary = null;
   store.closedAttention = [];
+  store.registry = [];
 
   let feedLoaded = false;
   try {
@@ -94,6 +105,23 @@ export async function load() {
       store.queueSummary = rollUp;
       if (Array.isArray(rollUp.closed_attention)) store.closedAttention = rollUp.closed_attention;
     }
+  }
+
+  /* The industrial registry, read after the detections so a registry outage
+     degrades one view rather than the console. It is not the static fallback
+     that makes this safe to treat as optional: `renderIndustrial` renders the
+     detected sites when this is empty and states that the registry is missing,
+     which is a smaller lie than the synthesised facility list it replaced. */
+  try {
+    const regRes = await fetch("/api/industries?limit=500", { cache: "no-store" });
+    if (regRes.ok) {
+      const rows = await regRes.json();
+      if (Array.isArray(rows)) store.registry = rows;
+    } else {
+      store.errors.push({ source: "industrial registry", message: `responded ${regRes.status}` });
+    }
+  } catch (err) {
+    store.errors.push({ source: "industrial registry", message: String(err && err.message || err) });
   }
 
   const stamps = [...store.cases, ...store.ambient].map((r) => r.at).filter(Boolean);
@@ -157,7 +185,6 @@ function normaliseCase(raw) {
     aiConfidence: Number(raw.ai_confidence),
     uncertainty,
     confirmed,
-    categoryTarget: String(raw.category_target || ""),
 
     firms: {
       satellite: raw.satellite || "unreported",
@@ -172,6 +199,13 @@ function normaliseCase(raw) {
     place: shortPlace(raw.location_name),
     site: siteNote(raw.location_name),
     address: raw.display_name || "",
+    /* State, for the site search. `index.html:321` advertises it as one of the
+       three searchable terms and `render.js:1347` filters on it, but nothing
+       set it here and the feed did not emit it, so searching "Odisha" -- the
+       example the placeholder itself gives -- matched nothing. Published by
+       `pipeline.py` alongside the location labels it already built from the
+       same column. */
+    state: raw.state || "",
 
     risk: {
       score,
@@ -209,6 +243,12 @@ function normaliseCase(raw) {
       confidence: Number(raw.severity_confidence) || 0,
     },
     facility: {
+      /* The `industrial_assets` key for `name`, when the feed resolved one. The
+         name is not an identifier -- it carries a mining-basin label for
+         detections matched to a basin rather than to a registered asset -- so
+         the industry view joins on this and falls back to the name only to
+         report that it could not. */
+      id: raw.nearest_asset_id || null,
       name: raw.nearest_facility_name || null,
       distanceKm: raw.facility_distance_km !== undefined && raw.facility_distance_km !== null ? Number(raw.facility_distance_km) : null,
       type: raw.facility_type || null,
@@ -239,7 +279,13 @@ function normaliseAmbient(raw) {
     satellite: raw.sat || "unreported",
     date: raw.date || "",
     time,
-    at: instant(raw.date, `${time.slice(0, 2)}:${time.slice(2)}`),
+    /* F-108. `instant` takes FIRMS' bare HHMM and strips the colon itself. This
+       re-inserted one first, so the published "19:57" (pipeline.py:997 emits
+       strftime("%H:%M")) reached it as "19::57" -> Invalid Date -> null for
+       every ambient row. `inWindow` reads a falsy `at` as always in-window, so
+       the 24H/48H control never filtered the ambient layer at all. `time` is
+       already normalised above and parses correctly either way. */
+    at: instant(raw.date, time),
   };
 }
 
@@ -268,9 +314,8 @@ export function byClass(cases) {
   const map = new Map();
   cases.forEach((c) => {
     const key = c.cls.label;
-    const row = map.get(key) || { label: key, short: c.cls.short, icon: c.cls.icon, n: 0, frp: 0 };
+    const row = map.get(key) || { label: key, short: c.cls.short, icon: c.cls.icon, n: 0 };
     row.n += 1;
-    row.frp += c.frp;
     map.set(key, row);
   });
   return [...map.values()].sort((a, b) => b.n - a.n);
@@ -283,10 +328,9 @@ export function bySite(cases) {
   cases.forEach((c) => {
     const key = c.place || c.id;
     const row = map.get(key) || {
-      key, place: key, site: c.site, cases: [], frp: 0, top: c,
+      key, place: key, site: c.site, cases: [], top: c,
     };
     row.cases.push(c);
-    row.frp += c.frp;
     if (c.risk.score > row.top.risk.score) row.top = c;
     if (!row.site && c.site) row.site = c.site;
     map.set(key, row);

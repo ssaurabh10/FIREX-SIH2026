@@ -97,7 +97,17 @@ from fastapi.staticfiles import StaticFiles
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
 V2_CROPS_DIR = os.path.abspath(os.path.join(BASE_DIR, "data", "imagery_cache"))
-V1_CROPS_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "v1", "pipeline", "03_imagery", "crops"))
+
+# The archived v1 imagery cache, read as the second of the three crop sources
+# below. v2 neither ships it nor needs it: it only exists on a checkout that
+# still has the `v1/` tree beside it, so it resolves to None when absent rather
+# than being a path the route assumes is there. A deploy of v2 alone therefore
+# serves crops from the v2 cache and on-demand rendering, which is the same
+# result it gets today whenever a crop is missing from the v1 directory.
+_V1_CROPS_CANDIDATE = os.path.abspath(
+    os.path.join(BASE_DIR, "..", "..", "v1", "pipeline", "03_imagery", "crops")
+)
+V1_CROPS_DIR = _V1_CROPS_CANDIDATE if os.path.isdir(_V1_CROPS_CANDIDATE) else None
 
 from fastapi import Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -114,11 +124,15 @@ def serve_crop_image(incident_id: str, filename: str, db: Session = Depends(get_
         media_type = "application/json" if filename.endswith(".json") else "image/jpeg"
         return FileResponse(file_path, media_type=media_type)
 
-    # 2. Check v1 crops dir
-    v1_path = os.path.abspath(os.path.join(V1_CROPS_DIR, incident_id, filename))
-    if v1_path.startswith(V1_CROPS_DIR) and os.path.exists(v1_path):
-        media_type = "application/json" if filename.endswith(".json") else "image/jpeg"
-        return FileResponse(v1_path, media_type=media_type)
+    # 2. Check the archived v1 crops dir, on checkouts that still have one.
+    #    V1_CROPS_DIR is None when `v1/` is absent, and the guard also keeps the
+    #    `startswith` containment test below meaningful -- joining onto None
+    #    would raise rather than 404.
+    if V1_CROPS_DIR:
+        v1_path = os.path.abspath(os.path.join(V1_CROPS_DIR, incident_id, filename))
+        if v1_path.startswith(V1_CROPS_DIR) and os.path.exists(v1_path):
+            media_type = "application/json" if filename.endswith(".json") else "image/jpeg"
+            return FileResponse(v1_path, media_type=media_type)
 
     # 3. Dynamic On-Demand Synthesis: if incident exists in DB, render high-res tiles now!
     inc = db.query(Incident).filter((Incident.id == incident_id) | (Incident.incident_code == incident_id)).first()

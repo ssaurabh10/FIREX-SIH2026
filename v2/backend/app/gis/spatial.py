@@ -12,16 +12,20 @@ from typing import List, Tuple, Dict, Any, Union
 EARTH_RADIUS_METERS = 6371000.0
 
 # The thermal-climatology grid resolution (Section 4.2 / Section 9's
-# `thermal_climatology` entry describe a 0.02 degree, ~2.2 km cell). The
-# generator and the live lookup must quantise identically or every lookup
-# misses -- and they do not. `climatology_cell` below is the 0.02 convention
-# the generator writes; `behavior/baseline.py`'s `generate_spatial_key` rounds
-# to 0.01 instead, so a live lookup resolves a key on a lattice only 24.9% of
-# the stored rows sit on (measured: 82,581 of 331,418). An earlier version of
-# this comment asserted "both go through `climatology_cell`"; neither the
-# reader nor that identity exists. Reconciling the two needs a decision on
-# which lattice wins plus a rebuild of the table, so the split is stated here
-# rather than papered over.
+# `thermal_climatology` entry describe a 0.02 degree, ~2.2 km cell). This is the
+# single definition of the lattice, and every side goes through
+# `climatology_cell` below: the offline generator
+# (`scripts/build_thermal_climatology.py`), the console-feed reader
+# (`orchestration/pipeline._read_cached_location_baseline`) and the behavior
+# layer (`behavior/baseline.generate_spatial_key`, which now delegates here).
+# They must agree, because INV-4's routine-flare rule is a threshold on the
+# cell's `active_days`: a reader on a finer lattice sees a fraction of a cell's
+# detections and pushes genuinely continuous sources below the cutoff.
+#
+# `generate_spatial_key` rounded to a hundredth of a degree until it was
+# pointed here, which left 248,837 of the table's 331,418 rows (built at 0.02)
+# unreachable from a live lookup -- 82,581 of them, 24.9%, happened to sit on
+# both lattices. Keep the delegation.
 CLIMATOLOGY_GRID_DEGREES = 0.02
 
 def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -136,6 +140,8 @@ def climatology_cell(lat: float, lon: float) -> Tuple[float, float, str]:
 
     Both the offline generator and the live baseline lookup must snap
     identically; this function is the single definition of that convention.
+    `behavior.baseline.generate_spatial_key` delegates here rather than
+    rounding on its own, which is what keeps the two sides on one lattice.
     Multiples of 0.02 always have at most two decimals, so the documented
     ``:.2f`` key format is preserved.
     """

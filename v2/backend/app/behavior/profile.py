@@ -148,17 +148,29 @@ def get_or_create_location_profile(
     now = datetime.utcnow()
     window_start = now - timedelta(days=window_days)
 
-    # 1. Check existing cached profile
+    # 1. Check existing cached profile for *this* window. `window_days` is part
+    # of the row's identity, not just of its contents: a single `.first()` over
+    # the cell returned whichever window happened to be materialised last, so the
+    # three windows of a multi-window baseline could not be read at once.
     profile = (
         db.query(BehaviorProfile)
         .filter(
             BehaviorProfile.profile_type == "location",
-            BehaviorProfile.spatial_reference == spatial_key
+            BehaviorProfile.spatial_reference == spatial_key,
+            BehaviorProfile.window_days == int(window_days)
         )
         .first()
     )
 
-    if not force_refresh and profile and profile.updated_at and (now - profile.updated_at).total_seconds() < 86400:
+    # The guard used to be the age alone, so a stored 90-day profile answered a
+    # request for the 365-day one: `get_or_create_location_profile(key, db,
+    # window_days=365)` returned the quarterly figures while the response
+    # labelled them `"window_days": 365`. Section 4.4 / INV-4 are stated over
+    # 365 days, so a cache hit on the wrong window is a wrong number published
+    # under the right name. The lookup above now selects the row for the window
+    # that was asked for, which is what leaves only the age to check here.
+    if (not force_refresh and profile and profile.updated_at
+            and (now - profile.updated_at).total_seconds() < 86400):
         # Load daily summaries
         daily_records = (
             db.query(BehaviorDailySummary)
@@ -361,12 +373,15 @@ def get_or_create_facility_profile(
     now = datetime.utcnow()
     window_start = now - timedelta(days=window_days)
 
-    # 1. Check existing cached profile
+    # 1. Check existing cached profile for *this* window -- see the location
+    # branch above for why `window_days` is part of the lookup rather than only
+    # of the result.
     profile = (
         db.query(BehaviorProfile)
         .filter(
             BehaviorProfile.profile_type == "facility",
-            BehaviorProfile.facility_id == facility_id
+            BehaviorProfile.facility_id == facility_id,
+            BehaviorProfile.window_days == int(window_days)
         )
         .first()
     )
@@ -378,7 +393,13 @@ def get_or_create_facility_profile(
         .count()
     )
 
-    if not force_refresh and profile and profile.updated_at and (now - profile.updated_at).total_seconds() < 86400:
+    # Same defect as the location branch above. Measured on the running
+    # database before this fix, for JSW Steel Vijayanagar Works: `?window_days=`
+    # 30, 90 and 365 each reported observation_count 777, active_days 59, median
+    # 1.98 MW and P95 5.72 MW -- the 90-day row, published three times under
+    # three different headings.
+    if (not force_refresh and profile and profile.updated_at
+            and (now - profile.updated_at).total_seconds() < 86400):
         daily_records = (
             db.query(BehaviorDailySummary)
             .filter(BehaviorDailySummary.profile_id == profile.id)

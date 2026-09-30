@@ -25,6 +25,11 @@ any of them is passed through to it. ``serve`` is not one of them: it launches
 HOST in the environment. ``legacy``, ``v1-pipeline`` and ``v1-daemon`` run
 scripts under the archived ``v1/`` tree -- they are explicitly named so that
 running one is a deliberate act, not the default.
+
+v2 does not need this file. It has its own dispatcher at ``v2/run.py`` running
+the same five commands from inside ``v2/``, so the platform can be run and
+deployed from that directory alone; this one exists to keep the v1 commands
+reachable from the repository root, and is what you get if you are already here.
 """
 import os
 import sys

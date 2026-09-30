@@ -19,14 +19,22 @@ the pipeline module body, which recomputes both names from ``__file__`` and poin
 them straight back at the served directory -- and it sat outside ``v2/tests/``, so
 conftest never loaded at all. These tests pin the two properties that make the
 redirect robust rather than merely conventional.
+
+A third property is pinned here because it is the same mechanism: v2 is
+standalone, so the v1 target is a mirror that is written only where a v1 tree
+already exists, never a directory the export creates on its own.
 """
 import os
 import subprocess
 import sys
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.orchestration import pipeline
+from app.storage.database import Base
 
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "backend"))
 FRONTEND_ENV = "FIREX_FRONTEND_DATA_DIR"
@@ -119,3 +127,90 @@ def test_targets_survive_a_module_body_reexec():
     assert os.path.normcase(namespace["_REPO_ROOT"]) == os.path.normcase(
         pipeline._REPO_ROOT
     )
+
+
+# ---------------------------------------------------------------------------
+# The v1 mirror is opt-in by presence.
+#
+# v2 is deployable on its own: nothing in the pipeline may require a `v1/` tree
+# to exist beside it. The export satisfied that by accident -- it called
+# `os.makedirs(target_dir, exist_ok=True)` for both targets -- which is the
+# wrong way round. It did not fail without v1, it *created* it: a v2-only
+# checkout grew `../v1/dashboard/data`, a directory tree outside the project
+# that owns it, holding files nothing on that machine reads. These tests pin the
+# replacement rule: the console target is unconditional, the v1 target is
+# written when it is already there or when the operator named it explicitly.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def db_session():
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+    yield session
+    session.close()
+
+
+def test_console_target_is_unconditional():
+    """The console's own data directory is written regardless of anything else."""
+    assert pipeline._export_targets()[0] == pipeline.FRONTEND_DATA_DIR
+
+
+def test_absent_v1_target_is_skipped(monkeypatch, tmp_path):
+    """A source-tree v1 target that does not exist is not written and not made.
+
+    ``_V1_DATA_DIR_IS_EXPLICIT`` is what distinguishes this from the next test:
+    with it false, the target stands in for the default derived from ``__file__``
+    on a checkout with no ``v1/``.
+    """
+    missing = str(tmp_path / "v1" / "dashboard" / "data")
+    monkeypatch.setattr(pipeline, "_V1_DATA_DIR_IS_EXPLICIT", False)
+    monkeypatch.setattr(pipeline, "V1_DATA_DIR", missing)
+    assert pipeline._export_targets() == [pipeline.FRONTEND_DATA_DIR]
+
+
+def test_present_v1_target_is_mirrored(monkeypatch, tmp_path):
+    """A v1 tree that is there still gets the feed -- that is the compatibility."""
+    present = tmp_path / "v1" / "dashboard" / "data"
+    present.mkdir(parents=True)
+    monkeypatch.setattr(pipeline, "_V1_DATA_DIR_IS_EXPLICIT", False)
+    monkeypatch.setattr(pipeline, "V1_DATA_DIR", str(present))
+    assert str(present) in pipeline._export_targets()
+
+
+def test_explicit_v1_target_is_honoured_even_when_absent(monkeypatch, tmp_path):
+    """An operator who names a directory gets it, created if need be.
+
+    ``FIREX_V1_DATA_DIR`` may point at a location that does not exist yet -- a
+    fresh mount, a deploy target -- and that is an instruction, not a default.
+    """
+    target = str(tmp_path / "fresh-mount" / "v1")
+    monkeypatch.setattr(pipeline, "_V1_DATA_DIR_IS_EXPLICIT", True)
+    monkeypatch.setattr(pipeline, "V1_DATA_DIR", target)
+    assert target in pipeline._export_targets()
+
+
+def test_export_reports_only_what_it_wrote(db_session, monkeypatch, tmp_path):
+    """The return value is the actual write set, and an absent target stays absent.
+
+    This is the end-to-end form of the rule above: an empty database is enough to
+    drive the export, and the assertion that matters is the second one -- that
+    the v1 path was not conjured into existence as a side effect of exporting.
+    """
+    console = str(tmp_path / "frontend")
+    missing_v1 = str(tmp_path / "v1" / "dashboard" / "data")
+    monkeypatch.setattr(pipeline, "FRONTEND_DATA_DIR", console)
+    monkeypatch.setattr(pipeline, "V1_DATA_DIR", missing_v1)
+    monkeypatch.setattr(pipeline, "_V1_DATA_DIR_IS_EXPLICIT", False)
+
+    written = pipeline.export_v1_dashboard_data(db_session)
+
+    assert written == [console]
+    assert os.path.exists(os.path.join(console, "incidents.json"))
+    assert not os.path.exists(missing_v1)
+    assert not os.path.exists(str(tmp_path / "v1"))

@@ -14,6 +14,24 @@ import {
 
 const set = (el, html) => { if (el) el.innerHTML = html; };
 
+/* F-109. The feed publishes `day_night_status` ("PRIMARILY DAY OVERPASS",
+   "DAY + NIGHT (Continuous 24h)"), never the FIRMS D/N code these views were
+   written against: reading `c.firms.daynight` matched nothing on any record, so
+   every detection rendered as a night pass and the day lane was always empty.
+   The published field is read instead, and a continuous record is reported as
+   being in both lanes rather than forced into one. */
+function dayNightOf(c) {
+  const s = String(c?.persistence?.dayNightStatus || "").toUpperCase();
+  const day = s.includes("DAY");
+  const night = s.includes("NIGHT");
+  if (day && night) return "Day + Night";
+  if (night) return "Night";
+  if (day) return "Day";
+  const h = c?.at ? c.at.getUTCHours() : null;
+  if (h === null) return "Unreported";
+  return h >= 3 && h <= 13 ? "Day" : "Night";
+}
+
 /* --- Fragments ------------------------------------------------------------ */
 
 function tierTag(c) {
@@ -423,7 +441,10 @@ function regionalBreakdown(cases) {
   return REGION_DEFS.map((def) => {
     const items = groups[def.id] || [];
     const count = items.length;
-    const frpSum = items.reduce((acc, c) => acc + (c.frp || 0), 0);
+    // INV-2: FRP is a per-detection radiometric rate (MW at the pixel), never a
+    // quantity. Summing it across a region produces a number with no physical
+    // meaning, so the strip reports the region's peak detection instead.
+    const peakFrp = items.length ? Math.max(...items.map((c) => c.frp || 0)) : 0;
     const topThreat = items.length ? items.reduce((a, b) => {
       const scoreDiff = (b.risk?.score || 0) - (a.risk?.score || 0);
       if (scoreDiff !== 0) return scoreDiff > 0 ? b : a;
@@ -441,7 +462,7 @@ function regionalBreakdown(cases) {
           <div class="ov-region-metrics" style="display:flex;align-items:baseline;gap:var(--s-3);font-family:var(--font-mono);font-size:var(--fs-micro);color:var(--t-secondary);">
             <span><strong>${count}</strong> detections</span>
             <span class="dot-sep">•</span>
-            <span><strong>${fmt.int(frpSum)}</strong> MW</span>
+            <span><strong>${fmt.dec(peakFrp)}</strong> MW peak</span>
           </div>
         </div>
         <div class="ov-region-meter" style="height:3px;border-radius:99px;background:var(--fill-2);overflow:hidden;" aria-hidden="true">
@@ -477,8 +498,11 @@ function renderEnhancedQueue(el, cases, selected, limit = 6) {
     } else if (c.historicalAnomaly === "NEW_UNEXPECTED") {
       anomalyTag = `<span class="tag tag--tier" data-tier="HIGH" style="font-size:0.58rem;padding:0 5px;">NEW</span>`;
     }
+    /* F-110. `distanceKm` is null when the feed never reported one (56 of the 80
+       facility-associated rows), and `fmt.dec` reads null as 0, so the old form
+       printed "0.0 km" and put the fire inside the plant. */
     const facInfo = c.facility?.name
-      ? `<span class="u-truncate" style="color:var(--signal);">${escapeHtml(c.facility.name)} (${fmt.dec(c.facility.distanceKm, 1)} km)</span>`
+      ? `<span class="u-truncate" style="color:var(--signal);">${escapeHtml(c.facility.name)}${c.facility.distanceKm != null ? ` (${fmt.dec(c.facility.distanceKm, 1)} km)` : ""}</span>`
       : `<span class="u-truncate">${escapeHtml(c.site || c.address || c.place)}</span>`;
 
     return `
@@ -602,8 +626,9 @@ export function renderOverview(el, ctx) {
   const priority = (tiers.CRITICAL || 0) + (tiers.HIGH || 0);
   const confirmed = cases.filter((c) => c.confirmed).length;
   const confPct = Math.round((confirmed / Math.max(1, cases.length)) * 100);
-  const totalFrp = cases.reduce((acc, c) => acc + (c.frp || 0), 0);
+  // INV-2: peak, not a sum -- see the region strip above.
   const peak = cases.reduce((a, c) => (c.frp > (a?.frp ?? -1) ? c : a), null);
+  const peakFrp = peak ? peak.frp : 0;
 
   let dayPasses = 0;
   let nightPasses = 0;
@@ -640,13 +665,13 @@ export function renderOverview(el, ctx) {
 
     ${tile(`
       <div class="metric">
-        <p class="u-label">Thermal Radiative Power</p>
+        <p class="u-label">Peak Thermal Radiative Power</p>
         <p class="metric__value">
-          <span class="u-metric u-live">${fmt.int(totalFrp)}</span>
-          <span class="metric__unit">MW total</span>
+          <span class="u-metric u-live">${peak ? fmt.dec(peak.frp) : "-"}</span>
+          <span class="metric__unit">MW peak</span>
         </p>
         <div class="meter meter--signal" style="margin-top:4px;" aria-hidden="true">
-          <div class="meter__fill" style="--v:${Math.min(100, Math.round((totalFrp / 800) * 100))}%"></div>
+          <div class="meter__fill" style="--v:${Math.min(100, Math.round((peakFrp / 150) * 100))}%"></div>
         </div>
         <p class="metric__note" style="margin-top:2px;">Peak: ${peak ? `${fmt.dec(peak.frp)} MW (${escapeHtml(peak.place)})` : 'None'}</p>
       </div>`, 40)}
@@ -801,380 +826,594 @@ export function renderInvestigations(el, cases, selected) {
   wireThumbs(el);
 }
 
-/* --- Industrial and persistent sources -----------------------------------
-   Grouped by site, because the operational question is "which facility" and
-   not "which pixel". A site with repeat detections is the signal the brief
-   calls /* --- Industrial and persistent sources -----------------------------------
-   Grouped by facility site with interactive FRP Pointgraphs, Diurnal
-   fingerprints, and sovereign climatology baselines. */
+/* --- Industrial Intelligence & Baselines ---------------------------------
+   The register, the measured baselines and the two charts a regulator reads.
 
-function renderMultiWindowBaselinePanel(activeSite, p95, median, activeDays, activeWindow = "365d") {
-  const p50_30d = Math.max(1.0, Math.round(median * 0.95 * 10) / 10);
-  const p95_30d = Math.max(2.0, Math.round(p95 * 0.88 * 10) / 10);
-  const p50_90d = Math.max(1.0, Math.round(median * 1.0 * 10) / 10);
-  const p95_90d = Math.max(2.0, Math.round(p95 * 0.96 * 10) / 10);
-  const p50_365d = median;
-  const p95_365d = p95;
+   Everything on this page comes from one of two sources and says which:
 
-  const peakFRP = activeSite.cases.length ? Math.max(...activeSite.cases.map((c) => c.frp)) : p95;
+     `store.registry`  the `industrial_assets` table (GET /api/industries) --
+                       what India monitors, with operator, state, district,
+                       hazard class and safety-buffer radius;
+     the console feed  the detections, each with the 365-day P50/P95 of the
+                       0.02-degree climatology cell it sits in.
 
+   The page used to build its facility list by grouping detections on their
+   short place label (`bySite`, data.js), which meant:
+
+     * a coal basin was a facility. `pipeline.py` publishes a *basin* label in
+       `nearest_facility_name` for detections matched to a mining concession,
+       so "Mand-Raigarh & Gharghoda Coal Mining Basin" was listed as a monitored
+       facility with no operator, no state and no registered perimeter;
+     * one site could be counted twice. Talcher appears as the asset-registry
+       "Talcher Coalfields & NTPC Super Thermal Power Complex" and the
+       basin-registry "Talcher Coalfields & NTPC Super Thermal Corridor
+       (Angul)", and the two labels are not equal, so the grouping counted one
+       physical complex as two monitored facilities;
+     * "Monitored Facilities" counted distinct place labels among the detections
+       -- 11 of them -- under a heading that reads as the national register.
+
+   So the register is the registry, and a detection is attached to it by
+   `nearest_asset_id` (published by `pipeline.py` from the same geometric
+   resolution that produced the name). A detection whose nearest site is a
+   mining basin is listed as a basin observation, not as a facility, and a
+   detection with neither is counted as unattributed and listed as such. */
+
+const SECTORS = [
+  ["flare", "Refinery & Flares"],
+  ["steel", "Steel & Metals"],
+  ["power", "Thermal Power"],
+  ["mining", "Mining & Smelting"],
+  ["cement", "Cement & Kilns"],
+];
+
+/* One sector per asset, so the sector pills partition the register instead of
+   overlapping. `facility_type` is the authority: it is a closed vocabulary in
+   `industrial_assets` and all nine of its values are mapped here explicitly.
+   `industry` and `name` are free text -- "Energy Capital of India" is an
+   industry string -- so they are read only for a type this build does not
+   know, which is why they are checked second. Checked first they would have
+   misfiled four rows: "HPCL Rajasthan Refinery & Petrochemicals (HRRL)" and
+   "Hazira ONGC & AM/NS Steel Heavy Industrial Hub" both carry `petrochemical`
+   but say "Petrochemical"/"Steel" in the name, and "Jindal Steel & Power
+   (JSPL) & NALCO Smelter, Angul" and "Tata Metaliks" say "Smelter"/"Metaliks"
+   while being steel plants. */
+function sectorOf(asset) {
+  const type = String(asset.facility_type || "").toLowerCase();
+  const text = `${asset.name} ${asset.industry} ${asset.operator}`.toLowerCase();
+
+  switch (type) {
+    case "mining":
+    case "smelter":
+      return "mining";
+    case "thermal_power":
+      return "power";
+    case "oil_refinery":
+    case "petrochemical":
+    case "lng_terminal":
+    case "offshore_platform":
+    case "oil_production":
+      return "flare";
+    case "steel_plant":
+      return "steel";
+    default:
+      break;
+  }
+
+  if (asset.category === "mining_or_other_thermal_source") return "mining";
+  if (/cement|kiln/.test(text)) return "cement";
+  if (/aluminium|zinc|copper|smelt/.test(text)) return "mining";
+  if (/refiner|petrochem|\blng\b|flare|offshore|oil|gas/.test(text)) return "flare";
+  if (/power|thermal|generat/.test(text)) return "power";
+  return "steel";
+}
+
+function sectorLabel(id) {
+  const hit = SECTORS.find(([k]) => k === id);
+  return hit ? hit[1] : "Unclassified";
+}
+
+/* The measured envelope for a set of detections. Each detection carries the
+   365-day P50/P95 of its own 0.02-degree climatology cell (INV-4's envelope,
+   from the rebuilt `thermal_climatology`), and a facility can span several
+   cells, so the envelope used is the highest of them: a facility is only in
+   exceedance if it beats the largest envelope it sits in. `p95 == 0` means the
+   cell had too few detections to measure one -- INV-5, so no exceedance is
+   claimed and the row reads as unmeasured rather than as compliant. */
+function envelopeOf(cases) {
+  const withBaseline = cases.filter((c) => (c.climatology?.p95 || 0) > 0);
+  if (!withBaseline.length) return { p95: 0, median: 0, cells: 0, unmeasured: cases.length };
+  const p95 = Math.max(...withBaseline.map((c) => c.climatology.p95));
+  const top = withBaseline.reduce((a, b) => (b.climatology.p95 > a.climatology.p95 ? b : a));
+  return { p95, median: top.climatology.median || 0, cells: withBaseline.length, unmeasured: 0 };
+}
+
+const timeOf = (c) => (c.at ? c.at.getTime() : null);
+
+function rowOf(asset, cases) {
+  const peak = cases.length ? Math.max(...cases.map((c) => c.frp)) : 0;
+  const env = envelopeOf(cases);
+  const exceeds = env.p95 > 0 && peak > env.p95;
+  const stamps = cases.map(timeOf).filter((t) => t !== null);
+  return {
+    key: asset.id,
+    kind: "facility",
+    asset,
+    name: asset.name,
+    operator: asset.operator || null,
+    state: asset.state || null,
+    district: asset.district || null,
+    sector: sectorOf(asset),
+    hazard: asset.hazard_category || null,
+    bufferM: asset.buffer_radius_meters,
+    cases,
+    detections: cases.length,
+    peak,
+    p95: env.p95,
+    median: env.median,
+    exceeds,
+    ratio: env.p95 > 0 ? peak / env.p95 : null,
+    routine: cases.some((c) => c.climatology?.isRoutine),
+    lastAt: stamps.length ? new Date(Math.max(...stamps)) : null,
+  };
+}
+
+/* A mining basin the feed reported against. Not a registered asset: it has no
+   operator, no perimeter and no safety buffer, so it is carried separately
+   rather than counted among the monitored facilities. */
+function basinRow(name, cases) {
+  const base = rowOf({
+    id: `basin:${name}`,
+    name,
+    operator: null,
+    state: null,
+    district: null,
+    /* The category is stated rather than left absent so `sectorOf` classifies a
+       basin from its concession type instead of from words in its name -- the
+       Talcher corridor name contains "Thermal" and "Power" and would otherwise
+       be filed as a power station. */
+    category: "mining_or_other_thermal_source",
+    hazard_category: null,
+    buffer_radius_meters: null,
+  }, cases);
+  const top = cases.reduce((a, b) => (b.frp > a.frp ? b : a), cases[0]);
+  return {
+    ...base,
+    kind: "basin",
+    asset: null,
+    /* A basin row has no registry record, so the operator and state are read
+       from the detection the feed attributed to it -- the only evidence there
+       is. Everything else stays null rather than being guessed. */
+    operator: top?.facility?.operator || null,
+    state: top?.state || null,
+    sector: "mining",
+  };
+}
+
+function buildRegister(cases, registry) {
+  const assets = (registry || []).filter((a) => a && a.id);
+  const observed = new Map();
+  const basins = new Map();
+  const unattributed = [];
+
+  cases.forEach((c) => {
+    const id = c.facility?.id;
+    if (id) {
+      const list = observed.get(id);
+      if (list) list.push(c);
+      else observed.set(id, [c]);
+    } else if (c.facility?.name) {
+      const list = basins.get(c.facility.name);
+      if (list) list.push(c);
+      else basins.set(c.facility.name, [c]);
+    } else {
+      unattributed.push(c);
+    }
+  });
+
+  const rows = assets.map((a) => rowOf(a, observed.get(a.id) || []));
+  const basinRows = [...basins.entries()].map(([name, cs]) => basinRow(name, cs));
+  return { rows, basinRows, unattributed };
+}
+
+/* Operator and state roll-ups. A regulator works by operator and by state
+   pollution-control board, and neither cut existed: the register was flat. */
+function rollUp(rows, keyFn) {
+  const map = new Map();
+  rows.forEach((r) => {
+    const key = keyFn(r) || "Unreported";
+    const g = map.get(key) || {
+      key: `group:${key}`, kind: "group", name: key, rows: [],
+      detections: 0, exceeds: 0, quiet: 0, peak: 0, worst: null,
+    };
+    g.rows.push(r);
+    g.detections += r.detections;
+    if (r.exceeds) g.exceeds += 1;
+    if (!r.detections) g.quiet += 1;
+    g.peak = Math.max(g.peak, r.peak);
+    if (r.ratio !== null && (g.worst === null || r.ratio > g.worst.ratio)) g.worst = r;
+    map.set(key, g);
+  });
+  return [...map.values()].sort((a, b) => (b.exceeds - a.exceeds)
+    || ((b.worst?.ratio || 0) - (a.worst?.ratio || 0)) || (b.peak - a.peak));
+}
+
+function registerRowItem(row, isSelected) {
+  const badge = row.exceeds
+    ? `<span class="tag tag--tier" style="font-size:0.62rem">Exceeds P95</span>`
+    : (row.detections
+      ? (row.routine
+        ? `<span class="tag tag--signal" style="font-size:0.62rem">Routine Flare</span>`
+        : `<span class="tag" style="font-size:0.62rem">Within Envelope</span>`)
+      : `<span class="tag" style="font-size:0.62rem;opacity:0.6">No Detection</span>`);
+
+  const meta = [row.operator, row.state, row.kind === "basin" ? "Mining basin (unregistered)" : sectorLabel(row.sector)]
+    .filter(Boolean).map((s) => `<span>${escapeHtml(s)}</span>`).join("<span>&bull;</span>");
+
+  const limitCell = row.p95 > 0
+    ? fmt.dec(row.p95)
+    : `<span class="u-quiet" title="No measurable 365-day envelope for this cell (INV-5)">none</span>`;
+
+  return `
+    <div class="facility-card" data-facility="${escapeHtml(row.key)}" data-active="${isSelected ? "true" : "false"}">
+      <div class="facility-card__head">
+        <div style="min-width:0;">
+          <div class="facility-card__title u-truncate">${escapeHtml(row.name)}</div>
+          <div class="facility-card__meta u-truncate">${meta}</div>
+        </div>
+        ${badge}
+      </div>
+
+      <div class="facility-card__metrics" style="grid-template-columns:repeat(4,1fr);">
+        <div class="facility-card__metric">
+          <span class="facility-card__metric-lbl">Detections</span>
+          <span class="facility-card__metric-val">${row.detections}</span>
+        </div>
+        <div class="facility-card__metric">
+          <span class="facility-card__metric-lbl">Peak FRP</span>
+          <span class="facility-card__metric-val" style="${row.exceeds ? "color:var(--tier-critical);" : ""}">${row.detections ? `${fmt.dec(row.peak)}` : "--"}</span>
+        </div>
+        <div class="facility-card__metric">
+          <span class="facility-card__metric-lbl">P95 Envelope</span>
+          <span class="facility-card__metric-val">${limitCell}</span>
+        </div>
+        <div class="facility-card__metric">
+          <span class="facility-card__metric-lbl">Ratio</span>
+          <span class="facility-card__metric-val" style="${row.exceeds ? "color:var(--tier-critical);" : ""}">${row.ratio === null ? "--" : `${row.ratio.toFixed(2)}×`}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function groupRowItem(group, isSelected) {
+  const sorted = group.rows.slice().sort((a, b) => (b.exceeds - a.exceeds) || (b.peak - a.peak));
+  const leaders = sorted.filter((r) => r.detections).slice(0, 3).map((r) => r.name);
+  return `
+    <div class="facility-card" data-facility="${escapeHtml(group.key)}" data-active="${isSelected ? "true" : "false"}">
+      <div class="facility-card__head">
+        <div style="min-width:0;">
+          <div class="facility-card__title u-truncate">${escapeHtml(group.name)}</div>
+          <div class="facility-card__meta u-truncate">
+            <span>${group.rows.length} registered ${group.rows.length === 1 ? "facility" : "facilities"}</span>
+          </div>
+        </div>
+        ${group.exceeds
+          ? `<span class="tag tag--tier" style="font-size:0.62rem">${group.exceeds} exceeding</span>`
+          : `<span class="tag" style="font-size:0.62rem">Within Envelope</span>`}
+      </div>
+
+      <div class="facility-card__metrics" style="grid-template-columns:repeat(3,1fr);">
+        <div class="facility-card__metric">
+          <span class="facility-card__metric-lbl">Detections</span>
+          <span class="facility-card__metric-val">${group.detections}</span>
+        </div>
+        <div class="facility-card__metric">
+          <span class="facility-card__metric-lbl">Peak FRP</span>
+          <span class="facility-card__metric-val">${group.peak ? `${fmt.dec(group.peak)}` : "--"}</span>
+        </div>
+        <div class="facility-card__metric">
+          <span class="facility-card__metric-lbl">Quiet</span>
+          <span class="facility-card__metric-val">${group.quiet}</span>
+        </div>
+      </div>
+
+      ${leaders.length ? `<div class="u-micro u-quiet u-truncate" style="padding:0 2px 2px;">Reporting: ${escapeHtml(leaders.join(", "))}</div>` : ""}
+    </div>`;
+}
+
+/* The compliance statement for one facility, in one sentence, with the number
+   it rests on. Written from the measurements rather than from a threshold, so
+   a facility with no measurable envelope reads as unmeasured rather than as
+   compliant. */
+function complianceLine(row, profileState) {
+  const p365 = profileState?.windows?.[365];
+  if (row.exceeds) {
+    const pct = row.ratio === null ? null : Math.round((row.ratio - 1) * 100);
+    return {
+      tone: "critical",
+      text: `Peak detection ${fmt.dec(row.peak)} MW is ${pct === null ? "above" : `${pct}% above`} the measured 365-day P95 of ${fmt.dec(row.p95)} MW for the cell it sits in.`,
+    };
+  }
+  if (row.p95 > 0) {
+    return {
+      tone: "ok",
+      text: `Peak detection ${fmt.dec(row.peak)} MW is inside the measured 365-day P95 of ${fmt.dec(row.p95)} MW for the cell it sits in.`,
+    };
+  }
+  if (p365 && p365.p95_frp > 0) {
+    return {
+      tone: "ok",
+      text: `No cell-level envelope is measurable for this facility's detections, but the facility's own ${p365.window_days}-day profile measures a P95 of ${fmt.dec(p365.p95_frp)} MW over ${p365.active_days} active days.`,
+    };
+  }
+  return {
+    tone: "quiet",
+    text: "No measurable 365-day envelope is on record for this facility's cells or for its own profile, so neither compliance nor anomaly can be asserted (INV-5).",
+  };
+}
+
+/* The measured 30 / 90 / 365-day profiles for the open facility, read from
+   `GET /api/industries/{id}/history?window_days=N`. Each window is measured
+   over that facility's own buffer radius and over exactly the window it names
+   (`behavior/profile.py`), so nothing here is scaled from another window.
+
+   This panel replaced one that fabricated its 30- and 90-day figures out of
+   fixed multipliers on the 365-day figure (`p50 * 0.95` / `p95 * 0.88` and
+   `* 1.0` / `* 0.96`) and printed them under the badges "Primary Baseline" and
+   "Compliance Standard". Those were not measurements, and on a page a
+   regulator reads a fabricated threshold is worse than an empty card: "30-Day
+   Window, Surge Threshold 5.5 MW" reads as an observation a facility could be
+   held to.
+
+   `abnormal_event_count` is the profile's own count of days in that window
+   whose peak FRP exceeded the same window's measured P95. */
+function renderMeasuredBaselinePanel(profileState, activeWindow) {
   const windows = [
-    {
-      id: "30d",
-      name: "30-Day Window",
-      badge: "Short-Term Activity",
-      badgeClass: activeWindow === "30d" ? "tag--signal" : "",
-      desc: "Short-term behavior & recent emission swings",
-      p50: p50_30d,
-      p95: p95_30d,
-      metric1Label: "Pass Frequency",
-      metric1Val: `${activeSite.cases.length} recent passes`,
-      metric2Label: "Spike Sensitivity",
-      metric2Val: "High (Immediate alert)",
-      isSurge: peakFRP > p95_30d,
-      blueprintRef: "Blueprint §13.5 (Short-Term)",
-    },
-    {
-      id: "90d",
-      name: "90-Day Window",
-      badge: "Primary Baseline",
-      badgeClass: "tag--tier",
-      desc: "Primary operational baseline standard",
-      p50: p50_90d,
-      p95: p95_90d,
-      metric1Label: "Compliance Standard",
-      metric1Val: "Quarterly seasonal standard",
-      metric2Label: "Operational Grade",
-      metric2Val: "Nominal flaring envelope",
-      isSurge: peakFRP > p95_90d,
-      blueprintRef: "Blueprint §13.5 (Primary Standard)",
-    },
-    {
-      id: "365d",
-      name: "365-Day Window",
-      badge: "Annual Baseline",
-      badgeClass: "",
-      desc: "Long-term historical baseline & persistence tracking",
-      p50: p50_365d,
-      p95: p95_365d,
-      metric1Label: "Annual Persistence",
-      metric1Val: `${activeDays} active days / yr`,
-      metric2Label: "Surge Limit (P95)",
-      metric2Val: `${fmt.dec(p95_365d)} MW P95 Limit`,
-      isSurge: peakFRP > p95_365d,
-      blueprintRef: "Blueprint §13.5 (Long-Term)",
-    },
+    { id: "30d", days: 30, name: "30-Day Window", desc: "Recent behaviour and short-term emission swings" },
+    { id: "90d", days: 90, name: "90-Day Window", desc: "Seasonal baseline over the quarter" },
+    { id: "365d", days: 365, name: "365-Day Window", desc: "Annual baseline of Section 4.4 and INV-4" },
   ];
+
+  const loading = Boolean(profileState && profileState.loading);
+  const error = profileState && profileState.error;
+  const data = (profileState && profileState.windows) || {};
+  const measured = windows.filter((w) => data[w.days]).length;
+
+  const cards = windows.map((w) => {
+    const p = data[w.days];
+    const isActive = activeWindow === w.id;
+    const head = `
+      <div class="row" style="justify-content:space-between;align-items:center;">
+        <span style="font-size:0.75rem;font-weight:700;color:var(--t-primary);letter-spacing:0.03em;">${w.name}</span>
+        ${isActive
+          ? '<span class="tag tag--signal" style="font-size:0.62rem;padding:1px 6px;">ACTIVE BENCHMARK</span>'
+          : '<span class="u-micro u-quiet" style="font-size:9px;">Click to set</span>'}
+      </div>
+      <p class="u-micro u-quiet" style="margin:0;line-height:1.3;">${escapeHtml(w.desc)}</p>`;
+
+    if (!p) {
+      return `<div class="multiwindow-card ${isActive ? "is-active" : ""}" data-fac-window="${w.id}">
+        ${head}
+        <div style="padding:14px 0;text-align:center;">
+          <span class="u-micro u-quiet">${loading ? "Measuring this window…" : "Not measured"}</span>
+        </div>
+      </div>`;
+    }
+
+    const peak = p.max_frp;
+    const exceeds = p.p95_frp > 0 && peak > p.p95_frp;
+    return `<div class="multiwindow-card ${isActive ? "is-active" : ""}" data-fac-window="${w.id}">
+      ${head}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--line-hair);border-bottom:1px solid var(--line-hair);margin:2px 0;">
+        <div>
+          <div class="u-micro u-quiet" style="font-size:9px;">MEASURED P50</div>
+          <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:600;color:var(--signal);">${fmt.dec(p.median_frp)} MW</div>
+        </div>
+        <div>
+          <div class="u-micro u-quiet" style="font-size:9px;">MEASURED P95</div>
+          <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:600;color:${exceeds ? "var(--tier-critical)" : "var(--tier-elevated)"};">${fmt.dec(p.p95_frp)} MW</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:3px;font-size:0.72rem;">
+        <div class="row" style="justify-content:space-between;">
+          <span class="u-quiet">Active days in window:</span>
+          <span style="font-weight:500;color:var(--t-secondary);font-family:var(--font-mono);">${p.active_days} / ${w.days}</span>
+        </div>
+        <div class="row" style="justify-content:space-between;">
+          <span class="u-quiet">Detections:</span>
+          <span style="font-weight:500;color:var(--t-secondary);font-family:var(--font-mono);">${fmt.int(p.observation_count)}</span>
+        </div>
+        <div class="row" style="justify-content:space-between;">
+          <span class="u-quiet">Peak in window:</span>
+          <span style="font-weight:500;color:${exceeds ? "var(--tier-critical)" : "var(--t-secondary)"};font-family:var(--font-mono);">${fmt.dec(peak)} MW</span>
+        </div>
+        <div class="row" style="justify-content:space-between;">
+          <span class="u-quiet">Days above this P95:</span>
+          <span style="font-weight:500;color:var(--t-secondary);font-family:var(--font-mono);">${p.abnormal_event_count}</span>
+        </div>
+      </div>
+
+      <div class="row" style="justify-content:space-between;align-items:center;margin-top:auto;padding-top:4px;">
+        <span class="u-micro" style="font-size:9px;color:var(--t-quiet);">History reliability: ${escapeHtml(p.history_reliability_label || "UNKNOWN")}</span>
+        <span class="u-micro u-quiet" style="font-size:9px;">${fmt.int(p.observation_count)} observations</span>
+      </div>
+    </div>`;
+  }).join("");
+
+  /* A partial failure keeps the windows that did answer and names the ones that
+     did not. Replacing the grid with an error would throw away two real
+     measurements because a third timed out. */
+  const body = (error && !measured)
+    ? stateBlock("Baseline measurement unavailable", error, "i-database")
+    : `<div class="multiwindow-grid">${cards}</div>`;
 
   return `
     <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
       <div class="row row--wrap" style="justify-content:space-between;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
         <div class="row" style="gap:8px;align-items:center;">
-          <svg class="i i--sm" style="color:var(--signal)"><use href="#i-calendar"/></svg>
+          <svg class="i i--sm" style="color:var(--signal)"><use href="#i-sliders"/></svg>
           <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
-            Multi-Window Historical Baselines (30d / 90d / 365d)
+            Measured Baselines
           </span>
+          ${loading ? '<span class="tag" style="font-size:0.66rem;">measuring…</span>' : ""}
         </div>
-        <span class="u-micro u-quiet">Standardized Historical Windows · Click card to switch pointgraph benchmark</span>
+        <span class="u-micro u-quiet">Each window aggregated over this facility's own buffer radius. No figure is derived from another window.</span>
       </div>
-
-      <div class="multiwindow-grid">
-        ${windows.map((w) => `
-          <div class="multiwindow-card ${activeWindow === w.id ? 'is-active' : ''}" data-fac-window="${w.id}">
-            <div class="row" style="justify-content:space-between;align-items:center;">
-              <span style="font-size:0.75rem;font-weight:700;color:var(--t-primary);letter-spacing:0.03em;">${w.name}</span>
-              <span class="tag ${w.badgeClass}" style="font-size:0.65rem;">${w.badge}</span>
-            </div>
-            <p class="u-micro u-quiet" style="margin:0;line-height:1.3;">${w.desc}</p>
-            
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--line-hair);border-bottom:1px solid var(--line-hair);margin:2px 0;">
-              <div>
-                <div class="u-micro u-quiet" style="font-size:9px;">TYPICAL BASELINE (P50)</div>
-                <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:600;color:var(--signal);">${fmt.dec(w.p50)} MW</div>
-              </div>
-              <div>
-                <div class="u-micro u-quiet" style="font-size:9px;">SURGE THRESHOLD (P95)</div>
-                <div style="font-family:var(--font-mono);font-size:1.05rem;font-weight:600;color:${w.isSurge ? 'var(--tier-critical)' : 'var(--tier-elevated)'};">${fmt.dec(w.p95)} MW</div>
-              </div>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:3px;font-size:0.72rem;">
-              <div class="row" style="justify-content:space-between;">
-                <span class="u-quiet">${w.metric1Label}:</span>
-                <span style="font-weight:500;color:var(--t-secondary);">${w.metric1Val}</span>
-              </div>
-              <div class="row" style="justify-content:space-between;">
-                <span class="u-quiet">${w.metric2Label}:</span>
-                <span style="font-weight:500;color:var(--t-secondary);">${w.metric2Val}</span>
-              </div>
-            </div>
-
-            <div class="row" style="justify-content:space-between;align-items:center;margin-top:auto;padding-top:4px;">
-              <span class="u-micro" style="font-size:9px;color:var(--t-quiet);">${w.blueprintRef}</span>
-              ${activeWindow === w.id 
-                ? '<span class="tag tag--signal" style="font-size:0.62rem;padding:1px 6px;">ACTIVE BENCHMARK</span>' 
-                : '<span class="u-micro u-quiet" style="font-size:9px;">Click to set</span>'}
-            </div>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `;
+      ${error && measured ? `<p class="u-micro" style="margin:0 0 var(--s-3) 0;color:var(--tier-elevated);">${escapeHtml(error)}</p>` : ""}
+      ${body}
+    </div>`;
 }
 
-function renderFrpPointGraph(cases, p95, median, peakFRP, activeWindow = "365d") {
-  // Compute window-calibrated baseline thresholds
-  let effectiveP50 = median;
-  let effectiveP95 = p95;
-  let windowBadge = "365d Annual Baseline";
+/* The facility's FRP trend, one point per satellite overpass, with the measured
+   P50 and P95 of the active window drawn across it. This is the chart a
+   regulator reads: a facility against its own measured envelope.
 
-  if (activeWindow === "30d") {
-    effectiveP50 = Math.max(1.0, Math.round(median * 0.95 * 10) / 10);
-    effectiveP95 = Math.max(2.0, Math.round(p95 * 0.88 * 10) / 10);
-    windowBadge = "30d Short-Term Baseline";
-  } else if (activeWindow === "90d") {
-    effectiveP50 = Math.max(1.0, Math.round(median * 1.0 * 10) / 10);
-    effectiveP95 = Math.max(2.0, Math.round(p95 * 0.96 * 10) / 10);
-    windowBadge = "90d Primary Standard";
-  }
+   The version this replaces drew a different chart. It took its thresholds from
+   fixed multipliers on the 365-day figures whenever the active window was 30 or
+   90 days (`p50 * 0.95` / `p95 * 0.88`, `* 1.0` / `* 0.96`), labelled them
+   "P50 BASELINE" and "P95 SURGE LIMIT" on the plot, and -- when a facility had
+   fewer than four real overpasses -- invented three data points dated "10d
+   ago", "6d ago" and "3d ago" with satellite names "SNPP", "NOAA-20" and
+   "NOAA-21" and a day/night flag, styled identically to the real ones and
+   carrying `id: "hist-1"` and friends. A reader could not tell them from
+   observations, and clicking one would have opened a case id that does not
+   exist.
 
-  // 1. Group raw detections by distinct satellite overpass (date + hour pass)
+   So: every point below is a real overpass, and every line is a measurement. A
+   facility with one overpass draws one point and says the trend is short; a
+   facility whose window has no measurable P95 draws no line and says INV-5. */
+function renderFrpPointGraph(cases, profile, activeWindow = "365d") {
+  const spec = { "30d": 30, "90d": 90, "365d": 365 }[activeWindow] || 365;
+  const measured = profile?.windows?.[spec] || null;
+  const label = { 30: "30-Day", 90: "90-Day", 365: "365-Day" }[spec];
+
+  /* The measured profile for the window when it has loaded; otherwise the
+     aggregate envelope of the cells the detections sit in, which is a 365-day
+     figure and is labelled as one. Nothing is scaled between the two. */
+  const p50 = measured ? Number(measured.median_frp) : (cases[0]?.climatology?.median || 0);
+  const p95 = measured ? Number(measured.p95_frp) : (envelopeOf(cases).p95 || 0);
+  const basis = measured
+    ? `measured over this facility's buffer radius, ${spec}-day window`
+    : `measured over the ${cases.length === 1 ? "climatology cell" : "climatology cells"} these detections sit in, 365-day window`;
+  /* The badge names the figure that is actually drawn, not the window that was
+     asked for. Before the facility's own profile arrives -- or if it fails --
+     the lines are the 365-day cell envelope, and calling that a "30-Day
+     envelope" would be the same mislabelling this rewrite removed. */
+  const envelopeLabel = measured ? `${label} envelope` : "365-day cell envelope";
+  const hasEnvelope = p95 > 0;
+
   const passMap = new Map();
   cases.forEach((c) => {
-    const d = c.firms?.date || "2026-09-01";
-    const rawTime = String(c.firms?.time || "0000").padStart(4, "0");
-    const timeFormatted = rawTime.includes(":") ? rawTime : `${rawTime.slice(0, 2)}:${rawTime.slice(2, 4)}`;
-    const passKey = `${d}_${rawTime.slice(0, 2)}`; // group detections in same hour pass
-
-    const frpVal = Number(c.frp || 0);
-    const existing = passMap.get(passKey);
+    const date = c.firms?.date || "";
+    const raw = String(c.firms?.time || "0000").replace(":", "").padStart(4, "0");
+    const key = `${date}_${raw.slice(0, 2)}`;
+    const frp = Number(c.frp) || 0;
+    const existing = passMap.get(key);
     if (!existing) {
-      passMap.set(passKey, {
-        date: d,
-        time: timeFormatted,
-        dateTime: new Date(`${d}T${timeFormatted}:00Z`).getTime(),
-        peakFrp: frpVal,
-        sumFrp: frpVal,
-        count: 1,
-        sat: c.satellite || c.firms?.satellite || "VIIRS",
-        daynight: c.firms?.daynight === "D" ? "Day" : "Night",
-        topCase: c,
-        id: c.id,
+      passMap.set(key, {
+        date, raw, frp, count: 1, top: c,
       });
     } else {
-      existing.peakFrp = Math.max(existing.peakFrp, frpVal);
-      existing.sumFrp += frpVal;
       existing.count += 1;
-      if (frpVal > existing.topCase.frp) {
-        existing.topCase = c;
-        existing.id = c.id;
-      }
+      if (frp > existing.frp) { existing.frp = frp; existing.top = c; }
     }
   });
 
-  // Sort distinct passes chronologically
-  let sortedPasses = [...passMap.values()].sort((a, b) => a.dateTime - b.dateTime);
+  const passes = [...passMap.values()]
+    .sort((a, b) => (a.date + a.raw).localeCompare(b.date + b.raw));
 
-  // Keep up to the 10 most recent passes to avoid visual clutter
-  if (sortedPasses.length > 10) {
-    sortedPasses = sortedPasses.slice(-10);
+  if (!passes.length) {
+    return `<div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      ${stateBlock("No overpass to plot", "This facility has no detection in the active window, so there is no trend to draw.", "i-pulse")}
+    </div>`;
   }
 
-  // If a facility has fewer than 4 passes, supplement with clean baseline historical points
-  let dataPoints = [];
-  if (sortedPasses.length >= 4) {
-    dataPoints = sortedPasses.map((p) => ({
-      label: `${p.date.slice(5)} ${p.time}`,
-      shortDate: `${p.date.slice(5)}`,
-      frp: Math.round(p.peakFrp * 10) / 10,
-      count: p.count,
-      sat: p.sat,
-      daynight: p.daynight,
-      id: p.id,
-      date: p.date,
-      time: p.time,
-    }));
-  } else {
-    dataPoints = [
-      { label: "10d ago", shortDate: "10d ago", frp: Math.round(effectiveP50 * 0.9 * 10) / 10, count: 1, sat: "SNPP", daynight: "Night", id: "hist-1" },
-      { label: "6d ago", shortDate: "6d ago", frp: Math.round(effectiveP50 * 1.05 * 10) / 10, count: 1, sat: "NOAA-20", daynight: "Day", id: "hist-2" },
-      { label: "3d ago", shortDate: "3d ago", frp: Math.round(effectiveP95 * 0.88 * 10) / 10, count: 1, sat: "NOAA-21", daynight: "Night", id: "hist-3" },
-      ...sortedPasses.map((p) => ({
-        label: `${p.date.slice(5)} ${p.time}`,
-        shortDate: `${p.date.slice(5)}`,
-        frp: Math.round(p.peakFrp * 10) / 10,
-        count: p.count,
-        sat: p.sat,
-        daynight: p.daynight,
-        id: p.id,
-        date: p.date,
-        time: p.time,
-      })),
-    ];
-  }
+  const shown = passes.slice(-12);
+  const peak = Math.max(...shown.map((p) => p.frp));
 
-  const w = 700;
-  const h = 210;
-  const padL = 58;
-  const padR = 36;
-  const padT = 25;
-  const padB = 35;
+  const w = 700, h = 210, padL = 62, padR = 40, padT = 26, padB = 36;
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
-
-  const maxVal = Math.max(15, peakFRP * 1.25, effectiveP95 * 1.35, ...dataPoints.map((d) => d.frp));
+  const maxVal = Math.max(2, peak * 1.25, hasEnvelope ? p95 * 1.35 : 0);
   const yScale = (v) => padT + plotH - (Math.min(maxVal, Math.max(0, v)) / maxVal) * plotH;
-  const p50Y = yScale(effectiveP50);
-  const p95Y = yScale(effectiveP95);
 
-  // X coordinates
-  const xStep = dataPoints.length > 1 ? plotW / (dataPoints.length - 1) : plotW / 2;
-  const xCoords = dataPoints.map((_, i) => padL + i * xStep);
+  const xStep = shown.length > 1 ? plotW / (shown.length - 1) : 0;
+  const xAt = (i) => (shown.length > 1 ? padL + i * xStep : padL + plotW / 2);
 
-  // Surge zone rectangle
-  const surgeRectHeight = Math.max(0, p95Y - padT);
+  const p50Y = yScale(p50);
+  const p95Y = yScale(p95);
 
-  // Y-axis grid ticks (4 levels)
-  const yTicks = [0, maxVal * 0.33, maxVal * 0.66, maxVal];
+  const pts = shown.map((p, i) => {
+    const cx = xAt(i), cy = yScale(p.frp);
+    const isSurge = hasEnvelope && p.frp > p95;
+    const isElevated = p50 > 0 && p.frp > p50;
+    const color = isSurge ? "var(--tier-critical, #ef4444)"
+      : (isElevated ? "var(--tier-elevated, #f59e0b)" : "var(--tier-low, #10b981)");
+    const time = p.raw.length === 4 ? `${p.raw.slice(0, 2)}:${p.raw.slice(2)}` : p.raw;
+    const title = `${p.date} ${time} UTC | Peak ${fmt.dec(p.frp)} MW${p.count > 1 ? ` (${p.count} hotspots in this pass)` : ""} | ${p.top?.firms?.satellite || "satellite unreported"} (${dayNightOf(p.top)} pass)`;
+    return { cx, cy, color, title, p, isSurge };
+  });
 
-  // Polyline & Area fill
-  const polylinePoints = dataPoints.map((d, i) => `${xCoords[i]},${yScale(d.frp)}`).join(" ");
-  const areaPoints = `${padL},${padT + plotH} ` +
-    dataPoints.map((d, i) => `${xCoords[i]},${yScale(d.frp)}`).join(" ") +
-    ` ${padL + plotW},${padT + plotH}`;
-
-  // Plotted Points
-  const pointsSvg = dataPoints.map((d, i) => {
-    const cx = xCoords[i];
-    const cy = yScale(d.frp);
-    const isSurge = d.frp > effectiveP95;
-    const isElevated = d.frp > effectiveP50;
-    const color = isSurge ? "var(--tier-critical, #ef4444)" : (isElevated ? "var(--tier-elevated, #f59e0b)" : "var(--tier-low, #10b981)");
-    const strokeColor = isSurge ? "#ffffff" : "rgba(6, 8, 10, 0.95)";
-    const r = isSurge ? 5.0 : 4.0;
-
-    const pulseSvg = isSurge
-      ? `<circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="${color}" stroke-width="1.2" opacity="0.4">
-           <animate attributeName="r" values="5;11;5" dur="2.5s" repeatCount="indefinite"/>
-           <animate attributeName="opacity" values="0.5;0;0.5" dur="2.5s" repeatCount="indefinite"/>
-         </circle>`
-      : "";
-
-    const titleText = `${d.label} | Peak: ${fmt.dec(d.frp)} MW${d.count > 1 ? ` (${d.count} hotspots)` : ""} | ${d.sat} (${d.daynight} pass)`;
-
-    return `
-      <g class="pointgraph-node" data-id="${escapeHtml(d.id)}">
-        ${pulseSvg}
-        <circle class="pointgraph-pt" cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke="${strokeColor}" stroke-width="1.5">
-          <title>${escapeHtml(titleText)}</title>
+  const pointsSvg = pts.map((d) => `
+      <g class="pointgraph-node" data-id="${escapeHtml(d.p.top?.id || "")}">
+        <circle class="pointgraph-pt" cx="${d.cx}" cy="${d.cy}" r="${d.isSurge ? 5 : 4}" fill="${d.color}" stroke="${d.isSurge ? "#ffffff" : "rgba(6,8,10,0.95)"}" stroke-width="1.5">
+          <title>${escapeHtml(d.title)}</title>
         </circle>
-      </g>`;
+      </g>`).join("");
+
+  const labelsSvg = pts.map((d, i) => {
+    if (!(shown.length <= 7 || i % 2 === 0 || i === shown.length - 1)) return "";
+    const anchor = i === 0 ? "start" : (i === shown.length - 1 ? "end" : "middle");
+    const time = d.p.raw.length === 4 ? `${d.p.raw.slice(0, 2)}:${d.p.raw.slice(2)}` : d.p.raw;
+    return `<text x="${d.cx}" y="${padT + plotH + 15}" fill="var(--t-tertiary)" font-size="9" font-family="var(--font-mono)" text-anchor="${anchor}">${escapeHtml(d.p.date.slice(5))}</text>
+      <text x="${d.cx}" y="${padT + plotH + 25}" fill="var(--t-quiet)" font-size="8" font-family="var(--font-mono)" text-anchor="${anchor}">${escapeHtml(time)}</text>`;
   }).join("");
 
-  // Non-overlapping X-axis labels: show all if <= 7, else show every 2nd and the last point
-  const labelsSvg = dataPoints.map((d, i) => {
-    const show = dataPoints.length <= 7 || i % 2 === 0 || i === dataPoints.length - 1;
-    if (!show) return "";
-    let anchor = "middle";
-    if (i === 0) anchor = "start";
-    else if (i === dataPoints.length - 1) anchor = "end";
-    return `
-      <text x="${xCoords[i]}" y="${padT + plotH + 16}" fill="var(--t-tertiary)" font-size="9" font-family="var(--font-mono)" text-anchor="${anchor}">
-        ${escapeHtml(d.label)}
-      </text>`;
-  }).join("");
+  const ticks = [0, maxVal * 0.33, maxVal * 0.66, maxVal];
 
   return `
-    <div class="pointgraph-card glass well" style="padding:var(--s-4);border-radius:var(--r-sm);">
-      <div class="pointgraph-header">
-        <div class="row row--wrap" style="justify-content:space-between;align-items:center;gap:var(--s-2);width:100%;margin-bottom:var(--s-2);">
-          <div class="row" style="gap:8px;align-items:center;">
-            <svg class="i i--sm" style="color:var(--signal)"><use href="#i-pulse"/></svg>
-            <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
-              Thermal Power Trend (FRP Pointgraph)
-            </span>
-            <span class="tag tag--signal" style="font-size:0.68rem;">${windowBadge}</span>
-            <span class="u-micro u-quiet" style="font-size:0.72rem;margin-left:4px;">
-              &bull; ${dataPoints.length} Recent Satellite Passes (Max FRP per Pass)
-            </span>
-          </div>
-
-          <div class="row" style="gap:6px;align-items:center;">
-            <span class="u-micro u-quiet">Benchmark:</span>
-            <div class="seg seg--pills" role="radiogroup" aria-label="Baseline Window Switcher" style="display:flex;gap:3px;">
-              <button class="seg__opt ${activeWindow === '30d' ? 'is-active' : ''}" type="button" data-fac-window="30d">30d Short-Term</button>
-              <button class="seg__opt ${activeWindow === '90d' ? 'is-active' : ''}" type="button" data-fac-window="90d">90d Primary</button>
-              <button class="seg__opt ${activeWindow === '365d' ? 'is-active' : ''}" type="button" data-fac-window="365d">365d Annual</button>
-            </div>
-          </div>
+    <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      <div class="row row--wrap" style="justify-content:space-between;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
+        <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+          <svg class="i i--sm" style="color:var(--signal)"><use href="#i-pulse"/></svg>
+          <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
+            Thermal Power Trend
+          </span>
+          <span class="tag tag--signal" style="font-size:0.66rem;">${envelopeLabel}</span>
+          <span class="u-micro u-quiet">${shown.length} overpass${shown.length === 1 ? "" : "es"}, peak FRP per pass${passes.length > shown.length ? ` (${passes.length - shown.length} earlier not shown)` : ""}</span>
         </div>
-
-        <div class="pointgraph-legend" style="width:100%;justify-content:flex-end;">
-          <div class="pointgraph-legend-item">
-            <span class="pointgraph-legend-dot" style="background:var(--tier-low, #10b981)"></span>
-            <span>Normal Baseline (&le; P50)</span>
-          </div>
-          <div class="pointgraph-legend-item">
-            <span class="pointgraph-legend-dot" style="background:var(--tier-elevated, #f59e0b)"></span>
-            <span>Active Flaring (P50–P95)</span>
-          </div>
-          <div class="pointgraph-legend-item">
-            <span class="pointgraph-legend-dot" style="background:var(--tier-critical, #ef4444)"></span>
-            <span>Surge Alert (&gt; P95)</span>
-          </div>
-          <div class="pointgraph-legend-item">
-            <span class="pointgraph-legend-line" style="background:var(--signal);border-top:1px dashed var(--signal);"></span>
-            <span>P50: ${fmt.dec(effectiveP50)} MW</span>
-          </div>
-          <div class="pointgraph-legend-item">
-            <span class="pointgraph-legend-line" style="background:var(--tier-elevated);border-top:1px dashed var(--tier-elevated);"></span>
-            <span>P95: ${fmt.dec(effectiveP95)} MW</span>
-          </div>
-        </div>
+        <span class="u-micro u-quiet">${escapeHtml(basis)}</span>
       </div>
+
+      ${hasEnvelope ? "" : `<p class="u-micro" style="margin:0 0 var(--s-3) 0;color:var(--t-quiet);">
+        This window has no measurable P95, so no envelope is drawn and no point is marked as a surge (INV-5).
+      </p>`}
+
+      ${shown.length === 1 ? `<p class="u-micro" style="margin:0 0 var(--s-3) 0;color:var(--t-quiet);">
+        One overpass in this window. A trend needs more than one; the single pass is plotted against its envelope.
+      </p>` : ""}
 
       <div class="pointgraph-plot-wrap">
         <svg class="pointgraph-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <linearGradient id="surgeGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="rgba(239, 68, 68, 0.14)"/>
-              <stop offset="100%" stop-color="rgba(239, 68, 68, 0.01)"/>
-            </linearGradient>
-            <linearGradient id="areaTrendGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="rgba(16, 185, 129, 0.15)"/>
-              <stop offset="100%" stop-color="rgba(16, 185, 129, 0.00)"/>
-            </linearGradient>
-          </defs>
+          ${hasEnvelope && p95Y > padT ? `<rect x="${padL}" y="${padT}" width="${plotW}" height="${Math.max(0, p95Y - padT)}" fill="rgba(239,68,68,0.07)" rx="2"/>` : ""}
 
-          <!-- Abnormal Surge Shaded Zone -->
-          ${p95Y > padT ? `<rect x="${padL}" y="${padT}" width="${plotW}" height="${surgeRectHeight}" fill="url(#surgeGrad)" rx="2"/>` : ""}
-
-          <!-- Y Gridlines & Labels -->
-          ${yTicks.map((val) => {
-            const y = yScale(val);
-            return `
-              <line x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" stroke="var(--line-hair)" stroke-dasharray="3 3"/>
-              <text x="${padL - 8}" y="${y + 3}" fill="var(--t-quiet)" font-size="9" font-family="var(--font-mono)" text-anchor="end">${Math.round(val)} MW</text>`;
+          ${ticks.map((v) => {
+            const y = yScale(v);
+            return `<line x1="${padL}" y1="${y}" x2="${padL + plotW}" y2="${y}" stroke="var(--line-hair)" stroke-dasharray="3 3"/>
+              <text x="${padL - 8}" y="${y + 3}" fill="var(--t-quiet)" font-size="9" font-family="var(--font-mono)" text-anchor="end">${fmt.dec(v, 0)} MW</text>`;
           }).join("")}
 
-          <!-- Area fill under trend polyline -->
-          <polygon points="${areaPoints}" fill="url(#areaTrendGrad)" opacity="0.6"/>
+          ${p50 > 0 ? `<line x1="${padL}" y1="${p50Y}" x2="${padL + plotW}" y2="${p50Y}" stroke="var(--signal)" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.85"/>
+            <text x="${padL + 6}" y="${p50Y - 4}" fill="var(--signal)" font-size="8.5" font-family="var(--font-mono)" text-anchor="start">MEASURED P50 (${fmt.dec(p50)} MW)</text>` : ""}
 
-          <!-- P50 Median Baseline Line (Left aligned label) -->
-          <line x1="${padL}" y1="${p50Y}" x2="${padL + plotW}" y2="${p50Y}" stroke="var(--signal)" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.85"/>
-          <text x="${padL + 6}" y="${p50Y - 4}" fill="var(--signal)" font-size="8.5" font-family="var(--font-mono)" text-anchor="start">P50 BASELINE (${fmt.dec(effectiveP50)} MW)</text>
+          ${hasEnvelope ? `<line x1="${padL}" y1="${p95Y}" x2="${padL + plotW}" y2="${p95Y}" stroke="var(--tier-elevated)" stroke-width="1.4" stroke-dasharray="5 3" opacity="0.95"/>
+            <text x="${padL + plotW - 6}" y="${p95Y - 4}" fill="var(--tier-elevated)" font-size="8.5" font-family="var(--font-mono)" text-anchor="end">MEASURED P95 (${fmt.dec(p95)} MW)</text>` : ""}
 
-          <!-- P95 Envelope Line (Right aligned label to prevent collision with P50) -->
-          <line x1="${padL}" y1="${p95Y}" x2="${padL + plotW}" y2="${p95Y}" stroke="var(--tier-elevated)" stroke-width="1.4" stroke-dasharray="5 3" opacity="0.95"/>
-          <text x="${padL + plotW - 6}" y="${p95Y - 4}" fill="var(--tier-elevated)" font-size="8.5" font-family="var(--font-mono)" text-anchor="end">P95 SURGE LIMIT (${fmt.dec(effectiveP95)} MW)</text>
+          ${shown.length > 1 ? `<polyline points="${pts.map((d) => `${d.cx},${d.cy}`).join(" ")}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.6"/>` : ""}
 
-          <!-- Trajectory Polyline connecting points -->
-          <polyline points="${polylinePoints}" fill="none" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1.6"/>
-
-          <!-- Plotted Points -->
           ${pointsSvg}
 
-          <!-- X Axis Line & Labels -->
           <line x1="${padL}" y1="${padT + plotH}" x2="${padL + plotW}" y2="${padT + plotH}" stroke="var(--line-strong)"/>
           ${labelsSvg}
         </svg>
@@ -1182,9 +1421,16 @@ function renderFrpPointGraph(cases, p95, median, peakFRP, activeWindow = "365d")
     </div>`;
 }
 
+/* Day vs night overpass split. The lanes are labelled by the field this reads
+   (`day_night_status`), not by the UTC hour bands the old labels asserted
+   ("10:00-15:00 UTC" / "21:00-04:00 UTC") -- this code never checked an hour,
+   and a continuous 24-hour record belongs to both lanes. */
 function renderDiurnalPointGraph(cases, p95) {
-  const dayCases = cases.filter((c) => c.firms?.daynight === "D");
-  const nightCases = cases.filter((c) => c.firms?.daynight !== "D");
+  /* F-109. A "DAY + NIGHT (Continuous 24h)" record genuinely belongs to both
+     lanes; the old `!== "D"` test put it in the night lane only, which is what
+     made the diagnosis below assert off-hours burning for every site. */
+  const dayCases = cases.filter((c) => ["Day", "Day + Night"].includes(dayNightOf(c)));
+  const nightCases = cases.filter((c) => ["Night", "Day + Night"].includes(dayNightOf(c)));
 
   const dayAvg = dayCases.length ? dayCases.reduce((s, c) => s + c.frp, 0) / dayCases.length : 0;
   const nightAvg = nightCases.length ? nightCases.reduce((s, c) => s + c.frp, 0) / nightCases.length : 0;
@@ -1193,314 +1439,442 @@ function renderDiurnalPointGraph(cases, p95) {
   const diagnosis = isContinuous
     ? "24/7 Continuous Operational Baseline (Routine Flare Cycle)"
     : (nightCases.length > 0
-        ? "High Nighttime Activity (Possible Off-Hours Burning)"
-        : "Intermittent Daytime Operations");
+      ? "High Nighttime Activity (Possible Off-Hours Burning)"
+      : "Intermittent Daytime Operations");
+
+  const lane = (title, list, avg) => `
+    <div class="diurnal-box">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span class="u-micro" style="font-weight:600;color:var(--tier-elevated);">${title}</span>
+        <span class="tag" style="font-size:0.65rem;">${list.length} observations</span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:1.1rem;font-weight:600;color:var(--t-primary);margin-bottom:8px;">
+        ${fmt.dec(avg)} <span style="font-size:0.75rem;color:var(--t-tertiary);font-weight:400;">MW Mean</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${list.slice(0, 8).map((c) => `
+          <span class="tag ${p95 > 0 && c.frp > p95 ? "tag--tier" : ""}" style="font-family:var(--font-mono);font-size:0.68rem;padding:2px 6px;">
+            ${fmt.dec(c.frp)} MW
+          </span>`).join("") || `<span class="u-micro u-quiet">No ${title.includes("Day") && !title.includes("Night") ? "day" : "night"} passes in window</span>`}
+      </div>
+    </div>`;
 
   return `
-    <div class="pointgraph-card glass well" style="padding:var(--s-4);border-radius:var(--r-sm);">
+    <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
       <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
         <div class="row" style="gap:8px;align-items:center;">
           <svg class="i i--sm" style="color:var(--signal)"><use href="#i-satellite"/></svg>
           <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
-            24-Hour Day vs. Night Pattern (Satellite Passes)
+            Day and Night Overpass Split
           </span>
         </div>
-        <span class="tag ${isContinuous ? 'tag--signal' : 'tag--tier'}" style="font-size:0.7rem;">
+        <span class="tag ${isContinuous ? "tag--signal" : "tag--tier"}" style="font-size:0.7rem;">
           ${diagnosis}
         </span>
       </div>
 
       <div class="diurnal-grid">
-        <!-- Daytime Overpass Lane -->
-        <div class="diurnal-box">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span class="u-micro" style="font-weight:600;color:var(--tier-elevated);">DAYTIME OVERPASS (10:00–15:00 UTC)</span>
-            <span class="tag" style="font-size:0.65rem;">${dayCases.length} observations</span>
-          </div>
-          <div style="font-family:var(--font-mono);font-size:1.1rem;font-weight:600;color:var(--t-primary);margin-bottom:8px;">
-            ${fmt.dec(dayAvg)} <span style="font-size:0.75rem;color:var(--t-tertiary);font-weight:400;">MW Mean</span>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            ${dayCases.slice(0, 8).map((c) => `
-              <span class="tag" style="font-family:var(--font-mono);font-size:0.68rem;padding:2px 6px;">
-                ${fmt.dec(c.frp)} MW
-              </span>`).join("") || '<span class="u-micro u-quiet">No day passes in window</span>'}
-          </div>
-        </div>
-
-        <!-- Nighttime Overpass Lane -->
-        <div class="diurnal-box">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span class="u-micro" style="font-weight:600;color:var(--signal);">NIGHTTIME OVERPASS (21:00–04:00 UTC)</span>
-            <span class="tag" style="font-size:0.65rem;">${nightCases.length} observations</span>
-          </div>
-          <div style="font-family:var(--font-mono);font-size:1.1rem;font-weight:600;color:var(--t-primary);margin-bottom:8px;">
-            ${fmt.dec(nightAvg)} <span style="font-size:0.75rem;color:var(--t-tertiary);font-weight:400;">MW Mean</span>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            ${nightCases.slice(0, 8).map((c) => `
-              <span class="tag ${c.frp > p95 ? 'tag--tier' : ''}" style="font-family:var(--font-mono);font-size:0.68rem;padding:2px 6px;">
-                ${fmt.dec(c.frp)} MW
-              </span>`).join("") || '<span class="u-micro u-quiet">No night passes in window</span>'}
-          </div>
-        </div>
+        ${lane("DAY OVERPASS (as published in day_night_status)", dayCases, dayAvg)}
+        ${lane("NIGHT OVERPASS (as published in day_night_status)", nightCases, nightAvg)}
       </div>
     </div>`;
 }
 
-function facilityCardItem(site, isSelected = false) {
-  const top = site.top;
-  const isRoutine = top.climatology?.isRoutine;
-  const anomaly = top.historicalAnomaly;
-  const p95 = top.climatology?.p95 || 10.0;
-  const peakFrp = Math.max(...site.cases.map((c) => c.frp));
-  const isSurge = peakFrp > p95 || anomaly === "ABNORMAL_SURGE";
+/* Detail pane for one register row: its registry record, its measured
+   baselines, its trend and the detections attributed to it. */
+function renderFacilityDetail(row, profileState, activeWindow) {
+  const a = row.asset;
+  const top = row.cases.length
+    ? row.cases.reduce((x, y) => (y.risk.score > x.risk.score ? y : x))
+    : null;
+  const compliance = complianceLine(row, profileState);
 
-  const badge = isSurge
-    ? `<span class="tag tag--tier" style="font-size:0.62rem">Surge &gt; P95</span>`
-    : (isRoutine ? `<span class="tag tag--signal" style="font-size:0.62rem">Routine Flare</span>` : `<span class="tag" style="font-size:0.62rem">Monitored</span>`);
-
-  return `
-    <div class="facility-card" data-facility="${escapeHtml(site.key)}" data-active="${isSelected ? 'true' : 'false'}">
-      <div class="facility-card__head">
-        <div style="min-width:0;">
-          <div class="facility-card__title u-truncate">
-            ${escapeHtml(site.place)}
+  const identity = `
+    <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      <div class="row row--wrap" style="justify-content:space-between;align-items:center;gap:var(--s-3);">
+        <div>
+          <div class="row" style="gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
+            <span class="tag tag--signal" style="font-size:0.7rem;">${row.kind === "basin" ? "MINING BASIN OBSERVATION" : "REGISTERED FACILITY"}</span>
+            <span class="tag ${row.exceeds ? "tag--tier" : "tag--signal"}" style="font-size:0.7rem;">
+              ${row.exceeds ? "EXCEEDS MEASURED P95" : (row.detections
+                ? (row.routine ? "ROUTINE PERMITTED FLARE" : "WITHIN ENVELOPE")
+                : "REGISTERED, NO DETECTION")}
+            </span>
+            ${row.hazard ? `<span class="tag" style="font-size:0.7rem;">${escapeHtml(String(row.hazard).replace(/_/g, " "))}</span>` : ""}
           </div>
-          <div class="facility-card__meta u-truncate">
-            <span>${escapeHtml(top.facility?.operator || "Authoritative Operator")}</span>
+          <h2 style="font-size:1.25rem;font-weight:600;color:var(--t-primary);margin:0 0 4px 0;">
+            ${escapeHtml(row.name)}
+          </h2>
+          <div class="row" style="gap:8px;align-items:center;font-size:var(--fs-micro);color:var(--t-tertiary);flex-wrap:wrap;">
+            <span>${escapeHtml(row.operator || "Operator not recorded")}</span>
             <span>&bull;</span>
-            <span>${escapeHtml(top.facility?.type || top.cls.label)}</span>
+            <span>${escapeHtml(a ? sectorLabel(row.sector) : "Mining basin")}</span>
+            ${a ? `<span>&bull;</span><span style="font-family:var(--font-mono);">${fmt.coord(a.latitude, a.longitude)}</span>` : ""}
           </div>
         </div>
-        ${badge}
+
+        ${a ? `<div class="row" style="gap:8px;align-items:center;">
+          <button class="btn btn--signal" type="button" data-inspect-facility-map="1" data-lat="${a.latitude}" data-lon="${a.longitude}" style="padding:6px 14px;font-size:0.78rem;display:flex;align-items:center;gap:6px;">
+            <svg class="i i--sm"><use href="#i-crosshair"/></svg>
+            <span>Inspect on Live Map</span>
+          </button>
+        </div>` : ""}
       </div>
 
-      <div class="facility-card__metrics">
-        <div class="facility-card__metric">
-          <span class="facility-card__metric-lbl">Returns</span>
-          <span class="facility-card__metric-val">${site.cases.length}</span>
+      <p class="u-micro" style="margin:var(--s-3) 0 0 0;color:${compliance.tone === "critical" ? "var(--tier-critical)" : (compliance.tone === "quiet" ? "var(--t-quiet)" : "var(--t-secondary)")};">
+        ${escapeHtml(compliance.text)}
+      </p>
+    </div>`;
+
+  const facts = `
+    <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      <div class="row" style="gap:8px;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
+        <svg class="i i--sm" style="color:var(--signal)"><use href="#i-sliders"/></svg>
+        <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
+          Registry Record and Observed Activity
+        </span>
+      </div>
+      <div class="grid-2" style="gap:var(--s-4);">
+        <div>
+          ${kv([
+            ["Registry ID", a ? `<span style="font-family:var(--font-mono);font-size:0.7rem;">${escapeHtml(a.id)}</span>` : `<span class="u-quiet">not a registered asset</span>`],
+            ["Operator", escapeHtml(row.operator || "not recorded")],
+            ["State / District", escapeHtml([row.state, row.district].filter(Boolean).join(" / ") || "not recorded")],
+            ["Facility Type", escapeHtml(a?.facility_type ? String(a.facility_type).replace(/_/g, " ") : "not recorded")],
+            ["Hazard Class", escapeHtml(a?.hazard_category ? String(a.hazard_category).replace(/_/g, " ") : "not recorded")],
+            ["Safety Buffer", a?.buffer_radius_meters ? `${fmt.int(a.buffer_radius_meters)} m radius` : "not recorded"],
+          ])}
         </div>
-        <div class="facility-card__metric">
-          <span class="facility-card__metric-lbl">Peak FRP</span>
-          <span class="facility-card__metric-val" style="${isSurge ? 'color:var(--tier-critical);' : ''}">${fmt.dec(peakFrp)} MW</span>
-        </div>
-        <div class="facility-card__metric">
-          <span class="facility-card__metric-lbl">P95 Limit</span>
-          <span class="facility-card__metric-val">${fmt.dec(p95)} MW</span>
+        <div>
+          ${kv([
+            ["Detections in Window", `${row.detections}`],
+            ["Peak Thermal Output", row.detections ? `<span style="font-family:var(--font-mono);font-weight:600;${row.exceeds ? "color:var(--tier-critical);" : ""}">${fmt.dec(row.peak)} MW</span>` : "--"],
+            ["Cell P95 Envelope (365d)", row.p95 > 0 ? `<span style="font-family:var(--font-mono);">${fmt.dec(row.p95)} MW</span>` : `<span class="u-quiet">no measurable envelope (INV-5)</span>`],
+            ["Peak / Envelope", row.ratio === null ? "--" : `<span style="font-family:var(--font-mono);${row.exceeds ? "color:var(--tier-critical);font-weight:600;" : ""}">${row.ratio.toFixed(2)}×</span>`],
+            ["Most Recent Detection", row.lastAt ? `${row.lastAt.toISOString().slice(0, 10)}` : "none in window"],
+            ["Lifecycle Status", escapeHtml(top ? String(top.risk.declaredTier || top.risk.tier) : "no open incident")],
+          ])}
         </div>
       </div>
     </div>`;
-}
 
-export function renderIndustrial(el, cases, selectedFacilityKey = null, query = "", sector = "all", sortBy = "frp", activeWindow = "365d") {
-  const industrial = cases.filter((c) => c.cls.group === "industrial" || c.facility?.name || c.climatology?.isRoutine);
-  let sites = bySite(industrial);
-
-  // Sector category filtering
-  if (sector && sector !== "all") {
-    sites = sites.filter((s) => {
-      const text = `${s.place} ${s.top.facility?.operator || ''} ${s.top.facility?.type || ''} ${s.top.cls.label || ''}`.toLowerCase();
-      if (sector === "flare") return /refinery|flare|petro|oil|gas|iocl|bpcl|hpcl|reliance|ongc|gail/.test(text);
-      if (sector === "steel") return /steel|blast|furnace|tata|jsw|sail|jindal/.test(text);
-      if (sector === "power") return /power|thermal|ntpc|tpp|adani/.test(text);
-      if (sector === "mining") return /mine|mining|coal|smelter|aluminium|vedanta|hindalco/.test(text);
-      if (sector === "cement") return /cement|kiln|ultratech|ambuja|chemical/.test(text);
-      return true;
-    });
-  }
-
-  // Text search filtering
-  if (query && query.trim()) {
-    const q = query.trim().toLowerCase();
-    sites = sites.filter((s) =>
-      s.place.toLowerCase().includes(q) ||
-      (s.top.facility?.operator || "").toLowerCase().includes(q) ||
-      (s.top.state || "").toLowerCase().includes(q) ||
-      s.cases.some((c) => c.address.toLowerCase().includes(q) || c.id.toLowerCase().includes(q))
-    );
-  }
-
-  // Sort sites
-  sites.sort((a, b) => {
-    const peakA = Math.max(...a.cases.map((c) => c.frp));
-    const peakB = Math.max(...b.cases.map((c) => c.frp));
-    if (sortBy === "frp") return peakB - peakA;
-    if (sortBy === "detections") return b.cases.length - a.cases.length;
-    if (sortBy === "anomaly") {
-      const aSurge = peakA > (a.top.climatology?.p95 || 10) ? 1 : 0;
-      const bSurge = peakB > (b.top.climatology?.p95 || 10) ? 1 : 0;
-      return bSurge - aSurge || peakB - peakA;
-    }
-    if (sortBy === "name") return a.place.localeCompare(b.place);
-    return peakB - peakA;
-  });
-
-  const flares = industrial.filter((c) => c.classId === "gas_flare" || c.climatology?.isRoutine);
-  const totalFrp = industrial.reduce((s, c) => s + c.frp, 0);
-  const surgeSites = sites.filter((s) => {
-    const peak = Math.max(...s.cases.map((c) => c.frp));
-    return peak > (s.top.climatology?.p95 || 25);
-  });
-
-  // Executive Metric Strip
-  const head = `<div class="grid-4" style="margin-bottom:var(--s-4);">
-    ${tile(metric(fmt.int(industrial.length), "", "Active Thermal Returns", "Total industrial detections in window"))}
-    ${tile(metric(fmt.int(sites.length), "", "Monitored Facilities", "Authoritative industrial sites"), 40)}
-    ${tile(metric(fmt.dec(totalFrp), "MW", "Total Thermal Radiance", "Combined radiative power across sites"), 80)}
-    ${tile(metric(`${surgeSites.length}`, ` / ${sites.length}`, "P95 Surge Exceedances", "Facilities exceeding normal baseline"), 120)}
-  </div>`;
-
-  // Active facility selection
-  const activeSite = (selectedFacilityKey && sites.find((s) => s.key === selectedFacilityKey)) || sites[0] || null;
-
-  let detailHtml = "";
-  if (activeSite) {
-    const top = activeSite.top;
-    const peakFRP = Math.max(...activeSite.cases.map((c) => c.frp));
-    const p95 = top.climatology?.p95 || 15.0;
-    const median = top.climatology?.median || Math.max(1.0, Math.round(p95 * 0.38 * 10) / 10);
-    const activeDays = top.climatology?.activeDays || top.persistence?.daysActive || 1;
-    const isRoutine = top.climatology?.isRoutine;
-    const isSurge = peakFRP > p95;
-    const anomaly = top.historicalAnomaly || (isSurge ? "ABNORMAL_SURGE" : "ROUTINE_OPERATION");
-
-    detailHtml = `
-      <div class="industrial-detail">
-        <!-- Facility Identity & Quick Action Header -->
-        <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
-          <div class="row row--wrap" style="justify-content:space-between;align-items:center;gap:var(--s-3);">
-            <div>
-              <div class="row" style="gap:8px;align-items:center;margin-bottom:4px;">
-                <span class="tag tag--signal" style="font-size:0.7rem;">FACILITY DOSSIER</span>
-                <span class="tag ${isSurge ? 'tag--tier' : 'tag--signal'}" style="font-size:0.7rem;">
-                  ${isSurge ? 'ABNORMAL SURGE ALERT' : (isRoutine ? 'ROUTINE PERMITTED FLARE' : 'OPERATIONAL')}
-                </span>
-              </div>
-              <h2 style="font-size:1.25rem;font-weight:600;color:var(--t-primary);margin:0 0 4px 0;">
-                ${escapeHtml(activeSite.place)}
-              </h2>
-              <div class="row" style="gap:8px;align-items:center;font-size:var(--fs-micro);color:var(--t-tertiary);flex-wrap:wrap;">
-                <span>${escapeHtml(top.facility?.operator || "Plant Operator")}</span>
-                <span>&bull;</span>
-                <span>${escapeHtml(top.facility?.type || top.cls.label)}</span>
-                <span>&bull;</span>
-                <span style="font-family:var(--font-mono);">${fmt.coord(top.lat, top.lon)}</span>
-              </div>
-            </div>
-
-            <div class="row" style="gap:8px;align-items:center;">
-              <button class="btn btn--signal" type="button" data-inspect-facility-map="1" data-lat="${top.lat}" data-lon="${top.lon}" style="padding:6px 14px;font-size:0.78rem;display:flex;align-items:center;gap:6px;">
-                <svg class="i i--sm"><use href="#i-crosshair"/></svg>
-                <span>Inspect on Live Map</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Multi-Window Historical Baseline Architecture (30d / 90d / 365d) -->
-        ${renderMultiWindowBaselinePanel(activeSite, p95, median, activeDays, activeWindow)}
-
-        <!-- Interactive Pointgraph -->
-        ${renderFrpPointGraph(activeSite.cases, p95, median, peakFRP, activeWindow)}
-
-        <!-- Diurnal Day vs Night Analysis -->
-        ${renderDiurnalPointGraph(activeSite.cases, p95)}
-
-        <!-- Operational Climatology & Regulatory Context Panel -->
-        <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
-          <div class="row" style="gap:8px;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
-            <svg class="i i--sm" style="color:var(--signal)"><use href="#i-sliders"/></svg>
+  const detections = row.cases.length
+    ? `<div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
+          <div class="row" style="gap:8px;align-items:center;">
+            <svg class="i i--sm" style="color:var(--signal)"><use href="#i-flame"/></svg>
             <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
-              Facility Baseline & Operational Intelligence
+              Detections Attributed to This Site (${row.cases.length})
             </span>
           </div>
-          <div class="grid-2" style="gap:var(--s-4);">
-            <div>
-              ${kv([
-                ["Facility Operator", escapeHtml(top.facility?.operator || "Industrial Operator")],
-                ["Industrial Sector", escapeHtml(top.facility?.type || top.cls.label)],
-                ["Coordinates (Lat/Lon)", `<span style="font-family:var(--font-mono);">${fmt.coord(top.lat, top.lon)}</span>`],
-                ["Location / Address", escapeHtml(top.address || top.site || "Industrial Zone")],
-                ["Safety Buffer Zone", "1,500m Industrial Safety Perimeter"],
-                ["Investigation Priority", `<strong style="color:var(--signal);">${top.investigationPriority || top.rank} / 100</strong>`],
-              ])}
-            </div>
-            <div>
-              ${kv([
-                ["Active Detections in Window", `${activeSite.cases.length} satellite passes`],
-                ["Peak Thermal Output", `<span style="font-family:var(--font-mono);font-weight:600;${isSurge ? 'color:var(--tier-critical);' : ''}">${fmt.dec(peakFRP)} MW</span>`],
-                ["365-Day Baseline P95", `<span style="font-family:var(--font-mono);">${fmt.dec(p95)} MW</span>`],
-                ["Typical Baseline (P50)", `<span style="font-family:var(--font-mono);">${fmt.dec(median)} MW</span>`],
-                ["Annual Persistence", `${activeDays} active flare days / year`],
-                ["Anomaly Status", `<span class="tag ${isSurge ? 'tag--tier' : 'tag--signal'}">${escapeHtml(anomaly.replace(/_/g, ' '))}</span>`],
-              ])}
-            </div>
-          </div>
+          <span class="u-micro u-quiet">Open Details for the satellite crop and the AI vision report</span>
         </div>
-
-        <!-- Associated Live Detections Queue for Facility -->
-        <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
-          <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
-            <div class="row" style="gap:8px;align-items:center;">
-              <svg class="i i--sm" style="color:var(--signal)"><use href="#i-flame"/></svg>
-              <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
-                Associated Detections at Facility (${activeSite.cases.length})
-              </span>
-            </div>
-            <span class="u-micro u-quiet">Click Details to view high-resolution satellite imagery & AI vision report</span>
-          </div>
-
-          <div class="stack" style="gap:6px;">
-            ${activeSite.cases.map((c) => `
-              <div class="row glass well" style="justify-content:space-between;align-items:center;padding:10px 14px;border-radius:var(--r-sm);">
-                <div class="row" style="gap:10px;align-items:center;">
-                  ${icon(c.cls.icon, "i i--sm")}
-                  <div>
-                    <span style="font-family:var(--font-mono);font-size:0.8rem;font-weight:600;color:var(--t-primary);">${escapeHtml(c.id)}</span>
-                    <span class="u-micro u-quiet" style="margin-left:8px;">${c.firms.date} ${c.firms.time} (${c.firms.daynight === 'D' ? 'Day' : 'Night'} pass)</span>
-                  </div>
+        <div class="stack" style="gap:6px;">
+          ${row.cases.map((c) => `
+            <div class="row glass well" style="justify-content:space-between;align-items:center;padding:10px 14px;border-radius:var(--r-sm);">
+              <div class="row" style="gap:10px;align-items:center;">
+                ${icon(c.cls.icon, "i i--sm")}
+                <div>
+                  <span style="font-family:var(--font-mono);font-size:0.8rem;font-weight:600;color:var(--t-primary);">${escapeHtml(c.id)}</span>
+                  <span class="u-micro u-quiet" style="margin-left:8px;">${c.firms.date} ${c.firms.time} (${dayNightOf(c)} pass)</span>
                 </div>
-
-                <div class="row" style="gap:10px;align-items:center;">
-                  <span class="u-micro" style="font-family:var(--font-mono);font-weight:600;font-size:0.82rem;${c.frp > p95 ? 'color:var(--tier-critical);' : ''}">
-                    ${fmt.dec(c.frp)} MW
-                  </span>
-                  <span class="tag tag--tier" data-tier="${c.risk.tier}" style="font-size:0.68rem;">
-                    ${c.severity?.level || c.risk.tier} ${c.severity?.score ?? c.risk.score}
-                  </span>
-                  <button class="btn btn--sm" type="button" data-case="${escapeHtml(c.id)}" data-open="modal" style="padding:3px 10px;font-size:0.72rem;height:24px;">
-                    Details
-                  </button>
-                </div>
-              </div>`).join("")}
-          </div>
+              </div>
+              <div class="row" style="gap:10px;align-items:center;">
+                <span class="u-micro" style="font-family:var(--font-mono);font-weight:600;font-size:0.82rem;${row.p95 > 0 && c.frp > row.p95 ? "color:var(--tier-critical);" : ""}">
+                  ${fmt.dec(c.frp)} MW
+                </span>
+                <span class="tag tag--tier" data-tier="${c.risk.tier}" style="font-size:0.68rem;">
+                  ${c.severity?.level || c.risk.tier} ${c.severity?.score ?? c.risk.score}
+                </span>
+                <button class="btn btn--sm" type="button" data-case="${escapeHtml(c.id)}" data-open="modal" style="padding:3px 10px;font-size:0.72rem;height:24px;">
+                  Details
+                </button>
+              </div>
+            </div>`).join("")}
         </div>
+      </div>`
+    : `<div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+        ${stateBlock("No detection in this window",
+          "This facility is registered and monitored but had no thermal detection in the active window. That is a statement about coverage, not about compliance.", "i-factory")}
       </div>`;
-  } else {
-    detailHtml = `<div class="glass panel" style="padding:var(--s-8);text-align:center;">
-      ${stateBlock("No facility selected", "Select a facility from the left directory to inspect its pointgraph and baseline intelligence.", "i-factory")}
+
+  /* A basin has no registry row and no facility profile, so the measured
+     baseline panel and the registry record are both replaced by the statement
+     of what it is not. */
+  if (row.kind === "basin") {
+    return `<div class="industrial-detail">
+      ${identity}
+      <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+        ${stateBlock("Not a registered facility",
+          "This site is a mapped mining concession, not an industrial_assets row. It has no operator, no safety buffer and no hazard classification on record, so it is reported separately from the register and no facility baseline can be measured for it.", "i-mining")}
+      </div>
+      ${detections}
     </div>`;
   }
 
-  // Left sidebar card list
+  return `<div class="industrial-detail">
+    ${identity}
+    ${renderMeasuredBaselinePanel(profileState, activeWindow)}
+    ${facts}
+    ${row.cases.length ? renderFrpPointGraph(row.cases, profileState, activeWindow) : ""}
+    ${row.cases.length ? renderDiurnalPointGraph(row.cases, row.p95) : ""}
+    ${detections}
+  </div>`;
+}
+
+function renderGroupDetail(group, groupBy) {
+  const cut = groupBy === "operator" ? "operator" : "state";
+  const sorted = group.rows.slice().sort((a, b) => (b.exceeds - a.exceeds) || ((b.ratio ?? -1) - (a.ratio ?? -1)) || (b.peak - a.peak));
+  const exceeding = sorted.filter((r) => r.exceeds);
+  const quiet = sorted.filter((r) => !r.detections);
+
+  const table = sorted.map((r) => `
+    <div class="row glass well" data-facility="${escapeHtml(r.key)}" style="justify-content:space-between;align-items:center;padding:10px 14px;border-radius:var(--r-sm);gap:var(--s-2);cursor:pointer;">
+      <div style="min-width:0;">
+        <div style="font-size:0.82rem;font-weight:600;color:var(--t-primary);" class="u-truncate">${escapeHtml(r.name)}</div>
+        <div class="u-micro u-quiet u-truncate">${escapeHtml([r.district, r.state].filter(Boolean).join(", ") || "location not recorded")}</div>
+      </div>
+      <div class="row" style="gap:10px;align-items:center;">
+        <span class="u-micro" style="font-family:var(--font-mono);">${r.detections} det.</span>
+        <span class="u-micro" style="font-family:var(--font-mono);">${r.detections ? `${fmt.dec(r.peak)} MW` : "--"}</span>
+        <span class="tag ${r.exceeds ? "tag--tier" : "tag--signal"}" style="font-size:0.66rem;">
+          ${r.exceeds ? `${r.ratio.toFixed(2)}× P95` : (r.detections ? "within" : "quiet")}
+        </span>
+      </div>
+    </div>`).join("");
+
+  return `<div class="industrial-detail">
+    <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      <span class="tag tag--signal" style="font-size:0.7rem;">${cut === "operator" ? "OPERATOR ROLL-UP" : "STATE ROLL-UP"}</span>
+      <h2 style="font-size:1.25rem;font-weight:600;color:var(--t-primary);margin:6px 0 4px 0;">${escapeHtml(group.name)}</h2>
+      <p class="u-micro u-quiet" style="margin:0;">
+        ${group.rows.length} registered ${group.rows.length === 1 ? "facility" : "facilities"} &bull;
+        ${group.detections} detections in window &bull;
+        ${group.exceeds} above their measured P95 &bull;
+        ${group.quiet} with no detection
+      </p>
+    </div>
+
+    <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      <div class="row" style="gap:8px;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
+        <svg class="i i--sm" style="color:var(--signal)"><use href="#i-factory"/></svg>
+        <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
+          ${escapeHtml(group.name)} — Registered Facilities, Ranked by Exceedance
+        </span>
+      </div>
+      <div class="stack" style="gap:6px;">${table}</div>
+    </div>
+
+    ${exceeding.length ? "" : `<div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      ${stateBlock("No exceedance in this window",
+        `None of the ${group.rows.length} registered facilities here beat its measured 365-day P95 envelope. ${quiet.length} had no detection at all.`, "i-check")}
+    </div>`}
+  </div>`;
+}
+
+function renderRegisterSummary(rows, reporting, quiet, basinRows, unattributed, groupBy, hasRegistry = true) {
+  const quietList = quiet.slice().sort((a, b) => a.name.localeCompare(b.name));
+
+  /* "Every registered facility reported" is only true if there is a register
+     to have reported. With the registry unavailable every facility row is
+     absent, so `quiet` is empty for the opposite reason and the coverage panel
+     has to say so instead of congratulating the network. */
+  const coverage = quietList.length
+    ? `<div class="stack" style="gap:6px;max-height:340px;overflow-y:auto;">
+        ${quietList.map((r) => `
+          <div class="row glass well" data-facility="${escapeHtml(r.key)}" style="justify-content:space-between;align-items:center;padding:8px 12px;border-radius:var(--r-sm);cursor:pointer;">
+            <div style="min-width:0;">
+              <div class="u-truncate" style="font-size:0.8rem;color:var(--t-primary);">${escapeHtml(r.name)}</div>
+              <div class="u-micro u-quiet u-truncate">${escapeHtml([r.operator, r.state].filter(Boolean).join(" · "))}</div>
+            </div>
+            <span class="tag" style="font-size:0.64rem;">${escapeHtml(sectorLabel(r.sector))}</span>
+          </div>`).join("")}
+      </div>`
+    : hasRegistry
+      ? stateBlock("Every registered facility reported", "All registered facilities had at least one detection in the active window.", "i-check")
+      : stateBlock("No register to compare against", "The industrial registry did not load, so there is no list of monitored facilities and no coverage figure can be stated. The detections below are the feed's own.", "i-database");
+
+  /* The detections the feed could not attach to any name at all: no registry
+     asset and no basin label. These are the ones most worth a reader's time --
+     a thermal anomaly the system cannot attribute to anything on record -- so
+     they are listed rather than only counted. */
+  const orphans = unattributed.length
+    ? `<div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
+          <div class="row" style="gap:8px;align-items:center;">
+            ${icon("i-question", "i i--sm")}
+            <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
+              Unattributed Detections (${unattributed.length})
+            </span>
+          </div>
+          <span class="u-micro u-quiet">No registered facility and no mapped basin within range of the feed's resolution</span>
+        </div>
+        <div class="stack" style="gap:6px;max-height:300px;overflow-y:auto;">
+          ${unattributed.slice().sort((a, b) => b.frp - a.frp).map((c) => `
+            <div class="row glass well" style="justify-content:space-between;align-items:center;padding:8px 12px;border-radius:var(--r-sm);gap:var(--s-2);">
+              <div class="row" style="gap:10px;align-items:center;min-width:0;">
+                ${icon(c.cls.icon, "i i--sm")}
+                <div style="min-width:0;">
+                  <div class="u-truncate" style="font-size:0.8rem;color:var(--t-primary);">${escapeHtml(c.cls.label)}</div>
+                  <div class="u-micro u-quiet u-truncate" style="font-family:var(--font-mono);">${fmt.coord(c.lat, c.lon)}${c.state ? ` · ${escapeHtml(c.state)}` : ""}</div>
+                </div>
+              </div>
+              <div class="row" style="gap:10px;align-items:center;">
+                <span class="u-micro" style="font-family:var(--font-mono);font-weight:600;">${fmt.dec(c.frp)} MW</span>
+                <button class="btn btn--sm" type="button" data-case="${escapeHtml(c.id)}" data-open="modal" style="padding:3px 10px;font-size:0.72rem;height:24px;">Details</button>
+              </div>
+            </div>`).join("")}
+        </div>
+      </div>`
+    : "";
+
+  return `<div class="industrial-detail">
+    <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      <span class="tag tag--signal" style="font-size:0.7rem;">${hasRegistry ? "NATIONAL REGISTER" : "REGISTER UNAVAILABLE"}</span>
+      <h2 style="font-size:1.25rem;font-weight:600;color:var(--t-primary);margin:6px 0 4px 0;">Monitoring Coverage and Envelope Status</h2>
+      <p class="u-micro u-quiet" style="margin:0;">
+        ${rows.length} registered facilities &bull; ${reporting.length} reported a detection in this window &bull;
+        ${quiet.length} did not &bull; ${basinRows.length} mining basin${basinRows.length === 1 ? "" : "s"} reported against outside the register &bull;
+        ${unattributed.length} detection${unattributed.length === 1 ? "" : "s"} attributable to nothing on record
+      </p>
+      <p class="u-micro" style="margin:var(--s-3) 0 0 0;color:var(--t-tertiary);">
+        ${hasRegistry
+          ? `Select a facility for its registry record and its measured 30 / 90 / 365-day baselines, or switch the
+             roll-up to ${groupBy === "operator" ? "state" : "operator"} to read the same register by ${groupBy === "operator" ? "state" : "operator"}.`
+          : `Every detection in this window is attributed by the place label the feed published, because there is no register to join on. Reload once /api/industries answers to see the register view.`}
+      </p>
+    </div>
+
+    <div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:var(--s-3);padding-bottom:var(--s-2);border-bottom:1px solid var(--line-hair);">
+        <div class="row" style="gap:8px;align-items:center;">
+          <svg class="i i--sm" style="color:var(--signal)"><use href="#i-pulse"/></svg>
+          <span style="font-size:0.82rem;font-weight:600;color:var(--t-primary);text-transform:uppercase;letter-spacing:0.04em;">
+            ${hasRegistry ? `Registered but Quiet This Window (${quietList.length})` : "Sites Reported Against"}
+          </span>
+        </div>
+        <span class="u-micro u-quiet">A gap in coverage, not a clean bill of health</span>
+      </div>
+      ${coverage}
+    </div>
+
+    ${orphans}
+  </div>`;
+}
+
+export function renderIndustrial(el, cases, selectedFacilityKey = null, query = "", sector = "all",
+                                 sortBy = "frp", activeWindow = "365d", profileState = null,
+                                 registry = [], groupBy = "facility") {
+  const industrial = cases.filter((c) => c.cls.group === "industrial" || c.facility?.name || c.climatology?.isRoutine);
+  const { rows, basinRows, unattributed } = buildRegister(industrial, registry);
+
+  const byKey = new Map();
+  rows.forEach((r) => byKey.set(r.key, r));
+  basinRows.forEach((r) => byKey.set(r.key, r));
+
+  // --- Filters -------------------------------------------------------------
+  let visibleRows = rows.concat(basinRows);
+  if (sector !== "all") visibleRows = visibleRows.filter((r) => r.sector === sector);
+  if (query && query.trim()) {
+    const q = query.trim().toLowerCase();
+    visibleRows = visibleRows.filter((r) =>
+      r.name.toLowerCase().includes(q)
+      || (r.operator || "").toLowerCase().includes(q)
+      || (r.state || "").toLowerCase().includes(q)
+      || (r.district || "").toLowerCase().includes(q)
+      || (r.asset?.facility_type || "").toLowerCase().includes(q)
+      || r.cases.some((c) => c.id.toLowerCase().includes(q)));
+  }
+
+  visibleRows.sort((a, b) => {
+    if (sortBy === "detections") return (b.detections - a.detections) || (b.peak - a.peak);
+    if (sortBy === "anomaly") return ((b.ratio ?? -1) - (a.ratio ?? -1)) || (b.peak - a.peak);
+    if (sortBy === "name") return a.name.localeCompare(b.name);
+    return (b.peak - a.peak) || (b.detections - a.detections);
+  });
+
+  // --- Roll-ups ------------------------------------------------------------
+  const groups = groupBy === "operator" ? rollUp(rows, (r) => r.operator)
+    : groupBy === "state" ? rollUp(rows, (r) => r.state)
+      : null;
+
+  const reporting = rows.filter((r) => r.detections);
+  const quiet = rows.filter((r) => !r.detections);
+  const exceeding = rows.filter((r) => r.exceeds);
+  const industrialPeakFrp = industrial.length ? Math.max(...industrial.map((c) => c.frp || 0)) : 0;
+
+  // --- Header --------------------------------------------------------------
+  /* No register means no register figures. `registry` is empty when the fetch
+     failed (data.js records it in `store.errors`), and the tiles below would
+     then read "0 Registered Facilities, 0 / 0 with a detection" -- a statement
+     about the monitoring network made from a statement about one HTTP request.
+     The banner says which it is and the tiles are replaced, not zeroed. */
+  const head = !registry.length
+    ? `<div class="glass panel" style="padding:var(--s-4);border-radius:var(--r-md);margin-bottom:var(--s-4);">
+        ${stateBlock("Industrial register unavailable",
+          "GET /api/industries did not answer, so there is no list of monitored facilities to report against. The detections below are still the feed's own, grouped by the place name it published. No register totals are shown, because a register that failed to load has no totals.",
+          "i-factory")}
+        <div class="grid-4" style="margin-top:var(--s-4);">
+          ${tile(metric(fmt.int(basinRows.length), "", "Sites Reported Against", "Place labels on the detections in this window; with no register to join on, none of these can be confirmed as a registered facility"))}
+          ${tile(metric(fmt.dec(industrialPeakFrp), "MW", "Peak Thermal Radiance", "Highest single-detection radiative power in window (INV-2: never summed)"), 40)}
+        </div>
+      </div>`
+    : `<div class="grid-4" style="margin-bottom:var(--s-4);">
+    ${tile(metric(fmt.int(rows.length), "", "Registered Facilities", `Authoritative industrial_assets registry${basinRows.length ? `; ${basinRows.length} further mining basin${basinRows.length === 1 ? "" : "s"} reported against outside it` : ""}`))}
+    ${tile(metric(fmt.int(reporting.length), ` / ${rows.length}`, "With a Detection in Window", "Registered facilities with at least one detection in the active window"), 40)}
+    ${tile(metric(fmt.int(exceeding.length), ` / ${reporting.length || 0}`, "Above Their Measured P95", "Reporting facilities whose peak beats the highest cell envelope they sit in"), 80)}
+    ${tile(metric(fmt.dec(industrialPeakFrp), "MW", "Peak Thermal Radiance", "Highest single-detection radiative power in window (INV-2: never summed)"), 120)}
+  </div>`;
+
+  // --- Detail --------------------------------------------------------------
+  const selected = selectedFacilityKey ? byKey.get(selectedFacilityKey) : null;
+  const selectedGroup = selectedFacilityKey && !selected
+    ? groups?.find((g) => g.key === selectedFacilityKey)
+    : null;
+
+  let detailHtml;
+  if (selected) detailHtml = renderFacilityDetail(selected, profileState, activeWindow);
+  else if (selectedGroup) detailHtml = renderGroupDetail(selectedGroup, groupBy);
+  else detailHtml = renderRegisterSummary(rows, reporting, quiet, basinRows, unattributed, groupBy, registry.length > 0);
+
+  // --- Sidebar -------------------------------------------------------------
+  /* An empty list has two very different causes and they must not read the
+     same. `Cement & Kilns` is a sector this register has no rows for at all
+     (all nine `facility_type` values present are steel, refining, LNG, power,
+     smelting and mining), so filtering to it shows an empty list no amount of
+     clearing will fill; telling the reader to clear their filters would send
+     them looking for a control that does not exist. The same applies to the
+     sector pills: they are drawn from `SECTORS`, not from the register. */
+  const sectorHasNoRows = sector !== "all" && !rows.concat(basinRows).some((r) => r.sector === sector);
+  const emptyReason = sectorHasNoRows
+    ? `The register holds no facility of this sector. Its ${rows.length} rows are steel, refining, LNG, thermal power, smelting and mining; a sector with no rows is a gap in the register, not a filter to clear.`
+    : "Try clearing or changing your sector and query filters.";
+
+  let listHtml;
+  if (groups) {
+    listHtml = groups.length
+      ? groups.map((g) => groupRowItem(g, selectedGroup && g.key === selectedGroup.key)).join("")
+      : stateBlock("No groups match", sectorHasNoRows ? emptyReason : "Try clearing the sector filter or the search term.", "i-search");
+  } else {
+    listHtml = visibleRows.length
+      ? visibleRows.map((r) => registerRowItem(r, selected && r.key === selected.key)).join("")
+      : stateBlock("No facilities match", emptyReason, "i-search");
+  }
+
+  const countLabel = groups
+    ? `${groups.length} ${groupBy === "operator" ? "operators" : "states"}`
+    : `${visibleRows.length} of ${rows.length + basinRows.length} sites`;
+
   const sidebarHtml = `
     <div class="industrial-sidebar">
       <div class="row" style="justify-content:space-between;align-items:center;padding:4px 6px 8px 6px;">
-        <span class="u-label" style="font-size:0.75rem;">FACILITIES DIRECTORY</span>
-        <span class="u-micro u-num" style="color:var(--signal);">${sites.length} matching</span>
+        <span class="u-label" style="font-size:0.75rem;">${groups ? (groupBy === "operator" ? "OPERATOR ROLL-UP" : "STATE ROLL-UP") : "FACILITY REGISTER"}</span>
+        <span class="u-micro u-num" style="color:var(--signal);">${countLabel}</span>
       </div>
-      ${sites.length
-        ? sites.map((s) => facilityCardItem(s, activeSite && s.key === activeSite.key)).join("")
-        : stateBlock("No facilities match", "Try clearing or changing your sector and query filters.", "i-search")}
+      ${listHtml}
     </div>`;
 
-  const workspace = `<div class="industrial-workspace">
-    ${sidebarHtml}
-    ${detailHtml}
-  </div>`;
-
-  set(el, head + workspace);
+  set(el, head + `<div class="industrial-workspace">${sidebarHtml}${detailHtml}</div>`);
 }
 
 /* --- Analytics ------------------------------------------------------------

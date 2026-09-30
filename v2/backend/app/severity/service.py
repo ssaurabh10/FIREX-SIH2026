@@ -56,6 +56,15 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
     is_persistent = base_dict.get("is_persistent", False)
     is_routine_flare = base_dict.get("is_routine_flare", False)
 
+    # Chronic-source inputs. The two return paths of get_or_create_location_baseline
+    # disagree on the key -- the cached climatology path returns `active_days_365d`
+    # (baseline.py:270) and the freshly-computed path returns `active_days`
+    # (baseline.py:380) -- so both are read. Reading only one would silently
+    # disable suppression whenever the cache is cold, which is exactly the first
+    # run after a scoring change.
+    active_days = base_dict.get("active_days_365d", base_dict.get("active_days", 0)) or 0
+    baseline_obs_count = base_dict.get("observation_count", 0) or 0
+
     # Check eco-sensitive protected area containment
     is_protected = False
     try:
@@ -88,7 +97,9 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
         hazard_category=hazard_cat,
         is_inside_facility=incident.is_inside_facility,
         is_protected_area=is_protected,
-        is_routine_flare=is_routine_flare
+        is_routine_flare=is_routine_flare,
+        active_days_365=active_days,
+        observation_count=baseline_obs_count
     )
 
     # 5. Evaluate state machine transition

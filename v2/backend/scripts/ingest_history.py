@@ -24,10 +24,17 @@ sys.path.insert(0, BASE_DIR)
 from app.storage.database import SessionLocal
 from app.storage.models import IndustrialAsset
 from app.behavior.baseline import get_or_create_facility_baseline
+from app.gis.boundaries import is_within_indian_sovereign_territory
 
+# Source corpus for the archive load. This is input data, not part of v2: the
+# directory is the operator's, so it is taken from the environment first and
+# otherwise expected beside the repository. The literal
+# `c:\Users\ssaur\...\History data` fallback that used to sit here was one
+# machine's own path, which made where this script reads from depend on whose
+# checkout it was.
 _ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
-_REL_DATA_DIR = os.path.join(_ROOT_DIR, "History data")
-DATA_DIR = _REL_DATA_DIR if os.path.exists(_REL_DATA_DIR) else r"c:\Users\ssaur\OneDrive\Desktop\PS162\History data"
+DEFAULT_DATA_DIR = os.path.join(_ROOT_DIR, "History data")
+DATA_DIR = os.environ.get("FIREX_HISTORY_DATA_DIR") or DEFAULT_DATA_DIR
 DB_PATH = os.path.join(BASE_DIR, "data", "firex_v2.db")
 
 # Sovereign India Bounding Box
@@ -81,6 +88,7 @@ def run_ingestion():
 
     if not os.path.exists(DATA_DIR):
         print(f"ERROR: Data directory '{DATA_DIR}' not found.")
+        print("       Set FIREX_HISTORY_DATA_DIR to the directory holding the FIRMS CSVs.")
         return
 
     conn = sqlite3.connect(DB_PATH)
@@ -174,8 +182,25 @@ def run_ingestion():
                 except (ValueError, KeyError):
                     continue
 
-                # Bounding Box Filter: Trim neighboring foreign data
+                # Bounding box first -- it is a cheap prefilter that rejects the
+                # bulk of the corpus without a point-in-polygon test -- and then
+                # the authoritative sovereign predicate, which is the same check
+                # the live ingestion path applies (`app/ingestion/firms.py`).
+                #
+                # This script previously stopped at the bbox. The comment called
+                # it "Sovereign India Bounding Box ... trims foreign border
+                # data", but the bbox also contains Nepal, Bhutan, Bangladesh,
+                # Sri Lanka and most of Pakistan, so roughly 28% of the rows it
+                # admitted lie outside the mask. Those rows are ineligible to
+                # become incidents yet still feed `thermal_climatology` and
+                # `historical_baselines`, which is the substrate INV-4 and every
+                # suppression rule is computed from -- a foreign detection could
+                # therefore depress `active_days` or inflate `mean_frp` on the
+                # Indian cell sharing its grid square.
                 if lat < MIN_LAT or lat > MAX_LAT or lon < MIN_LON or lon > MAX_LON:
+                    file_trimmed_geo += 1
+                    continue
+                if not is_within_indian_sovereign_territory(lat, lon):
                     file_trimmed_geo += 1
                     continue
 
@@ -272,8 +297,8 @@ def run_ingestion():
     elapsed = time.time() - start_time
     print("\n=== Ingestion & Compaction Complete ===")
     print(f"Total Rows Read:         {total_read:,}")
-    print(f"Older Rows Trimmed:      {total_trimmed_date:,} (< 2025-09-14)")
-    print(f"Foreign Borders Trimmed: {total_trimmed_geo:,} (Outside India BBox)")
+    print(f"Older Rows Trimmed:      {total_trimmed_date:,} (< {MIN_ACQ_DATE})")
+    print(f"Foreign Borders Trimmed: {total_trimmed_geo:,} (Outside the sovereign India mask)")
     print(f"Total Ingested:          {total_inserted:,}")
     print(f"Final Observations in DB:{final_count:,}")
     print(f"Final Compacted DB Size: {final_size_mb:.1f} MB")

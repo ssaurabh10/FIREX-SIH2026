@@ -39,6 +39,42 @@ def score_to_level(score: float) -> str:
 # its band rather than exactly on the boundary.
 LEVEL_RANK = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}
 
+# ---------------------------------------------------------------------------
+# Chronic thermal source suppression.
+#
+# INV-4 protects a site whose thermal output is routine *for that site*: it
+# clamps the composite when the detection sits inside the facility's own
+# empirical 365-day P95 envelope. That is the right idea, but it was wired only
+# to `is_routine_flare` -- a flag `baseline.py:324` gates on `is_flare_fac`, so
+# the climatology can only ever set it for flare-adjacent petroleum facilities.
+# A steel plant or a coal basin, hot on hundreds of days a year by construction,
+# could never be suppressed however ordinary the reading.
+#
+# Measured on the live queue: 12 of the 19 CRITICAL incidents sat BELOW their own
+# cell's P95, on cells active 157-294 days of the previous 366, detected at night
+# (night_ratio 0.73-1.00) at the same coordinates on repeat -- India's largest
+# steel plants, each publishing "IMMEDIATE EMERGENCY DISPATCH" against a blast
+# furnace. Meanwhile the one genuine anomaly in that set, a 14-day cell spiking
+# to 1.44x its P95, was indistinguishable from them.
+#
+# Chronicity is therefore keyed on `active_days`, not on the site hint string:
+# it is continuous, it is derived from the whole window, and it catches chronic
+# sources the taxonomy has not got round to naming. The stored distribution is
+# strongly bimodal -- p99 = 8 active days, p99.5 = 12, p99.9 = 141 -- so any cut
+# in the empty band between a fortnight and five months selects the same ~543
+# permanent sources (0.16% of the 331,418 cells in thermal_climatology) and
+# suppresses the same 18 of 19 CRITICAL incidents. 90 sits mid-band with margin.
+#
+# A chronic source must clear a much higher bar to count as anomalous: a site hot
+# on 280 days a year exceeds its own P95 by construction on about 14 of them, so
+# "above P95" is not news there. 3.0 is the specification's own Strong Anomaly
+# multiple, already used by evaluate_severity_overrides below.
+# ---------------------------------------------------------------------------
+CHRONIC_ACTIVE_DAYS = 90
+MIN_CHRONIC_OBSERVATIONS = 30   # a P95 drawn from a handful of readings is not a baseline
+SPIKE_MULTIPLE_CHRONIC = 3.0
+SPIKE_MULTIPLE_QUIET = 1.0
+
 
 # Sovereign Indian FIRMS FRP Distribution Constants
 # Measured across the 2,895,064 Indian observations held in the national
@@ -279,7 +315,9 @@ def compute_incident_severity(
     hazard_category: Optional[str] = None,
     is_inside_facility: bool = False,
     is_protected_area: bool = False,
-    is_routine_flare: bool = False
+    is_routine_flare: bool = False,
+    active_days_365: int = 0,
+    observation_count: int = 0
 ) -> Dict[str, Any]:
     """
     Full deterministic severity evaluation returning score, level, factors, and confidence.
@@ -299,9 +337,35 @@ def compute_incident_severity(
     has_history = (p95_frp > 0.0 or median_frp > 0.0) and history_reliability >= 0.4
     p95_ratio = (frp_mw / p95_frp) if p95_frp > 0.0 else None
 
-    # For routine persistent flares, use empirical Indian FIRMS calibrated FRP
-    # so normal flaring within baseline does not artificially inflate FRP contribution
-    effective_frp_score = india_calibrated_frp if is_routine_flare else frp_score
+    # The FRP term is measured against the sovereign Indian FIRMS distribution,
+    # not against a curve anchored to nothing.
+    #
+    # `calculate_frp_severity` is 25*log2(FRP+1) -- absolute, with no reference
+    # point, and saturated by about 20 MW. Under it India's own median thermal
+    # detection (4.05 MW) rates 58.4/100 and P90 (13.32 MW) rates 96.0/100, so
+    # this term alone carried almost any detection into a high band. Measured on
+    # the live queue, it was the *only* varying term for 146 of the 226 rows in
+    # HIGH and MEDIUM: two-thirds of those had no baseline (`p95_frp = 0`, hence
+    # the 3-factor model), and within them GIS took exactly one value (15.0, the
+    # floor) and Vision exactly two (50.0 x141, 63.5 x5) -- `uncertain` blends
+    # 50.0 toward 50.0 and so scores exactly 50.0 at any confidence. With 45% of
+    # the composite inert the score reduced to 0.5*frp_score + 18, and the
+    # HIGH/MEDIUM line landed at FRP 4.9 MW, on the national median, with zero
+    # overlap (MEDIUM max 4.78 MW, HIGH min 5.13 MW).
+    #
+    # `calculate_calibrated_frp_severity` is the same curve with FRP expressed in
+    # units of that median, and its anchors are the bands themselves: P50 -> 25.0,
+    # P90 -> 52.5, P95 -> 65.4, P99 -> 100.0. It was already computed for every
+    # incident and persisted, but reached the composite only for a routine flare
+    # (`is_routine_flare`: 493 of the 331,418 climatology cells), so the one
+    # curve with a defensible reference was the one almost never used.
+    #
+    # Applied unconditionally, including to the with-history model. FRP is an
+    # absolute quantity in both models and the relative judgement is already
+    # carried by Historical Deviation's 30%; using a different absolute curve
+    # according to whether a site has a baseline would make the same 10 MW fire
+    # score differently for that reason alone.
+    effective_frp_score = india_calibrated_frp
 
     if has_history:
         model_name = "KNOWN_HOTSPOT_WITH_HISTORY"
@@ -358,19 +422,45 @@ def compute_incident_severity(
         final_level = base_level
         final_score = base_score
 
-    # INV-4 -- Routine continuous flaring inside the facility's own empirical
-    # 365-day P95 envelope is suppressed to a low score. Section 4.6.2 clamps
-    # only S_dev, which is not sufficient on its own: with S_dev held at its own
-    # 20.0 ceiling the KNOWN_HOTSPOT model still returns
+    # INV-4 -- Routine continuous thermal output inside the facility's own
+    # empirical 365-day P95 envelope is suppressed to a low score. Section 4.6.2
+    # clamps only S_dev, which is not sufficient on its own: with S_dev held at
+    # its own 20.0 ceiling the KNOWN_HOTSPOT model still returns
     #   0.35*S_frp + 0.30*20.0 + 0.20*S_ai + 0.15*S_gis,
     # so a large but entirely routine flare (say 5,000 MW against a 6,000 MW P95
     # ceiling, AI `gas_flare` at 90%) reached the mid-70s -- CRITICAL -- while
     # INV-4's headline promises such a detection is "clamped to low severity
     # scores (<= 20.0)". The invariant is the contract; clamp the composite.
-    routine_suppressed = is_routine_flare and p95_frp > 0.0 and frp_mw <= p95_frp
+    #
+    # The clause is widened from "is a routine flare" to "is a chronic source",
+    # so a facility the year of record shows hot on 90+ days is protected on the
+    # same terms a flare already was. `is_routine_flare` itself is left alone:
+    # a steel plant is not a flare, and the prompt and the classifier both say so.
+    # What the two share is not a label but the property that matters here --
+    # their thermal output is routine, so an ordinary reading is not an event.
+    is_chronic = (
+        active_days_365 >= CHRONIC_ACTIVE_DAYS
+        and observation_count >= MIN_CHRONIC_OBSERVATIONS
+    )
+    spike_bar = SPIKE_MULTIPLE_CHRONIC if is_chronic else SPIKE_MULTIPLE_QUIET
+    is_anomalous = p95_frp <= 0.0 or frp_mw >= spike_bar * p95_frp
+
+    routine_suppressed = (
+        (is_routine_flare or is_chronic) and p95_frp > 0.0 and not is_anomalous
+    )
     if routine_suppressed:
         if final_score > 20.0:
-            trigger_note = f"ROUTINE_FLARE_SUPPRESSION (composite {final_score:.1f} -> 20.0)"
+            if is_routine_flare:
+                trigger_note = f"ROUTINE_FLARE_SUPPRESSION (composite {final_score:.1f} -> 20.0)"
+            else:
+                # Carry the numbers that justify the clamp: an operator seeing a
+                # steel plant drop from CRITICAL to LOW needs to be able to check
+                # the reasoning, and both figures are already in hand here.
+                trigger_note = (
+                    f"CHRONIC_SOURCE_SUPPRESSION (composite {final_score:.1f} -> 20.0; "
+                    f"site active {active_days_365} of 366 days, reading {p95_ratio:.2f}x "
+                    f"its P95 of {p95_frp:.1f} MW)"
+                )
         else:
             trigger_note = None
         final_score = min(20.0, final_score)
@@ -413,10 +503,30 @@ def compute_incident_severity(
         "factors": {
             "frp_score": frp_score,
             "india_calibrated_frp_score": india_calibrated_frp,
+            # Which of the two FRP curves the composite above actually used.
+            # The renderer has to reproduce the engine's own arithmetic to size
+            # its reconciliation row, and it cannot re-derive the choice: a record
+            # written before the calibration change was scored on `frp_score`
+            # whenever it was not a routine flare. Without this marker a legacy
+            # record is rendered with the wrong curve and the difference is then
+            # attributed to an override the record never had. Records predating
+            # the key have no marker and the renderer falls back to that older
+            # rule -- see _weighted_risk_factors.
+            "frp_curve": "india_calibrated",
             "historical_deviation_score": dev_score,
             "ai_source_severity_score": ai_score,
             "gis_context_score": gis_score,
             "p95_ratio": round(p95_ratio, 2) if p95_ratio else None,
-            "is_routine_flare": is_routine_flare
+            "is_routine_flare": is_routine_flare,
+            "is_chronic_source": is_chronic,
+            "active_days_365": active_days_365,
+            # How far outside this site's own normal the reading sits, on 0..1.
+            # A cell with no usable history is fully novel by definition. This is
+            # the quantity the chronicity test above already computes; naming it
+            # here is what lets selection rank on novelty without the severity
+            # model having to be re-derived to get at it.
+            "site_novelty": (
+                round(min(1.0, p95_ratio / spike_bar), 3) if p95_ratio is not None else 1.0
+            )
         }
     }

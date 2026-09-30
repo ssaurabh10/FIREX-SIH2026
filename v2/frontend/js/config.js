@@ -29,9 +29,20 @@ export const TIERS = [
   { id: "LOW", min: 0, max: 24, label: "Low" },
 ];
 
+/* The comparison is on `min` alone, in this descending order, which is exactly
+   `score_to_level` in backend/app/severity/scoring.py: >=75 CRITICAL, >=50 HIGH,
+   >=25 MEDIUM, else LOW. It used to be `n >= t.min && n <= t.max`, and because
+   the engine publishes the score rounded to one decimal
+   (pipeline.py:1049 `round(score, 1)`), every score landing in 74.x / 49.x /
+   24.x fell through both bands and hit the LOW fallback. Measured on the served
+   payload that mislabelled eight live incidents -- one HIGH as LOW and seven
+   MEDIUM as LOW -- and checkTiers() reported each as an engine/frontend
+   disagreement, so the console raised eight false integrity alarms about its own
+   rounding. `max` is retained for the legend, which states the bands correctly
+   as inclusive integer ranges; it is not a comparison bound. */
 export function tierOf(score) {
   const n = Number(score) || 0;
-  return (TIERS.find((t) => n >= t.min && n <= t.max) || TIERS[3]).id;
+  return (TIERS.find((t) => n >= t.min) || TIERS[3]).id;
 }
 
 export function isTier(id) {

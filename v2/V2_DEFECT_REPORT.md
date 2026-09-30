@@ -14,6 +14,8 @@
 
 > **Verification caveat — read before acting.** All ten adversarial refuters executed while the safety classifier was unavailable (inference-gateway outage). Their work was therefore not passed through that review layer. This does not affect the *reasoning* recorded here — findings cite concrete `file:line` locations and several reproduce exact arithmetic — but no finding below has been re-verified by a human. Treat each as a strong lead with traceable evidence, not as a settled fact.
 
+> **The counters above cover Part 3 only.** Parts 1–4 are that audit. Parts 5 and 6 are later rounds run directly against the running system rather than by the agent workflow — a frontend review (F-107 … F-128) and a classification and industry-view round (F-129 … F-137). Findings from those rounds carry the same ID series but are not included in the 97/98 counts above, and they were verified by reproduction rather than by an adversarial refuter.
+
 ---
 
 ## How to read this document
@@ -1429,3 +1431,868 @@ The code geometry is exactly as described — backend/app/imagery/reticle.py:54 
 - Raw machine-readable result: `C:\Users\ssaur\AppData\Local\Temp\claude\C--WINDOWS-system32\e07b814c-ab5e-4b30-867c-14ccd758efe1\tasks\wznxolp5u.output`
 - Per-agent full return values: `...\subagents\workflows\wf_d4771b72-a1f\journal.jsonl`
 - This document was generated mechanically from that JSON. Claim and evidence strings are verbatim; no finding was summarised, merged, or dropped.
+
+---
+
+# Part 5 — Frontend review, round 2 (2026-09-17)
+
+A second review, covering the browser console (`v2/frontend/js/*.js`) and the one
+backend default it depends on. It is **not** part of run `wf_d4771b72-a1f` and
+carries no adversarial refuter pass: every finding below was either reproduced
+against the committed feed and the real modules, or read directly out of the
+source, by hand. Numbering starts at F-107 because F-098 and F-100–F-106 were
+issued by a later round already recorded in the tree (see `v2/tests/conftest.py`).
+
+Severity is different in kind from Parts 2–3. Nothing here crashes a page. These
+are cases where the console displays a figure, a label or a verification that the
+feed does not contain — the failure mode an operator cannot detect by looking.
+
+| ID | Where | Defect | Status |
+|----|-------|--------|--------|
+| F-107 | `map.js:215` | ambient tooltip reads a field that does not exist | FIXED |
+| F-108 | `data.js:242` | every ambient timestamp parses to `null` | FIXED |
+| F-109 | `render.js:960,1186,1461` | every detection labelled a night pass | FIXED |
+| F-110 | `render.js:481` | unreported facility distance prints "0.0 km" | FIXED |
+| F-111 | `render.js:997-1014` | three satellite passes fabricated when a site has <4 | **FIXED** in Part 6 (F-130) |
+| F-112 | `render.js:812-815,927-937` | 30d/90d baselines derived from the 365d figure | **FIXED** in Part 6 (F-131) |
+| F-113 | `render.js:557-597` | mission log reports checks that never ran | open |
+| F-114 | `render.js:1255,1331,1343,1361` | four invented P95 fallbacks for one field | open |
+| F-115 | `render.js:610-620` | "DAY + NIGHT" counted only as a day pass | open |
+| F-116 | `main.js:1129` | a failed pipeline is rendered as a full success | FIXED |
+| F-117 | `main.js:565` | map keeps stale hotspots after a sync | open |
+| F-118 | `main.js:953-964` | dismissing the sync modal breaks the button labels | open |
+| F-119 | `main.js:212` | ArrowLeft with nothing selected wraps to `len-2` | open |
+| F-120 | `main.js:360` + `history.py:261` | "All (≥0 MW)" applied a 2 MW floor | FIXED |
+| F-121 | `main.js:37-44` | ten required element ids absent from `index.html` | open |
+| F-122 | `main.js:981,1063`, `render.js:1907,1919,1932` | feed text interpolated into `innerHTML` unescaped | open |
+| F-123 | `render.js:196` | spine rank is not the engine's priority rank | open |
+| F-124 | `render.js:262` | map key prints the Mining class twice | open |
+| F-125 | `main.js:13` vs `dossier.js:9` | `render.js` instantiated twice | open |
+| F-126 | `render.js:1362-1363` | dossier invents P50 and active-days when unreported | open |
+| F-127 | `render.js:1900,1909` | history row renders `0.00 MW`; `toFixed` on a null coord | open |
+| F-128 | `config.js:16-24` | TIERS docstring states bands the engine does not use | open |
+
+---
+
+#### F-107 — SCHEMA DEFECT
+
+**Claim.** The map's ambient-hotspot tooltip reads `p.sat`, but the normaliser renames the feed's `sat` key to `satellite`, so every background tooltip printed the literal "FIRMS" in place of the satellite.
+
+**Evidence.** Confirmed. `v2/frontend/js/data.js:239` sets `satellite: raw.sat || "unreported"` and is the only place the key is written; `v2/frontend/js/map.js:215` read `${p.sat || "FIRMS"}`. Importing the real module and feeding it the first committed row (`sat: "SNPP"`, `frp: 1.78`) reproduced `FIRMS Hotspot: 1.78 MW (FIRMS)`. The feed carries four real satellites — SNPP 113, N21 58, N20 27, Terra 2 — all discarded. Reachable from the shipped UI: `#btn-ambient` at `v2/frontend/index.html:232` toggles the layer. `render.js:959` reads the same value correctly via `c.firms?.satellite`, so the intent is not in question.
+
+**Refuted:** no — confirmed. FIXED: `map.js:215` now reads `p.satellite`; the same row renders `FIRMS Hotspot: 1.78 MW (SNPP)`.
+
+---
+
+#### F-108 — LOGIC DEFECT
+
+**Claim.** `normaliseAmbient` inserts a colon into the acquisition time before handing it to a parser that strips one itself, so every ambient row's `at` parsed to `Invalid Date` and was stored as `null`.
+
+**Evidence.** Confirmed. `v2/frontend/js/data.js:242` read `instant(raw.date, \`${time.slice(0,2)}:${time.slice(2)}\`)`; `instant` (data.js:123-128) does `String(time).replace(":", "").padStart(4, "0")`. The published value is `"19:57"` — `pipeline.py:997` emits `strftime("%H:%M")` for ambient rows — so the argument became `"19::57"` and parsed to `null`. Reproduced through the real module: **200 of 200** ambient rows had a null `at` before the fix, 0 after. `inWindow` (data.js:250) returns `true` whenever `at` is falsy, so the 24H/48H control never filtered the ambient layer, and `store.anchor` (data.js:99) drew no contribution from it.
+
+**Scope, measured.** On the committed fixture the fix changes nothing that is rendered: all 200 ambient rows are dated 2026-09-13, and the newest instant in the whole feed is 2026-09-13T19:57, so every ambient point sits inside the anchor's 24h window whether or not its timestamp parses. The anchor itself is likewise unchanged. This is therefore a latent data-integrity defect on this payload, not a visible misrender — it becomes visible the moment the ambient feed spans more than one day, which is its normal state in production.
+
+**Refuted:** no — confirmed. FIXED: `data.js:242` passes the already-normalised `time` through unchanged (valid for both `HH:MM` and bare `HHMM`).
+
+---
+
+#### F-109 — SCHEMA DEFECT
+
+**Claim.** Four views read `c.firms.daynight`, a field the normaliser never sets, so every detection was reported as a night pass and the day/night lane was always empty.
+
+**Evidence.** Confirmed. `normaliseCase` builds `firms` with satellite, instrument, product, date, time and confidence only (`v2/frontend/js/data.js:162-169`); the feed publishes `day_night_status`, mapped at data.js:222 to `persistence.dayNightStatus`. Checked all 220 committed rows for a literal `daynight` key: zero. The read sites were `render.js:960` (`=== "D" ? "Day" : "Night"`), `render.js:1186-1187` (the lane split) and `render.js:1461` (the per-detection caption). Consequence: `dayCases` was always empty and `nightCases` held all 220, so `isContinuous` was permanently false and the diagnosis at render.js:1193-1197 always resolved to "High Nighttime Activity (Possible Off-Hours Burning)" — asserted for 117 records the feed explicitly marks "PRIMARILY DAY OVERPASS". The feed contains no night-only record at all.
+
+**Refuted:** no — confirmed. FIXED: a `dayNightOf(c)` helper in render.js reads the published field, treats "DAY + NIGHT (Continuous 24h)" as belonging to both lanes rather than forcing it into one, and falls back to the acquisition hour only when the status is absent. Verified against the feed: 117 Day, 103 Day + Night; day lane 220, night lane 103 (was 0 and 220).
+
+---
+
+#### F-110 — LOGIC DEFECT
+
+**Claim.** An unreported facility distance was rendered as "0.0 km", placing the detection inside the facility perimeter.
+
+**Evidence.** Confirmed. `v2/frontend/js/data.js:213` deliberately preserves a missing distance as `null`; `fmt.dec` (`config.js:136`) tests `Number.isFinite(+n)`, and `+null === 0` is finite, so it returns `"0.0"`. `render.js:481` interpolated it with no guard. 56 of the 80 facility-associated rows carry a null distance. Reachable without a filter change: the lowest-ranked such case is priority rank 6 (Talcher Coalfields & NTPC Super Thermal Corridor, score 46.5), inside the overview queue. The sibling history table guards the same value explicitly at `render.js:1912`.
+
+**Refuted:** no — confirmed. FIXED: `render.js:481` prints the name alone when the distance is unreported.
+
+---
+
+#### F-111 — INVARIANT DEFECT
+
+**Claim.** When a facility has fewer than four satellite passes, three passes are fabricated and presented as measurements, and counted in the "Recent Satellite Passes" total.
+
+**Evidence.** Confirmed by direct reading. `v2/frontend/js/render.js:997-1014`: below four real passes, `dataPoints` is built from three hardcoded entries with invented satellites (`SNPP`, `NOAA-20`, `NOAA-21`), invented ages ("10d ago", "6d ago", "3d ago"), values derived arithmetically from `effectiveP50`/`effectiveP95`, and ids `hist-1`..`hist-3` matching no case. They are drawn through the same path as measured points and included in `dataPoints.length` at `render.js:1098`. Grouping by the console's own `bySite` key (`shortPlace`): **27 of 45 sites** have fewer than four detections. This contradicts the module's stated contract at `data.js:2-4` ("No field is invented and no value is filled in"). Not fixed — see the note on open items below.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-112 — INVARIANT DEFECT
+
+**Claim.** The 30-day and 90-day baseline cards are computed by scaling the 365-day figures, and presented as measured window statistics; the same derived value drives the chart's surge threshold.
+
+**Evidence.** Confirmed. `v2/frontend/js/render.js:812-815` computes `p50_30d = median * 0.95`, `p95_30d = p95 * 0.88`, `p50_90d = median * 1.0`, `p95_90d = p95 * 0.96`. The feed publishes exactly one baseline trio (`baseline_median`, `baseline_p90`, `baseline_p95`, `active_days_365d`). The same multipliers are applied a second time at `render.js:927-937` to produce `effectiveP50`/`effectiveP95`, which the pointgraph draws as its P50 and P95 lines (`render.js:1027-1028`) — so switching the 30d/90d tab moves the surge line and changes which points are coloured as surges, with no data behind the change.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-113 — DOCUMENTATION DEFECT
+
+**Claim.** The "System Activity Stream" reports verification steps as completed events, with timestamps that make them appear recent and live.
+
+**Evidence.** Confirmed. `v2/frontend/js/render.js:557-597`. Three of the six rows interpolate nothing and are string constants: `[BORDER CHECK] National boundary verified: 100% of detections confirmed strictly within Indian territory`, `[SATELLITES] NASA satellite feeds synchronized…`, `[FACILITIES] Facility association checked: 5.0 km radius safety buffer verified`. The other three interpolate real values. Timestamps come from `ts(minsAgo)` = the current clock minus a fixed offset, recomputed on every render, so the "1 minute ago" entry is permanently 1 minute old and its stated time advances as the console is used. The facility line is contradicted by the feed itself: 56 of the 80 facility associations carry no distance to check against. Whether the pipeline performs a boundary check at all was not established and is not part of this claim.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-114 — LOGIC DEFECT
+
+**Claim.** Four different invented thresholds stand in for the same missing climatology field within one view.
+
+**Evidence.** Confirmed. `render.js:1255` and `:1331` fall back to `10`, `:1343` to `25`, `:1361` to `15.0`, all on `climatology?.p95`. `data.js:202` sets that to `Number(raw.baseline_p95) || 0`, so "unreported" and a genuine 0 are indistinguishable, and 73 of 220 rows carry a falsy `baseline_p95`. Line 1343's 25 MW drives the "P95 Surge Exceedances" KPI tile while 1361's 15.0 drives the same site's dossier badge, so the count and the badges can disagree about the same facility.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-115 — LOGIC DEFECT
+
+**Claim.** A "DAY + NIGHT" record is counted only as a day pass, so the day/night tile reports zero night passes for a feed in which nearly half the records are seen at night.
+
+**Evidence.** Confirmed. `v2/frontend/js/render.js:610-620` tests `dayNightStatus.includes("DAY")` first; `"DAY + NIGHT (Continuous 24h)".includes("DAY")` is true, so the `else if (…includes("NIGHT"))` branch is unreachable. All 220 rows carry one of the two published statuses and both contain "DAY", so the tile reads 220 day / 0 night for a feed of 103 continuous records and 117 day-primary ones. Separately, the hour fallback at `:616` (`c.at ? … : 12`) would classify a record with no acquisition time as daytime; it is unreachable on this feed, where all 220 rows carry `acq_time`.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-116 — STATE MACHINE DEFECT
+
+**Claim.** An aborted analysis is reported to the operator as a completed one, with all five stages verified.
+
+**Evidence.** Confirmed. `events.py:89` sets `"done": (event_type in [ANALYSIS_COMPLETED, ANALYSIS_FAILED])` and `events.py:61` maps `ANALYSIS_FAILED` to `{stage: 6, pct: 100}` — so a failure arrives with exactly the shape the client treats as success. `v2/frontend/js/main.js:1129` branched on `if (data.done || pct >= 100)` and never read the event name, though it is on the payload at `events.py:81` (`"event": self.event_type`). The handler (main.js:1047-1156) reads `stage`, `pct`, `candidate_index`, `candidates_total`, `label`, `detail`, `done` and `incident_code` and nothing else. On failure it therefore set all five stage rows to `data-status="done"` with "VERIFIED ✓" (1139-1146), the badge to "ANALYSIS COMPLETE" (1152) and the phase label to "ALL 5 STAGES COMPLETE" (1155). `isCompleted` is latched at 1131, so no later event can correct it. The error text does appear in the stream log at 1069 and briefly in the footer at 1124, so the failure is not entirely silent — but it is reported alongside a green five-stage success.
+
+**Refuted:** no — confirmed. FIXED: `main.js:1129` now derives `failed` from `data.event === "ANALYSIS_FAILED"` (or `data.data.error`), leaves the stage rows as they stand rather than asserting all five complete, and sets the badge and footer to the failure state.
+
+---
+
+#### F-117 — STATE MACHINE DEFECT
+
+**Claim.** After a pipeline sync the map can keep the previous pass's ambient hotspots, disagreeing with the counts and strip rendered from the new feed.
+
+**Evidence.** Confirmed by reading. `v2/frontend/js/main.js:565` keys the redraw on `${state.window}|${state.ambient}|${state.frpThreshold}|${points.length}`, justified by the comment at 560-561 that "The feed is loaded once and never mutated". The sync completion path calls `await load()` (main.js:1164), which replaces `store.ambient` wholesale. A feed whose row count is unchanged leaves the key identical and skips `drawAmbient`, so the old markers and their tooltips persist while everything else re-renders. The comment is contradicted by the call site directly beneath it. The exact production frequency of a same-count reload was not measured.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-118 — STATE MACHINE DEFECT
+
+**Claim.** Dismissing the sync modal mid-run leaves the trigger buttons showing "Syncing…" permanently.
+
+**Evidence.** Confirmed. `v2/frontend/js/main.js:953-964`: `closeModal` re-enables the buttons and closes the `EventSource`, but never restores their markup. That markup is held in `origSyncHtml`/`origRunHtml`, locals of `startPipelineSync` (main.js:988-989), restored only from its completion timeout (1173-1174) or its `onerror` fallback (1219-1220) — and closing the stream at 956 means neither can run. Escape is wired to `closeModal` at main.js:970-973, so the trigger is a single keypress.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-119 — LOGIC DEFECT
+
+**Claim.** With nothing selected, ArrowLeft wraps to the second-to-last case instead of the last.
+
+**Evidence.** Confirmed. `v2/frontend/js/main.js:211-212`: `const at = list.findIndex((c) => c.id === state.selected)`, then `list[(at + delta + list.length) % list.length]`. With the initial `state.selected === null`, `at === -1`; ArrowRight (`delta = 1`) gives index 0, ArrowLeft (`delta = -1`) gives `list.length - 2`. The `|| list[0]` fallback cannot fire because `list[len-2]` is truthy for any list of two or more.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-120 — SCHEMA/API DEFECT
+
+**Claim.** The History pill labelled "All (≥0 MW)" applies a 2 MW floor, because the client omits the parameter and the server defaults it to 2.0.
+
+**Evidence.** Confirmed on both sides. `v2/frontend/js/main.js:360` sent the parameter only `if (histState.minFrp > 0)`, and the default pill carries `data-minfrp="0"`. `v2/backend/app/api/history.py:261` declares `min_frp: float = Query(2.0, ge=0.0, ...)` and `:273` builds `filters = [Observation.frp_mw >= min_frp]`. So the one selection the UI calls unfiltered could never be transmitted, and every row below 2 MW was silently absent from a search presented as complete.
+
+**Refuted:** no — confirmed. FIXED in the client: `main.js:360` now always sends `min_frp`, so the label is honoured. The 2.0 server default is deliberately left in place — it is a reasonable floor for direct API callers, and changing it would alter behaviour for consumers outside this console.
+
+---
+
+#### F-121 — SPEC/CODE DEFECT
+
+**Claim.** Ten element ids the console requires do not exist in the page, so several panels are permanently blank or inert with no error to explain it.
+
+**Evidence.** Confirmed. `grab()` (`v2/frontend/js/main.js:37-44`) and the wiring below it query `brand-window`, `map-sub`, `rail-counts`, `risk-hist`, `risk-span`, `map-strip`, `in-view`, `alert-flag`, `q`, `q-clear`. Searching `v2/frontend/` for those ids returns hits only in `main.js` and `styles/layout.css` — none in `index.html`. `layout.css:240-244` still styles `#rail-counts .metric`, so the markup existed at some point. Every read is null-guarded, so nothing throws: the search box and its clear button, the alert bell, the rail counters, the risk histogram and its caption, the in-view counter, the brand window label and the bottom strip simply never render. `renderRailCounts`, the rail `renderRiskHist` and `renderStrip` (main.js:597-602) are unreachable through this path.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-122 — SPEC/CODE DEFECT
+
+**Claim.** Feed- and model-derived text is interpolated into `innerHTML` unescaped in several places, in a module that escapes everywhere else.
+
+**Evidence.** Confirmed by reading, with the sink shapes verified directly. `v2/frontend/js/main.js:981` writes `${msg}` into `row.innerHTML` inside `addLog`, and `msg` carries `data.label — data.detail` from the SSE payload (main.js:1069), where `detail` is built from incident, facility and location names and on failure is the exception text. `main.js:1063` writes `data.label.toUpperCase()` into `phaseLabel.innerHTML`. Both were read in full. The same class was reported in `dossier.js:192` and at `render.js:1907`, `:1919` and `:1932`; of those, `render.js:1932` was read and confirmed to place `row.id` unescaped inside an attribute while `:1918` escapes the same value for display. Sibling fields in every one of these paths go through `escapeHtml`, and `main.js:1114` uses `textContent`, so the omissions read as oversights rather than policy. No live exploit was demonstrated: the history rows come from a separate endpoint whose contents were not examined.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-123 — LOGIC DEFECT
+
+**Claim.** The spine's row number is a position in the score-sorted list, not the engine's priority rank, so it disagrees with the number the dossier shows for the same record.
+
+**Evidence.** Confirmed. `v2/frontend/js/render.js:188-191` re-sorts by `risk.score` then `frp`; `render.js:196` prints `${idx + 1}`. The dossier and map read the engine's `c.rank` (`priority_rank`). The two orderings differ on this feed — priority rank 6 is a score of 46.5 — so a row labelled `#1` can open as a different priority rank.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-124 — DOCUMENTATION DEFECT
+
+**Claim.** The map key lists the Mining class twice.
+
+**Evidence.** Confirmed. `config.js:47-48` defines `mining_or_other_thermal_source` and `mining_related` with identical `short` ("Mining") and `icon` ("i-mining"); `render.js:262` writes the key from `Object.values(CLASSES)`, producing eight rows of which two are the same glyph and label. The comment above the function states the rewrite was to fix a key that named too few classes.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-125 — SPEC/CODE DEFECT
+
+**Claim.** `render.js` is loaded under two different specifiers, creating two module instances and two fetches.
+
+**Evidence.** Confirmed. `v2/frontend/js/main.js:13` is `import * as ui from "./render.js?v=17"`; `v2/frontend/js/dossier.js:9` is `import { wireThumbs } from "./render.js"`. Query strings are part of the module key, so these are distinct records. `render.js` holds no module-scope mutable state today, so there is no live misbehaviour — but the duplication defeats the cache-busting scheme and would silently fork any state added later.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-126 — LOGIC DEFECT
+
+**Claim.** When a facility has no published climatology, the dossier invents a P50 and an active-day count and presents them as measurements.
+
+**Evidence.** Confirmed. `v2/frontend/js/render.js:1361-1363`: `const p95 = top.climatology?.p95 || 15.0`, `const median = top.climatology?.median || Math.max(1.0, Math.round(p95 * 0.38 * 10) / 10)`, `const activeDays = top.climatology?.activeDays || top.persistence?.daysActive || 1`. 73 of 220 rows carry a falsy `baseline_median` alongside a falsy `baseline_p95`, so a site whose top case is one of them displays a derived P50 and "1 active flare days / year" as though both were read from the feed.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-127 — UNIT/SCALE DEFECT
+
+**Claim.** A history row with no FRP renders as `0.00 MW`, and a row with a null coordinate throws.
+
+**Evidence.** Confirmed by reading. `v2/frontend/js/render.js:1900` is `const frp = Number(row.frp_mw) || 0`, rendered via `frp.toFixed(2)` at `:1928` — so an absent value is displayed as a measured zero. `main.js`'s own CSV export guards the same field with `!= null`. `render.js:1909` calls `row.latitude.toFixed(4)` with no null check.
+
+**Refuted:** no — confirmed
+
+---
+
+#### F-128 — DOCUMENTATION DEFECT
+
+**Claim.** The TIERS docstring states engine bands the engine does not use.
+
+**Evidence.** Confirmed. `v2/frontend/js/config.js:16-24` says the engine "cuts at >= 81 critical, >= 61 high, >= 36 medium" and cites `section10_risk_engine/risk_scorer.py`, a v1 path. The array beneath it uses 75/50/25, and `v2/backend/app/severity/scoring.py:23-32` (`score_to_level`) confirms 75/50/25 is authoritative. All 220 published records agree with the array — zero mismatches. The code is correct; the comment is stale and cites a file that is not in this tree. A maintainer trusting it could desynchronise the console from the engine.
+
+**Refuted:** no — confirmed
+
+---
+
+## Part 5b — Reported but cleared, or latent
+
+Recorded so the negative results are not lost. None of these should be treated as
+defects, and none should be "fixed".
+
+**`map.js:116` — the `i--xs` class and the `lg` FRP tier are inert, not broken.**
+`i--xs` is defined in no stylesheet and the `lg` branch maps to `i--sm`, which
+reads as a broken size scale. It is not: `.mk[data-frp-scale="sm"|"md"|"lg"] .i`
+(`styles/map.css:108-151`) sits at specificity (0,3,0) against `.i--*` at
+(0,1,0), so the three sizes resolve to 10/12/14px as intended. Dead and
+misleading code; changing it would be the regression.
+
+**`render.js:616` — the acquisition-hour fallback is unreachable.** All 220
+records carry `acq_time`, so the `c.at ? … : 12` default never fires. It is the
+same default-instead-of-unreported pattern as F-126, and is worth correcting on
+principle, but it is latent.
+
+**`render.js:1619` — the investigation-priority buckets are latent.** All 220
+records carry `investigation_priority`, so no case is currently bucketed as
+low-risk by a defaulted zero. `data.js:196` would make a missing field read as 0.
+
+**`main.js:114` — discarding a saved 24H window is deliberate.** The code and its
+comment say so explicitly ("default window to 'all' so detections are never
+silently filtered out"). The observable is real — `savePrefs` writes the user's
+choice and every load overrides it — but it is an intentional override, not an
+oversight. Flagged for a decision rather than a fix.
+
+---
+
+## Part 5c — Open items that need a decision, not a patch
+
+Three of the findings above cannot be closed by a correct-looking edit, because
+the right answer is a product choice. Two have since been decided (Part 6); the
+third is still open.
+
+- **F-111** — what the FRP pointgraph should show when a site has fewer than four
+  real passes. Three passes were fabricated to fill the chart; the honest options
+  are to draw the passes that exist and say so, or to widen the window until four
+  real ones are found. Only the second keeps the "recent passes" framing true.
+  **DECIDED, Part 6 (F-130): the first option** — real passes only, capped at 12
+  with an explicit count of what was left off.
+- **F-112** — whether the 30d/90d baseline tabs should exist at all. The feed
+  carries one annual baseline; a real 30-day figure requires the pipeline to
+  publish one. Until then the tabs can only present derived numbers, and the
+  surge threshold they move is derived with them.
+  **DECIDED, Part 6 (F-131): the tabs stay, and the pipeline now publishes real
+  30d and 90d figures.** The premise above turned out to be wrong — the
+  measurement existed all along and was being discarded by a missing query
+  clause, not missing from the schema.
+- **F-113** — which of the mission-log rows describe work the pipeline actually
+  performs. Rows asserting a boundary check and a facility-radius check should be
+  driven by real counts or removed; a log that reports unperformed verification
+  beside genuine failure reporting trains the operator to ignore both.
+
+None of the six fixes applied in this round has test coverage. The console has no
+test suite, and F-096 already records that the feed route itself is never
+requested by a test, so these changes are verified by reproduction only —
+`data.js` and `render.js` were imported and exercised directly against the
+committed fixtures, and `map.js`/`main.js` were syntax-checked.
+
+---
+
+# Part 6 — Classification and the industry view (2026-09-17)
+
+A third round, covering the classification cascade in
+`app/orchestration/pipeline.py` and a full rework of the `view-industrial` page
+("Industrial Intelligence & Baselines"). Every claim below was reproduced
+against the live backend, the real browser modules, or the database read-only.
+No claim rests on reading source alone where a running check was possible.
+
+Numbering resumes at F-129. This round also closes two Part 5 items and two of
+the three decisions Part 5c left open.
+
+| ID | Where | Defect | Status |
+|----|-------|--------|--------|
+| F-111 | `render.js` pointgraph | three satellite passes fabricated when a site has <4 | **FIXED** → F-130 |
+| F-112 | `render.js` baseline cards | 30d/90d baselines derived from the 365d figure | **FIXED** → F-131 |
+| F-129 | `pipeline.py:832-887` | unverified radiance published as a confirmed critical-tier wildfire (INV-1) | **FIXED** |
+| F-130 | `render.js` pointgraph | multiplier-derived thresholds labelled "P95 SURGE LIMIT" | **FIXED** |
+| F-131 | `profile.py:160,384` | `window_days` absent from the profile lookup, so all three windows returned one row | **FIXED** |
+| F-132 | `render.js` register | the industry page grouped detections by place label, double-counting Talcher | **FIXED** |
+| F-133 | `pipeline.py:1496` | only `FIRMS_DEFAULT_PRODUCTS[0]` is fetched live; two of three configured products are dead config | open |
+| F-134 | `config.py:55` | `FIRMS_DAYS` is defined but never read; the live call hardcodes `days=1` | open |
+| F-135 | `pipeline.py:1219-1233` | the ambient layer selects by global recency, which cannot serve its documented purpose | open |
+| F-136 | `render.js:1768` | the register panel's accounting covers a filtered subset but reads as a complete one | open |
+| F-137 | tooling | `node --check` parses as a script, so a duplicate `function` declaration passes it | **FIXED** |
+| F-138 | `baseline.py:172-211` | the sibling baseline path ignores `window_days` and returns one window's statistics under another window's label | open |
+
+---
+
+#### F-129 — INVARIANT DEFECT (INV-1)
+
+**Claim.** Detections with no verification of any kind were published as
+`wildfire` with `ai_uncertainty = "low"`, which the console renders as an
+optically confirmed critical-tier fire.
+
+**Evidence.** Confirmed, and the largest defect found in this round. Two branches
+of the classification cascade named a cause from radiance magnitude alone:
+
+```python
+elif inc.current_max_frp >= 25.0:   cls_name = "wildfire"; ai_conf = 0.84; ai_unc = "low"
+elif inc.current_max_frp >= 6.0:    cls_name = "wildfire"; ai_conf = 0.78; ai_unc = "low"
+```
+
+`ai_unc = "low"` is the operative value. `data.js:172-174` computes
+`confirmed = (uncertainty === "low" || uncertainty === "none") && (conf.value === null || conf.value >= 30)`,
+so every detection reaching either branch — confidence 78 or 84 — satisfied both
+clauses. The class is also not one of Section 5/6.2's canonical six, so no vision
+model output could ever have produced it; the label was unreachable by
+verification and reachable only by threshold.
+
+`is_protected` at `pipeline.py:729` is the only vegetation test the platform can
+run, and `resolve_landcover`'s final fallback is `mixed_vegetation_and_shrubland`
+(`app/gis/landcover.py:100-107`), a catch-all meaning "unclassified" rather than
+"vegetated". The FRP threshold was standing in for a land-cover determination.
+
+**Measurement.** Of the 13 live detections the `>= 6.0` branch was serving, seven
+sat at 1.00–1.05× their own cell's 365-day P95, two were *below* it (11.33 MW
+against 11.7; 9.03 against 11.4), and three had no measurable envelope at all
+(P95 = 0). A detection at 1.03× its own cell's normal is a site inside its
+operating range, which is the opposite of a front "spreading across open
+terrain". The 6 MW gate was not selecting fires; it was approximately selecting
+"marginally above this location's normal".
+
+**Fix.** Both branches and the sub-6 MW `else` collapse into a single `else`
+producing `uncertain` at `ai_conf = 0.45`, with a reason stating what is known
+(process heat, an operational flare and an uncontrolled fire are
+indistinguishable from radiance alone). Magnitude is still published as a
+priority signal — `MAJOR_FIRE_SURGE` in `triggers`, and the major-surge wording
+in `p_expl` — rather than promoted into the class name.
+
+**Live composition after the fix**, measured on the 56-incident feed (all
+`2026-09-17`, all satellite `N20`, max latitude 26.61°N):
+
+| class | n | confidence | uncertainty | verified |
+|---|---|---|---|---|
+| `uncertain` | 28 | 0.45 | high | 0 |
+| `gas_flare` | 17 | 0.50 | medium | 0 |
+| `mining_or_other_thermal_source` | 9 | 0.85–0.92 | low | 4 |
+| `industrial_fire` | 2 | 0.5 / 0.8 | medium / low | 1 |
+
+Five detections in total carry `ai_verified = True`, and all five carry a vision
+model's reasoning. The 17 `gas_flare` rows are not AI output: every one has
+`is_routine_flare: True` and the reason "Baseline-only routine flare: N active
+days against the 365-day baseline", which is the INV-4 suppression path acting on
+the recomputed baseline.
+
+The `uncertain` and `gas_flare` counts move between runs — the investigation
+layer is an LLM, and the routine-flare determination is recomputed against the
+refreshed baseline. An earlier measurement of these same 56 detections gave
+`uncertain` 40 / `gas_flare` 6. What is stable, and what the fix establishes, is
+that no detection reaches a *named fire class* without verification.
+
+---
+
+#### F-130 — LOGIC DEFECT (closes F-111)
+
+**Claim.** The FRP point-graph drew threshold lines derived by multiplying the
+envelope, labelled them as measurements, and fabricated three satellite passes
+when a site had fewer than four real ones.
+
+**Evidence.** Confirmed. The envelope was computed as `p50 * 0.95` and
+`p95 * 0.88` (and `* 1.0` / `* 0.96` on the second path) and drawn as
+"P95 SURGE LIMIT". Separately, any facility with fewer than four real overpasses
+received three synthesised points — dates `"10d ago"`, `"6d ago"`, `"3d ago"`,
+satellites `"SNPP"`, `"NOAA-20"`, `"NOAA-21"`, id `hist-1`. Reachable from the
+shipped UI: select any facility and open its detail.
+
+This is F-111, which Part 5 logged but left open because the honest behaviour was
+a product decision (Part 5c). The decision taken here is the first of the two
+options Part 5c named: draw the passes that exist and say so.
+
+**Fix.** The chart now plots only real passes, bounded to the last 12 with an
+explicit `(N earlier not shown)` note, and draws only a measured envelope —
+`MEASURED P50 (x MW)` / `MEASURED P95 (x MW)`. Where the cell has no measurable
+P95 it prints the INV-5 line instead of a line implying compliance. The diurnal
+chart's invented "(10:00–15:00 UTC)" hour bands were removed the same way; the
+lanes are now labelled as published in `day_night_status`.
+
+---
+
+#### F-131 — LOGIC DEFECT (closes F-112)
+
+**Claim.** The 30-day and 90-day baseline cards were the 365-day figures times
+fixed multipliers. The root cause was not in the frontend.
+
+**Evidence.** Confirmed, and the backend cause is the finding. Both profile
+lookups omitted `window_days` from the query, so `?window_days=30`, `=90` and
+`=365` all returned the *same cached row* — typically the 365-day one — while the
+response labelled it `"window_days": 365`. The frontend then had nothing to
+display for 30 and 90 and derived them.
+
+**Fix.** `BehaviorProfile.window_days == int(window_days)` added to both lookups
+(`app/behavior/profile.py:160` and `:384`). The three windows are now genuinely
+distinct, verified end-to-end against the live database for Bhilai Steel Plant
+(SAIL), Durg — the console's path, `GET /api/industries/{id}/history`, against the
+raw observation counts:
+
+| window | observations (API) | observations (raw DB) | active days | median | P95 |
+|---|---|---|---|---|---|
+| 30d | 44 | 44 | 9 | 1.97 | 5.52 |
+| 90d | 115 | 115 | 31 | 1.84 | 5.58 |
+| 365d | 2,099 | 2,094 | 270 | 1.99 | 5.97 |
+
+The API counts reconcile with the raw table to within the buffer-radius
+difference, so the three windows are reading three different populations rather
+than one population under three labels.
+
+**Scope of this fix — it does not cover the sibling path.** `BehaviorProfile` is
+one of two baseline stores. The other is the `HistoricalBaseline` /
+`ThermalClimatology` pair behind `get_or_create_location_baseline`, reached by
+`GET /api/industries/{id}/baseline` and by four pipeline stages. That path has
+the same defect and was **not** fixed here; it is recorded as F-138 below.
+
+The cards now read `profileState.windows[days]` directly. A window still in
+flight says "Measuring this window…", and a partial failure names the missing
+window while keeping the measured one, rather than blanking the panel.
+
+---
+
+#### F-132 — LOGIC DEFECT
+
+**Claim.** The industry view derived its "facilities" by grouping detections on
+the feed's place label, so a label that covered two different things was counted
+as two facilities, and totals reflected the detections present rather than the
+register.
+
+**Evidence.** Confirmed against the live feed. The Talcher coalfields appeared
+twice — once as the asset "…Super Thermal Power Complex" and once as the basin
+label "…Super Thermal Corridor (Angul)" — and both were counted. Totals were a
+function of which detections happened to be in the window, so the denominator
+moved between runs.
+
+**Fix.** The view is now built on the authoritative `industrial_assets` registry
+(30 rows) with detections joined on `nearest_asset_id`. Basin labels that are not
+registered assets are rendered as a separate, clearly-labelled class
+("Mining basin (unregistered)") rather than as facilities. Sector assignment
+switches on `facility_type` — a closed vocabulary of nine values — with text
+keywords only as a fallback, because a text-first order filed "HPCL Rajasthan
+Refinery & Petrochemicals" and "Hazira ONGC & AM/NS Steel Heavy Industrial Hub"
+as cement. The register carries no sector column (`GET /api/industries` returns
+`sector: null` for all 30 rows), so the sector is derived in `sectorOf`
+(`render.js:880-908`) from `facility_type`; against the live registry that
+derivation yields steel 15, flare 9, mining 3, power 3 — summing to 30, with
+every row classified by type and none falling through to the keyword path.
+
+Live position: 30 registered, 3 reporting, 27 quiet, 1 above its measured P95
+(NMDC Nagarnar, 7.5 MW against cell P95 6.6 = 1.14×), 4 basin labels reported
+against outside the register.
+
+---
+
+#### F-133 — ARCHITECTURE / DEAD CONFIG
+
+**Claim.** The live FIRMS fetch requests one product, so two of the three
+configured products are never fetched at all.
+
+**Evidence.** Confirmed. `pipeline.py:1496`:
+
+```python
+live_product = settings.FIRMS_DEFAULT_PRODUCTS[0]
+live_csv = firms_client.fetch_live_csv(live_product, days=1)
+```
+
+`FIRMS_DEFAULT_PRODUCTS` is `["VIIRS_NOAA20_NRT", "VIIRS_SNPP_NRT", "MODIS_NRT"]`
+(`config.py:56-60`). Only element `[0]` is ever requested; the other two are
+reachable only as the *default argument* of `parse_csv` / `ingest_from_file` /
+`normalize_raw_firms`, which are in turn called with an explicit product or with
+`[0]` again. Grepping every use of the constant returns no site that iterates it.
+
+This is the direct cause of the live map's geography. The most recent ingest
+batch is 69 rows, all `2026-09-17`, all `satellite = N20`, across three
+acquisition timestamps (08:09, 08:11, 08:13 UTC) — a single NOAA-20 overpass. A
+full archive day carries 42 distinct acquisition times across five satellites.
+NASA publishes the northern passes; this pipeline never asks for them.
+
+---
+
+#### F-134 — DEAD CONFIG
+
+**Claim.** `FIRMS_DAYS` is defined, documented in `.env`, and read by nothing.
+
+**Evidence.** Confirmed. `config.py:55` declares `FIRMS_DAYS: int = 2`, and
+`.env` sets `FIRMS_DAYS=2`. Grepping `app/` and `scripts/` for `FIRMS_DAYS`
+returns the declaration and no reader. The live call passes `days=1` as a
+literal (`pipeline.py:1497`). The configured two-day window has never been in
+effect.
+
+---
+
+#### F-135 — SPEC/CODE DIVERGENCE
+
+**Claim.** The ambient ("Background hotspots") layer selects its points by global
+recency, which cannot serve the purpose the UI states for it.
+
+**Evidence.** Confirmed. `pipeline.py:1219-1233` applies three caps in sequence:
+
+```python
+recent_obs = db.query(Observation).order_by(Observation.acquired_at.desc()).limit(300).all()
+ambient = [ ... for o in recent_obs if is_within_indian_sovereign_territory(...) ][:200]
+```
+
+Reproduced against the live database: the 300 newest observations are 69 from
+2026-09-17 and 231 from 2026-09-13; the sovereign filter removes 45
+(Nepal, Bangladesh, Myanmar, Pakistan, Sri Lanka fall inside the archive bbox
+`68.7,8.4,97.4,37.6`); `[:200]` then discards a further 55, all from 09-13. The
+console receives exactly 200 points and can never receive more.
+
+The UI states the purpose as "observing whether an incident sits alone or inside
+a broader burn area" (`render.js:2058-2061`). Nothing in the selection relates to the
+selected incident, the current view, or the incident's neighbourhood: the sample
+is the newest N observations by timestamp, drawn from wherever the most recent
+passes happened to be. Selecting an incident in Punjab draws a background from
+Tamil Nadu. The feature cannot answer the question it is documented to answer.
+
+---
+
+#### F-136 — DOCUMENTATION DEFECT
+
+**Claim.** The register panel's summary sentence reads as a complete account of
+the feed, but covers a filtered subset. Half the feed is in no bucket.
+
+**Evidence.** Confirmed by import. `render.js:1768` pre-filters before building
+the register:
+
+```js
+const industrial = cases.filter((c) => c.cls.group === "industrial" || c.facility?.name || c.climatology?.isRoutine);
+```
+
+`buildRegister` then splits that subset three ways, and `renderRegisterSummary`
+prints the counts as a single audit sentence. Measured on the live feed:
+
+| | incidents |
+|---|---|
+| feed incidents | 56 |
+| pass `renderIndustrial`'s filter | 28 |
+| → registry id (rendered as register rows) | 3 |
+| → basin name (rendered as basin rows) | 6 |
+| → neither (printed as "unattributed") | 19 |
+| **excluded by the filter, in no bucket** | **28** |
+
+Every one of the 28 excluded incidents has neither a registry id nor a basin
+name. The sentence "19 detections attributable to nothing on record" is therefore
+true of the filtered subset and false of the feed — 47 of the 56 carry no
+attribution of either kind. A reader has no way to tell from the panel that half
+the feed is unrepresented.
+
+The filter itself is defensible — open-terrain `uncertain` detections are not
+facilities — so the defect is the wording, not the selection. Either the sentence
+should state its scope, or the excluded remainder should be counted.
+
+---
+
+#### F-137 — TEST DEFECT (tooling)
+
+**Claim.** `node --check` cannot detect a duplicate `function` declaration, and
+two modules reached a working tree with green syntax checks as a result.
+
+**Evidence.** Confirmed by reproduction. A second `function renderMeasuredBaselinePanel`
+was introduced into `render.js` by an edit; `node --check render.js` reported
+nothing. Importing the file as an ES module reported
+`SyntaxError: Identifier 'renderMeasuredBaselinePanel' has already been declared`.
+The cause is that `--check` on a `.js` file parses in *script* mode, where
+function redeclaration is legal; module mode rejects it. Minimal reproduction:
+
+```
+printf 'function a(){}\nfunction a(){}\n' > x.js  ; node --check x.js  -> exit 0
+printf 'function a(){}\nfunction a(){}\n' > x.mjs ; node --check x.mjs -> exit 1
+```
+
+**Fix.** `v2/frontend/tools/check-industry.mjs` copies each of the six modules to
+a temporary `.mjs` and runs `node --check` on the copy in a child process,
+before importing anything. Parsing only, so a module that touches the DOM on
+import is still checkable. Verified falsifiable: reinstating a duplicate
+declaration in `render.js` produces
+`FAIL render.js: SyntaxError: Identifier 'sectorOf' has already been declared`
+and exit 1; the file was restored byte-identical afterwards.
+
+---
+
+#### F-138 — LOGIC DEFECT (the other half of F-131)
+
+**Claim.** The `HistoricalBaseline` / `ThermalClimatology` baseline path ignores
+`window_days`: it returns one window's statistics for every window requested,
+while echoing back the window that was asked for. It is the same defect as
+F-131, in the sibling function, and the F-131 fix does not reach it.
+
+**Evidence.** Reproduced against the live API. Same facility, same three windows,
+two endpoints:
+
+| window | `/history` obs | `/history` P95 | `/baseline` obs | `/baseline` P95 |
+|---|---|---|---|---|
+| 30d | 44 | 5.52 | **1283** | **5.41** |
+| 90d | 115 | 5.58 | **1283** | **5.41** |
+| 365d | 2,099 | 5.97 | **1283** | **5.41** |
+
+`/history` is `get_or_create_facility_profile` (fixed, F-131). `/baseline` is
+`get_or_create_facility_baseline` → `get_or_create_location_baseline`
+(`app/behavior/baseline.py:415` and `:162`), which consults `HistoricalBaseline`
+first and `ThermalClimatology` second.
+
+The `ThermalClimatology` branch (`baseline.py:272-300`) is where the flat figures
+come from. It returns
+
+```python
+"window_days": window_days,          # echoed back, whatever was asked for
+"observation_count": count,          # clim.observation_count -- one fixed figure
+"median_frp": clim.median_frp or 0.0,
+"p95_frp": clim.p95_frp or 0.0,
+```
+
+`window_days` is passed to `calculate_history_reliability` and used nowhere else
+in the branch. The cell is a fixed 365-day (in practice all-time) aggregate, so a
+30-day or 90-day request receives the cell's annual statistics labelled with the
+requested window. The `HistoricalBaseline` cache branch above it does select a
+per-horizon *count* (`detection_count_30d` / `_90d` / `_365d`), but returns a
+single `median_frp` / `p90_frp` / `p95_frp` triple that is not windowed either.
+
+This is the failure mode F-112 named — a wrong number published under a
+right-sounding label — surviving in the path the F-131 fix did not touch.
+
+**Relationship to what is already recorded.** The *cause* is not new. Part 2
+claim 9 and item C8 already establish that `thermal_climatology` is built with no
+date predicate, so its counts are lifetime totals rather than 365-day ones, and
+the F-018 entry already carries the correction that the thermal-climatology
+branch "is worse than 1/4, not smaller". What is new here is the *symptom at the
+API surface*: the response echoes the requested `window_days` while returning one
+window's numbers, which is what makes the defect invisible to a caller who checks
+the field they asked for.
+
+**Impact.** Four pipeline stages call this path, each with a fixed window:
+
+| caller | window passed |
+|---|---|
+| `app/severity/service.py:49` | default (365) |
+| `app/orchestration/pipeline.py:1567` | 365 |
+| `app/selection/engine.py:90` | 90 |
+| `app/imagery/package.py:80` | 90 |
+
+The two 90-day callers receive the cell's annual figures. Since the console reads
+`/history` rather than `/baseline` (`main.js:338-341` documents the choice), the
+visible effect is on severity scoring, selection ranking and imagery packaging
+rather than on the three baseline cards.
+
+**Not fixed here.** Closing it means deciding whether the climatology cell should
+be windowed at build time (three cells per grid square) or whether these callers
+should move to `BehaviorProfile`, which already windows correctly. That is a
+schema-and-rebuild decision, not a patch, so it is recorded rather than changed.
+
+---
+
+## Part 6b — The regression guard
+
+`v2/frontend/tools/check-industry.mjs` is new and self-contained (it builds its
+own temporary module directory and removes it). It requires a running backend,
+because it asserts against the live feed rather than fixtures.
+
+```
+cd v2/frontend && node tools/check-industry.mjs
+```
+
+42 assertions, all passing, exit 0 on success and 1 on any failure. It covers:
+all six modules parsing as ES modules; the register structure across eight
+states (roll-ups, sector filters, empty query, registry outage); all 30 registry
+rows rendering; the three measured windows being distinct and no scaled figure
+being published as a measurement; a window in flight reading as in-flight; a
+partial failure naming the missing window; INV-5 (a facility with zero cell P95
+draws no envelope line and says so); a quiet facility not claiming the network is
+clean; a mining basin claiming no registry record; and the trend chart plotting
+12 of 20 overpasses with an honest count, and exactly 1 point for a single
+overpass with no invented companions.
+
+Where `renderFrpPointGraph` is module-private, the chart is exercised the way the
+browser reaches it — through `renderIndustrial`, with synthetic detections
+attached to a real registry row.
+
+The guard was proved falsifiable rather than assumed to be: reinstating the
+invented-overpass branch produced three named failures, and restoring from backup
+returned all 42 green with `diff` confirming byte-identical restoration.
+
+---
+
+## Part 6c — Where the data actually comes from
+
+Recorded because three separate questions about the map reduce to this, and the
+answer is not what the UI implies.
+
+**FIRMS is the only raw source.** `observations.source` holds exactly one value
+across all 2,895,133 rows: `NASA_FIRMS`.
+
+**Nothing is live.** There is no scheduler, no polling interval and no daemon in
+v2 (`v1-daemon` runs the archived v1 ingestion path and is not in this one).
+`execute_analysis_pipeline` has four direct call sites, all operator-triggered:
+`POST /api/analysis/run` (`analysis.py:194,228`), `GET /api/trigger-sync-stream`
+(via `run_sync_worker_pipeline`, `analysis.py:273`) and the CLI `pipeline`
+subcommand (`cli.py:59`). A fifth route, `POST /api/trigger-sync`
+(`analysis.py:308`), is a five-line delegate to `run_analysis_pipeline` for v1
+dashboard compatibility and reaches the same pipeline through it.
+Grepping the pipeline symbol across `app/` returns no other reader. The browser
+fetches `/api/console/feed` once on load and does not poll it; the SSE stream
+drives the sync modal's progress log only.
+
+**Two ingestion paths, one table.**
+
+- *Live*: `GET https://firms.modaps.eosdis.nasa.gov/api/area/csv/{KEY}/{product}/{68.7,8.4,97.4,37.6}/{days}/`
+  — one product, one day (F-133, F-134). Deduplicated on a SHA256 `external_id`
+  with a UNIQUE index, so re-running is idempotent.
+- *Bulk*: `PS162/History data/` — 628 MB of NASA bulk-download CSVs in four
+  sensor folders (`J1V-C2` NOAA-20, `J2V-C2` NOAA-21, `M-C61` MODIS, `SV-C2`
+  Suomi-NPP), each with a `fire_archive_*.csv` and a `fire_nrt_*.csv` carrying
+  NASA's own columns. Loaded by `scripts/ingest_history.py`, filtered to the
+  sovereign bbox and `acq_date >= 2025-09-14`. This is the source of the 2.89M-row
+  archive and the 365-day baselines. It is a fixed snapshot taken 2026-09-14.
+
+One labelling artifact worth knowing: NOAA-21's entire year sits in a file named
+`fire_nrt_*`, so all 913,481 of its rows carry the product label
+`VIIRS_NOAA21_NRT`. The `_NRT` suffix records which file it came from, not its
+latency.
+
+**The map reads SQLite, not JSON.** `data.js:52` fetches `/api/console/feed`, a
+live query against `firex_v2.db` (1.19 GB). The three files in `frontend/data/`
+(`ambient_firms.json` 36 KB, `incidents.json` 237 KB, `queue_summary.json`
+15 KB) are a static-hosting fallback reached only if the API call fails.
+
+**Three vintages are on screen at once.** The 56 incident markers are
+`2026-09-17`; the 200 background points are 69 from 09-17 (NOAA-20, day) and 131
+from 09-13 (SNPP and NOAA-21, night); the envelopes behind both are up to a year
+old. The background layer mixes two dates, two satellites and two pass types
+under one toggle.
+
+---
+
+## Part 6d — Why the live map has no northern detections
+
+Raised as a question; recorded because the answer is not the season and not a
+filter.
+
+**It is not a geographic filter.** `FIRMS_REGION` is the full sovereign bbox
+`68.7,8.4,97.4,37.6`. Northern incidents exist in the database — the 09-13
+incident set has 9 at or above 28°N, reaching 31.88°N — but all are `RESOLVED`
+and the feed filters on `CONSOLE_ACTIVE_STATUSES`.
+
+**It is the ingest.** The archive's last complete day is 2026-09-13. The bulk
+load on 09-14 covered 2025-09-14 → 2026-09-13; 09-16 added 141 rows *for 09-02/03*;
+09-17 added the 69 rows above. **09-14, 09-15 and 09-16 hold zero observations.**
+Today's fragment stops at 26.61°N (Balotra, Rajasthan). Full archive days reach
+33–35.7°N, and NOAA-20 alone contributes 5–12 acquisition times on a normal day.
+
+**The northern edge is scatter, not a swath boundary.** Per-degree maximum
+latitude on the 09-17 slice runs 26.61 (72–73°E), 18.61 (74–75°E), 21.34
+(78–79°E), 23.78 (86–87°E). A clipped swath edge would be monotonic; this is a
+69-point sample.
+
+**Season is secondary but real.** Archive detections north of 28°N by month:
+September 3,924 against October 36,164 and November 49,932 — September is the
+annual minimum, immediately before the post-monsoon residue-burning season. A
+complete ingest today would still be southern-weighted; it would not be empty
+north of 27°N.
+
+**What the background layer shows instead.** Of its 200 points, 144 (72%) fall in
+four heavy-industry districts: Dhanbad 50 (Jharia coalfield), Jajpur 41
+(Kalinganagar), Korba 32 (coal and thermal), Mumbai 21 (refineries). Only 5 of
+the 200 sit above 26°N. What the console labels "background thermal activity" is
+predominantly industrial process heat and night-time plant signatures, which is
+consistent with the classification result in F-129: the platform is mostly
+looking at industry, and industry is exactly what radiance alone cannot classify.
+
+---
+
+## Part 6e — Open decisions
+
+Three items need a decision before they can be closed by an edit. None is a
+defect in the sense of the rest of this report.
+
+**D-1 — Product coverage.** Fetching all of `FIRMS_DEFAULT_PRODUCTS` and
+honouring `FIRMS_DAYS` is a small change with a large effect: it is the
+difference between one NOAA-20 pass (69 points) and the five sensor-days NASA
+publishes. It takes effect only on the next pipeline run, and that run writes to
+`firex_v2.db`.
+
+**D-2 — What a sync's window means.** The proposed model is two windows:
+a *detection* window, replaced by each run (what NASA just gave us), and a
+*reference* window, never replaced by a run (the 365-day archive, which is what
+makes "1.14× its own normal" meaningful). Replacing the reference window would
+empty every P95 envelope and fire INV-5 on everything, so the recommendation is
+that the detection layer is per-run and the case ledger — incident identity,
+alerts, investigations, operator review state — carries forward and ages out.
+That keeps each sync's map a coherent snapshot without breaking exactly-once
+alerts (INV-6, `alerts/engine.py:83-86`) or orphaning browser-held triage
+decisions keyed on `firex_triage_{id}` (`data.js:9`).
+
+**D-3 — How to window the climatology cell (F-138).** `thermal_climatology` holds
+one all-time aggregate per 0.01° grid square, and four pipeline stages read it
+through a function that accepts a `window_days` it cannot honour. The two ways
+out are to rebuild the cell per horizon (three rows per square, and a rebuild
+script to match) or to repoint the 90-day callers at `BehaviorProfile`, which
+already windows correctly and already holds measured 30/90/365 rows. The second
+is smaller and uses a store that is verified correct; the first keeps the
+climatology layer authoritative for every consumer. This one is a schema
+decision, so it is recorded rather than changed.

@@ -10,7 +10,7 @@ import time
 import pytest
 from app.storage.database import SessionLocal
 from app.storage.models import ThermalClimatology
-from app.behavior.baseline import get_or_create_location_baseline
+from app.behavior.baseline import get_or_create_location_baseline, generate_spatial_key
 from app.imagery.package import build_investigation_package
 from app.intelligence.prompts import build_investigation_prompt
 from app.severity.scoring import (
@@ -37,7 +37,12 @@ def test_climatology_submillisecond_lookup():
         latency_ms = (time.perf_counter() - t0) * 1000.0
         
         assert latency_ms < 5.0, f"Query took {latency_ms:.2f} ms (expected < 5.0 ms)"
-        assert bl["spatial_key"] == "GRID_22.04_83.73"
+        # The key is derived, not written down. The literal "GRID_22.04_83.73"
+        # used to sit here and was only correct while the lookup rounded to a
+        # hundredth of a degree; when the reader moved to the producer's 0.02
+        # degree lattice the cell became GRID_22.04_83.72 and this assertion
+        # pinned the old convention in place.
+        assert bl["spatial_key"] == generate_spatial_key(22.04, 83.73)
         assert bl["observation_count"] > 100
         assert bl["active_days_365d"] > 50
         assert bl["median_frp"] > 0.0

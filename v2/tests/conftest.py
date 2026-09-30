@@ -128,7 +128,11 @@ def _isolate_test_writes() -> None:
 
     * ``pipeline.FRONTEND_DATA_DIR`` / ``V1_DATA_DIR`` -- read as globals on
       every call (``export_v1_dashboard_data``'s
-      ``for target_dir in [FRONTEND_DATA_DIR, V1_DATA_DIR]``).
+      ``for target_dir in _export_targets()``). ``V1_DATA_DIR`` is set in the
+      environment above, so the export treats it as an explicit target and
+      writes it whether or not the directory is there -- which is why the
+      ``os.makedirs`` below has to create it. The source-tree v1 default is
+      skipped when absent (``_export_targets``), and here it is never reached.
     * ``imagery_service.CACHE_DIR`` -- read as a global where a crop is cached
       (``service.py:17``).
     * ``imagery_api.CACHE_DIR`` -- that module does ``from app.imagery.service

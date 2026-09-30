@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.storage.models import Observation, HistoricalBaseline, BehaviorProfile, IndustrialAsset, ThermalClimatology
-from app.gis.spatial import haversine_distance_km
+from app.gis.spatial import climatology_cell, haversine_distance_km
 from app.gis.mining_basins import is_in_major_mining_basin
 from app.gis.assets import find_nearest_asset, is_flaring_facility, is_metallurgical_or_manufacturing_facility
 from app.core.logging import logger
@@ -133,13 +133,31 @@ def _is_routine_flare_by_inv4(active_days: int, p95_frp: float) -> bool:
     """
     return bool(active_days >= 10 and (p95_frp or 0.0) > 0.0)
 
-def generate_spatial_key(lat: float, lon: float, precision: int = 2) -> str:
+def generate_spatial_key(lat: float, lon: float) -> str:
     """
-    Generates a 0.01 deg (~1.1 km) or 0.05 deg grid cell spatial key.
+    The Section 4.2 / Section 9 grid cell key for a coordinate.
+
+    Delegates to `gis.spatial.climatology_cell` so that this module and the
+    offline producer (`scripts/build_thermal_climatology.py`) resolve a
+    coordinate to the identical cell. This function used to round to
+    `precision=2`, a 0.01 degree lattice at half the documented cell, while the
+    producer built `thermal_climatology` on the 0.02 degree lattice. A 0.01
+    degree key matches a 0.02 degree row only where the lattices coincide, so a
+    live lookup found 82,581 of the stored 331,418 rows (24.9%) and every
+    `historical_baselines` row was unreachable -- the console's
+    `_read_cached_location_baseline` keys *both* tables through
+    `climatology_cell`. That is why the console published `baseline_p95 = 0`
+    for 32 of its 56 rows and invented a P50/P95 from its own fallback.
+
+    The two conventions have to agree, and not only for hit rate: INV-4's
+    routine-flare rule is a threshold on the cell's `active_days`, so reading a
+    cell that holds half its detections pushes genuinely continuous sources
+    below the cutoff.
+
+    `precision` was dropped rather than kept and ignored: no caller passed it.
     """
-    grid_lat = round(lat, precision)
-    grid_lon = round(lon, precision)
-    return f"GRID_{grid_lat:.2f}_{grid_lon:.2f}"
+    _, _, spatial_key = climatology_cell(lat, lon)
+    return spatial_key
 
 def get_or_create_location_baseline(
     lat: float,

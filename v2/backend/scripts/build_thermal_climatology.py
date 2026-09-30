@@ -42,8 +42,8 @@ This script publishes by `DELETE FROM thermal_climatology` followed by a full re
 whole-table replace, not an incremental update. Changing the grid (as this release does, 0.01° ->
 0.02°) invalidates *every* existing row: old rows are deleted and the whole table is rebuilt, and no
 pre-existing 0.01° row survives. Any `HistoricalBaseline` cache materialised from the old grid must
-be regenerated (baseline.py:132 refreshes a cache entry older than 24 h on its own, or pass
-`force_refresh=True`); `scripts/migrate_climatology_industrial.py` and
+be regenerated (`get_or_create_location_baseline` refreshes a cache entry older than 24 h on its own,
+or pass `force_refresh=True`); `scripts/migrate_climatology_industrial.py` and
 `scripts/migrate_climatology_mining.py` only clear `is_routine_flare` on existing rows, so they are
 not a substitute for re-running this generator.
 """

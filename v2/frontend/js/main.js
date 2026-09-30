@@ -4,13 +4,13 @@
    render, so the console can never show two views disagreeing about a filter.
    ========================================================================== */
 
-import { FILTERS, WINDOWS, BASES, fmt } from "./config.js";
+import { FILTERS, WINDOWS, BASES, fmt, escapeHtml } from "./config.js";
 import { load, store, inWindow, setTriage, getTriage } from "./data.js";
 import {
   initMap, mapState, setBase, drawCases, drawAmbient,
   select, clearSelection, hover, fitAll, home, zoomBy, resize, countInView,
 } from "./map.js?v=4";
-import * as ui from "./render.js?v=17";
+import * as ui from "./render.js?v=18";
 import { initDossier, showDrawer, showModal, isModalOpen, refresh } from "./dossier.js?v=15";
 
 const PREFS_KEY = "firex_prefs";
@@ -30,6 +30,7 @@ const state = {
   facilitySector: "all",
   facilitySort: "frp",
   facilityWindow: "365d",
+  facilityGroup: "facility",
 };
 
 const el = {};
@@ -242,14 +243,6 @@ function updateAlerts(win) {
   const waiting = win.filter((c) =>
     (c.risk.tier === "CRITICAL" || c.risk.tier === "HIGH") && getTriage(c.id) === "UNREVIEWED");
   if (el["alert-flag"]) el["alert-flag"].hidden = waiting.length === 0;
-
-  const btn = document.getElementById("btn-alerts");
-  if (!btn) return;
-  const label = waiting.length
-    ? `${waiting.length} priority case${waiting.length === 1 ? "" : "s"} waiting on a decision, jump to the first`
-    : "No priority cases waiting on a decision";
-  btn.setAttribute("aria-label", label);
-  btn.title = label;
 }
 
 function updateInView(counts) {
@@ -337,6 +330,78 @@ const histState = {
   data: null,
 };
 
+/* --- Facility baselines ---------------------------------------------------
+   The measured 30 / 90 / 365-day profiles for whichever facility is open in
+   the industry view, keyed by facility id so switching selection cannot show
+   one facility's numbers under another's name.
+
+   Read from `GET /api/industries/{id}/history?window_days=N`, which measures
+   each window independently (`behavior/profile.py`). They are fetched one
+   facility at a time, and only for the facility on screen: the register holds
+   30 facilities, so prefetching would be 90 profile computations on every page
+   load, and each computation materialises a `behavior_profiles` row for the
+   (facility, window) pair that does not have one.
+
+   `token` is the guard against a slow 365-day query landing after the reader
+   has moved to a different facility and overwriting its panel with the wrong
+   measurements. */
+const facilityProfile = {
+  id: null,
+  loading: false,
+  error: null,
+  windows: {},
+  token: 0,
+};
+
+async function loadFacilityProfile(id) {
+  if (!id) {
+    facilityProfile.id = null;
+    facilityProfile.loading = false;
+    facilityProfile.error = null;
+    facilityProfile.windows = {};
+    return;
+  }
+
+  const token = ++facilityProfile.token;
+  facilityProfile.id = id;
+  facilityProfile.loading = true;
+  facilityProfile.error = null;
+  facilityProfile.windows = {};
+  renderView();
+
+  const out = {};
+  const failures = [];
+  await Promise.all([30, 90, 365].map(async (days) => {
+    try {
+      const res = await fetch(`/api/industries/${encodeURIComponent(id)}/history?window_days=${days}`,
+        { cache: "no-store" });
+      if (!res.ok) {
+        failures.push(`${days}d responded ${res.status}`);
+        return;
+      }
+      const body = await res.json();
+      if (body && typeof body === "object") out[days] = body;
+      else failures.push(`${days}d returned no profile`);
+    } catch (err) {
+      failures.push(`${days}d: ${String(err && err.message || err)}`);
+    }
+  }));
+
+  // A newer selection started while this one was in flight: drop the result
+  // rather than render it under the facility the reader is now looking at.
+  if (token !== facilityProfile.token) return;
+
+  facilityProfile.windows = out;
+  facilityProfile.loading = false;
+  /* Partial failure is reported as a failure. Two measured windows and one
+     that did not answer is not a facility with two windows, and the panel says
+     which window is missing rather than quietly drawing the other two. */
+  facilityProfile.error = failures.length
+    ? `Some windows could not be measured: ${failures.join("; ")}.`
+    : null;
+  renderView();
+}
+
 async function executeHistorySearch() {
   const qInput = document.getElementById("hist-input-query");
   const stSelect = document.getElementById("hist-select-state");
@@ -357,7 +422,13 @@ async function executeHistorySearch() {
     if (histState.state) params.set("state", histState.state);
     if (histState.startDate) params.set("start_date", histState.startDate);
     if (histState.endDate) params.set("end_date", histState.endDate);
-    if (histState.minFrp > 0) params.set("min_frp", String(histState.minFrp));
+    /* F-120. The param was sent only when non-zero, but history.py:261 declares
+       `min_frp: float = Query(2.0, ge=0.0, ...)`, so the pill labelled
+       "All (>=0 MW)" omitted it and the server applied a 2 MW floor: a search
+       the UI calls unfiltered silently dropped every row below 2 MW. The 2.0
+       default is a reasonable floor for direct API callers, so it is left alone
+       and the client states its choice explicitly instead. */
+    params.set("min_frp", String(histState.minFrp || 0));
     params.set("limit", String(histState.limit));
     params.set("offset", String(histState.offset));
 
@@ -467,6 +538,24 @@ function wireHistorySearch() {
         histState.startDate = "";
         histState.endDate = "";
       }
+
+      /* The date fields live in two places at once and the DOM wins.
+         executeHistorySearch() opens by reading `#hist-input-start` and
+         `#hist-input-end` back into histState (see the read-back at the top of
+         that function), and those inputs still hold the values from the *last*
+         render -- the re-render only happens after the fetch returns. So setting
+         histState here was immediately overwritten and every preset was inert:
+         "Last 24h" changed nothing, and "All Time" snapped the dates back to the
+         previous range, leaving a search the label calls unfiltered still
+         date-bounded. Writing the computed range into the inputs keeps the two
+         representations in step, and the functions that render them afterwards
+         read the same values back. The min_frp pills below never had this
+         problem because no DOM input holds their value. */
+      const startInput = document.getElementById("hist-input-start");
+      if (startInput) startInput.value = histState.startDate;
+      const endInput = document.getElementById("hist-input-end");
+      if (endInput) endInput.value = histState.endDate;
+
       histState.offset = 0;
       executeHistorySearch();
       return;
@@ -524,7 +613,10 @@ const VIEWS = {
       { cases: visible(), ambient: ambientInWindow(), selected: state.selected });
   },
   investigations: () => ui.renderInvestigations(el["inv-grid"], visible(), state.selected),
-  industrial: () => ui.renderIndustrial(el["industrial-body"], windowed(), state.selectedFacility, state.facilityQuery, state.facilitySector, state.facilitySort, state.facilityWindow),
+  industrial: () => ui.renderIndustrial(el["industrial-body"], windowed(), state.selectedFacility,
+    state.facilityQuery, state.facilitySector, state.facilitySort, state.facilityWindow,
+    facilityProfile.id === state.selectedFacility ? facilityProfile : null,
+    store.registry, state.facilityGroup),
   analytics: () => ui.renderAnalytics(el["analytics-body"], windowed(), ambientInWindow()),
   history: () => {
     ui.renderHistory(el["history-body"], histState);
@@ -649,7 +741,13 @@ function armClear(btn) {
 }
 
 /* The bell is only worth pressing if it lands on the case that needs the
-   decision, so it widens the filter far enough to show it. */
+   decision, so it widens the filter far enough to show it.
+
+   This has no live trigger. It was bound to `#btn-alerts`, which no element in
+   `index.html` ever carried, so the binding was a no-op from the day it was
+   written; the reference is gone now, leaving this reachable only if the bell
+   is given an element again. Kept rather than deleted because it is the only
+   implementation of the behaviour -- drop it if the bell is not coming back. */
 function jumpToPriority() {
   const waiting = windowed().filter((c) =>
     (c.risk.tier === "CRITICAL" || c.risk.tier === "HIGH") && getTriage(c.id) === "UNREVIEWED");
@@ -722,7 +820,26 @@ function wireDelegates() {
 
     const fac = t.closest("[data-facility]");
     if (fac) {
-      state.selectedFacility = fac.dataset.facility;
+      const next = fac.dataset.facility;
+      state.selectedFacility = state.selectedFacility === next ? null : next;
+      /* The baseline panel is measured per facility, so the fetch follows the
+         selection. A group key ("group:Steel Authority of India Limited") has no
+         registry row behind it and no profile to measure, which is why
+         `loadFacilityProfile` clears itself on a falsy id rather than fetching;
+         `renderIndustrial` reads it back only when the ids match. */
+      loadFacilityProfile(store.registry.some((a) => a && a.id === state.selectedFacility)
+        ? state.selectedFacility
+        : null);
+      return;
+    }
+
+    const grpBtn = t.closest("#industrial-group-filter button[data-group]");
+    if (grpBtn) {
+      state.facilityGroup = grpBtn.dataset.group || "facility";
+      document.querySelectorAll("#industrial-group-filter button[data-group]").forEach((b) => {
+        b.classList.toggle("is-active", b.dataset.group === state.facilityGroup);
+        b.setAttribute("aria-checked", String(b.dataset.group === state.facilityGroup));
+      });
       renderView();
       return;
     }
@@ -782,7 +899,6 @@ function wireControls() {
   on("btn-zoom-in", () => zoomBy(1));
   on("btn-zoom-out", () => zoomBy(-1));
   on("btn-ambient", () => { state.ambient = !state.ambient; renderAll(); });
-  on("btn-alerts", jumpToPriority);
 
   const facInput = document.getElementById("facility-search-input");
   if (facInput) {
@@ -978,7 +1094,16 @@ function wirePersistenceSync() {
     const now = new Date().toTimeString().split(" ")[0];
     const row = document.createElement("div");
     row.className = "sync-log-entry";
-    row.innerHTML = `<span class="sync-log-ts">[${now}]</span><span class="sync-log-msg">[${tag}] ${msg}</span>`;
+    /* `msg` is not always a server constant. Callers pass `data.detail`, which
+       events.py fills from the event's `message` field, and
+       pipeline.py:1523 publishes one built from the vision model's own
+       classification string. This was an `innerHTML` interpolation of that text
+       -- the one unescaped sink in a codebase that escapes everywhere else, and
+       the same value is assigned with `textContent` a few lines below in the
+       same handler. The timestamp and tag are escaped with it so the whole row
+       is built from inert text. */
+    row.innerHTML = `<span class="sync-log-ts">[${escapeHtml(now)}]</span>`
+      + `<span class="sync-log-msg">[${escapeHtml(tag)}] ${escapeHtml(msg)}</span>`;
     logTerminal.appendChild(row);
     logTerminal.scrollTop = logTerminal.scrollHeight;
   }
@@ -1135,30 +1260,55 @@ function wirePersistenceSync() {
           }
           evtSource.close();
 
-          // Mark all stages complete
-          for (let i = 1; i <= 5; i++) {
-            const row = document.getElementById(`sync-stage-${i}`);
-            const icon = row ? row.querySelector(".sync-stage-icon") : null;
-            const statusBadge = document.getElementById(`sync-status-${i}`);
-            if (row) row.setAttribute("data-status", "done");
-            if (icon) icon.textContent = "✓";
-            if (statusBadge) statusBadge.textContent = "VERIFIED ✓";
-          }
+          /* F-116. events.py:89 marks ANALYSIS_FAILED as `done` as well as
+             ANALYSIS_COMPLETED, and both terminal events arrive at stage 6 /
+             pct 100, so an aborted run fell straight through to the success
+             block below and painted all five stages green with "VERIFIED ✓".
+             The event name is on the payload (events.py:81) and was never read. */
+          const failed =
+            data.event === "ANALYSIS_FAILED" || data.data?.error === true;
 
-          if (barFill) barFill.style.width = "100%";
-          if (pctDisplay) pctDisplay.textContent = "100%";
-          if (badgeStatus) {
-            badgeStatus.className = "sync-badge sync-badge--done";
-            badgeStatus.innerHTML = `<span class="tag__dot"></span> ANALYSIS COMPLETE`;
-          }
-          if (phaseLabel) {
-            phaseLabel.innerHTML = `<span class="tag__dot"></span> ALL 5 STAGES COMPLETE`;
-          }
-          if (footerStatus) {
-            footerStatus.textContent = "Analysis complete. Incident dossiers updated.";
-          }
+          if (failed) {
+            /* The stage rows are left as they stand: the stage that failed keeps
+               its "active" state and the ones that genuinely finished keep their
+               ticks, rather than all five being asserted complete. */
+            if (badgeStatus) {
+              badgeStatus.className = "sync-badge";
+              badgeStatus.innerHTML = `<span class="tag__dot"></span> ANALYSIS FAILED`;
+            }
+            if (phaseLabel) {
+              phaseLabel.innerHTML = `<span class="tag__dot"></span> ANALYSIS ABORTED — SEE LOG`;
+            }
+            if (footerStatus) {
+              footerStatus.textContent = "Analysis failed. Dossiers were not updated.";
+            }
+            addLog(`Pipeline aborted: ${data.detail || "analysis error"}`, "ERROR");
+          } else {
+            // Mark all stages complete
+            for (let i = 1; i <= 5; i++) {
+              const row = document.getElementById(`sync-stage-${i}`);
+              const icon = row ? row.querySelector(".sync-stage-icon") : null;
+              const statusBadge = document.getElementById(`sync-status-${i}`);
+              if (row) row.setAttribute("data-status", "done");
+              if (icon) icon.textContent = "✓";
+              if (statusBadge) statusBadge.textContent = "VERIFIED ✓";
+            }
 
-          addLog("Pipeline synchronization complete. Updated incident dossiers deployed.", "SUCCESS");
+            if (barFill) barFill.style.width = "100%";
+            if (pctDisplay) pctDisplay.textContent = "100%";
+            if (badgeStatus) {
+              badgeStatus.className = "sync-badge sync-badge--done";
+              badgeStatus.innerHTML = `<span class="tag__dot"></span> ANALYSIS COMPLETE`;
+            }
+            if (phaseLabel) {
+              phaseLabel.innerHTML = `<span class="tag__dot"></span> ALL 5 STAGES COMPLETE`;
+            }
+            if (footerStatus) {
+              footerStatus.textContent = "Analysis complete. Incident dossiers updated.";
+            }
+
+            addLog("Pipeline synchronization complete. Updated incident dossiers deployed.", "SUCCESS");
+          }
 
           // Reload data and refresh feed
           await load();

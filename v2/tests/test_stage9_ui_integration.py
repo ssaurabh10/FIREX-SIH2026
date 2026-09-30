@@ -539,12 +539,42 @@ def test_console_feed_route_contract(client, db_session):
                     "risk_score", "risk_tier", "priority_rank",
                     "investigation_priority", "priority_explanation",
                     "ai_classification", "ai_confidence", "ai_uncertainty",
+                    "ai_verified",
                     "ai_evidence", "ai_reasoning", "severity_score",
                     "severity_level", "action_recommendation", "risk_factors",
                     "baseline_median", "baseline_p95", "active_days_365d",
                     "is_routine_flare", "historical_anomaly", "status",
                     "image_url", "raw_image_url"):
             assert key in mine, f"console feed row is missing {key!r}"
+
+        # --- INV-1 provenance -------------------------------------------------
+        # `incumbent` above carries the exact shape the geometry scripts wrote:
+        # classification "industrial_fire" at 88.0 and no AIInvestigation row.
+        # Published as-is it was indistinguishable from a vision verdict, it
+        # satisfied the `ai_confidence >= 80` gate on the CRITICAL industrial
+        # override (severity/scoring.py), and data.js:144-146 turned it into an
+        # "optically confirmed" badge because ai_uncertainty read "low". The feed
+        # must now publish the provenance alongside the label and hold an
+        # unverified prior below that gate.
+        assert mine["ai_verified"] is False, (
+            f"{marker} carries no AIInvestigation row but the feed published "
+            f"ai_verified={mine['ai_verified']!r}; a label derived from a facility "
+            f"or basin polygon must not be presented as an optical verification"
+        )
+        assert mine["ai_confidence"] < 0.80, (
+            f"{marker} published ai_confidence={mine['ai_confidence']} for an "
+            f"uninvestigated detection; at or above 0.80 it satisfies the "
+            f"CRITICAL industrial override on geometry alone"
+        )
+        assert mine["ai_uncertainty"] != "low", (
+            f"{marker} published ai_uncertainty={mine['ai_uncertainty']!r} with no "
+            f"vision investigation; data.js:144 derives the console's "
+            f"'optically confirmed' badge from exactly this value"
+        )
+        assert "verified" not in mine["ai_reasoning"].lower(), (
+            f"{marker} reasoning still claims verification without an "
+            f"investigation: {mine['ai_reasoning']!r}"
+        )
 
         assert isinstance(mine["ai_evidence"], list)
         assert isinstance(mine["risk_factors"], list) and mine["risk_factors"], (
@@ -724,5 +754,100 @@ def test_history_search_api(client, db_session):
         db_session.query(Observation).filter(Observation.id.in_(obs_ids)).delete(
             synchronize_session=False
         )
+        db_session.commit()
+
+
+def test_open_terrain_frp_alone_cannot_publish_wildfire(client, db_session):
+    """INV-1: `wildfire` is a vegetation finding, not a radiance threshold.
+
+    The classifier's final geometry branches used to read
+    ``elif current_max_frp >= 25.0: cls = "wildfire"`` (0.84, "low") and
+    ``>= 6.0`` (0.78, "low"), reasoned "Vegetative biomass combustion observed
+    in natural terrain". Nothing in that rule observed anything: it is a
+    comparison against a constant. Section 5 (spec line 365) and the override
+    table (line 299, ``Classification = wildfire AND is_protected_area = True``)
+    both reach `wildfire` through the protected-area test, and
+    ``resolve_landcover``'s final fallback -- `mixed_vegetation_and_shrubland`
+    -- is a catch-all meaning "unclassified", so the open-terrain branch had no
+    land-cover evidence to reason from at all.
+
+    Both halves are asserted, because either one alone passes vacuously. A row
+    above the retired threshold must come back `uncertain`; a row at the *same*
+    FRP inside a notified protected area must still come back `wildfire`, so
+    the first assertion cannot be satisfied by making the class unreachable.
+    """
+    # Central Andhra open scrub: sovereign territory, outside every protected
+    # zone in gis/landcover.PROTECTED_ZONES and outside both cropland boxes, so
+    # it reaches the branch under test.
+    open_lat, open_lon = 15.7200, 78.2100
+    # Bandipur National Park, the protected zone at 11.66 N / 76.63 E (r=25 km).
+    prot_lat, prot_lon = 11.6600, 76.6300
+    frp = 41.0  # above the retired 25.0 MW branch
+
+    open_inc = Incident(
+        id="test-inc-stage9-wildfire-open", incident_code="INC-STAGE9-WF-OPEN",
+        status="ACTIVE", latitude=open_lat, longitude=open_lon,
+        footprint_radius_meters=500.0, current_max_frp=frp, current_mean_frp=frp,
+        first_detected_at=datetime.utcnow() - timedelta(hours=2),
+        last_detected_at=datetime.utcnow(), observation_count=1,
+        # `uncertain` is skipped by the stored-label branch (`pipeline.py`), so
+        # this row falls through the geometry cascade to the branch under test.
+        classification="uncertain", classification_confidence=50.0,
+        severity_score=40.0, severity_level="MEDIUM", severity_confidence=60.0,
+    )
+    prot_inc = Incident(
+        id="test-inc-stage9-wildfire-prot", incident_code="INC-STAGE9-WF-PROT",
+        status="ACTIVE", latitude=prot_lat, longitude=prot_lon,
+        footprint_radius_meters=500.0, current_max_frp=frp, current_mean_frp=frp,
+        first_detected_at=datetime.utcnow() - timedelta(hours=2),
+        last_detected_at=datetime.utcnow(), observation_count=1,
+        classification="uncertain", classification_confidence=50.0,
+        severity_score=40.0, severity_level="MEDIUM", severity_confidence=60.0,
+    )
+    db_session.merge(open_inc)
+    db_session.merge(prot_inc)
+    db_session.commit()
+
+    try:
+        res = client.get("/api/console/feed")
+        assert res.status_code == 200
+        by_code = {r["incident_code"]: r for r in res.json()["incidents"]}
+
+        fired = by_code.get("INC-STAGE9-WF-OPEN")
+        assert fired is not None, (
+            "the open-terrain incident never reached the feed, so this test is "
+            "not exercising the classifier branch it names"
+        )
+        assert fired["frp"] >= 25.0, (
+            f"this fixture peaks at {fired['frp']} MW, below the retired 25.0 MW "
+            f"branch, so it would have been classified `uncertain` under the old "
+            f"cascade too and the regression it guards is not covered"
+        )
+        assert fired["ai_classification"] != "wildfire", (
+            f"an uninvestigated open-terrain detection at {fired['frp']} MW was "
+            f"published as `wildfire` from its FRP alone: "
+            f"{fired['ai_reasoning']!r}"
+        )
+        assert fired["ai_classification"] == "uncertain", (
+            f"the documented output for an unverified geometry-only detection is "
+            f"`uncertain` (INV-1); got {fired['ai_classification']!r}"
+        )
+        for word in ("observed", "biomass", "vegetative"):
+            assert word not in fired["ai_reasoning"].lower(), (
+                f"the reason text claims {word!r} without any land-cover evidence "
+                f"on record: {fired['ai_reasoning']!r}"
+            )
+
+        protected = by_code.get("INC-STAGE9-WF-PROT")
+        assert protected is not None, "the protected-area incident never reached the feed"
+        assert protected["ai_classification"] == "wildfire", (
+            f"the same FRP inside Bandipur National Park must still classify as "
+            f"`wildfire` (spec line 299: `wildfire` AND `is_protected_area`); got "
+            f"{protected['ai_classification']!r} -- the first assertion above is "
+            f"then satisfied by an unreachable class rather than a gated one"
+        )
+    finally:
+        for inc in (open_inc, prot_inc):
+            db_session.query(Incident).filter(Incident.id == inc.id).delete()
         db_session.commit()
 

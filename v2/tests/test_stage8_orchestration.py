@@ -394,7 +394,7 @@ def test_analysis_rest_and_status_endpoints(db_session):
 # ---------------------------------------------------------------------------
 def _assessment(
     frp=62.5, calib=41.0, dev=43.0, ai=88.6, gis=15.0,
-    routine=False, with_history=True, severity=None, reasons=None, augmented=True,
+    routine=False, chronic=False, with_history=True, severity=None, reasons=None, augmented=True,
 ):
     """The augmented factor dict `severity/service.py` persists.
 
@@ -403,7 +403,10 @@ def _assessment(
     independently describes an assessment the engine cannot produce, and would
     test the renderer against a state that never occurs.
     """
-    effective = calib if routine else frp
+    # The engine scores FRP against the sovereign Indian FIRMS distribution in
+    # both models, so `calib` is the component the composite used -- `frp_score`
+    # is carried alongside it for audit and is not the term the weights apply to.
+    effective = calib
     if with_history:
         base = 0.35 * effective + 0.30 * dev + 0.20 * ai + 0.15 * gis
     else:
@@ -412,11 +415,15 @@ def _assessment(
     factors = {
         "frp_score": frp,
         "india_calibrated_frp_score": calib,
+        "frp_curve": "india_calibrated",
         "historical_deviation_score": dev,
         "ai_source_severity_score": ai,
         "gis_context_score": gis,
         "p95_ratio": 0.86 if dev else None,
         "is_routine_flare": routine,
+        # The engine records this on every assessment (`scoring.py:521`); the
+        # clamp reads `is_routine_flare or is_chronic_source`.
+        "is_chronic_source": chronic,
     }
     if augmented:
         final = round(base, 1) if severity is None else severity
@@ -586,6 +593,57 @@ def test_suppressed_routine_flare_cannot_be_overstated_by_its_breakdown():
     )
 
 
+def test_suppressed_chronic_source_is_named_as_one_not_as_unreconciled():
+    """INV-4 clamps a chronic source too, and the row has to say so.
+
+    `scoring.py:449` widened the clamp from `is_routine_flare` to
+    `is_routine_flare or is_chronic`, and `scoring.py:521` records the second
+    case as `is_chronic_source` -- but the reconciliation gate still read only
+    the flare flag. A chronic non-flare source, a steel plant hot on 90+ days,
+    fell past it to the "Recorded Adjustment" row, whose text reads:
+
+        Recorded score is 30.1 below the weighted factor sum, and no override
+        or INV-4 clamp in the assessment accounts for the difference
+        (overrides on record: CHRONIC_SOURCE_SUPPRESSION (...))
+
+    -- denying the clamp inside the same string that quotes it as the reason.
+    `generate_console_feed_data` then read that label and logged a second false
+    claim, that the assessment "predates the current scoring model", for a row
+    written seconds earlier by the current one.
+
+    Fuzzing the real scoring path produced 2,618 of these over 30,000 cases.
+    Every one was chronic-source and none was a routine flare, which is exactly
+    why the flare-only gate survived: the case it was written for still passed.
+    """
+    factors = _assessment(
+        frp=5000.0, calib=100.0, dev=16.67, ai=39.2, gis=15.0,
+        chronic=True, severity=20.0,
+        reasons=[
+            "EXTREME_FRP (>= 250MW) forces CRITICAL",
+            "CHRONIC_SOURCE_SUPPRESSION (composite 80.0 -> 20.0)",
+        ],
+    )
+    assert factors["base_score"] == 50.09, factors["base_score"]
+
+    rows = _weighted_risk_factors(factors)
+    suppression = _row(rows, "Chronic Source Suppression")
+    assert suppression["score"] == -30.1, (
+        f"the clamp removed 30.1 (50.1 -> 20.0) and the row must carry it; got "
+        f"{suppression['score']}"
+    )
+    assert "20.0" in suppression["detail"]
+    assert UNRECONCILED_FACTOR_LABEL not in [r["factor"] for r in rows], (
+        f"the clamp accounts for the gap, so nothing here is unreconciled: {rows}"
+    )
+    assert not [r for r in rows if r["factor"] == "Routine Flare Suppression"], (
+        f"a steel plant is not a flare -- scoring.py:437 says so -- and the row "
+        f"must not call it one: {rows}"
+    )
+    assert _sum_tenths(rows) == 200, (
+        f"a clamped chronic source's breakdown must arrive at the clamped 20.0: {rows}"
+    )
+
+
 def test_routine_flare_breakdown_uses_the_calibrated_frp_the_engine_scored():
     """A suppressed flare is scored on the Indian-calibrated FRP map.
 
@@ -741,7 +799,7 @@ def test_a_breakdown_never_hides_a_gap_it_cannot_explain():
     """Every difference is either attributed to its cause or named as unknown."""
     # An override with no reasons on record is still attributable to an
     # override; the row says so instead of citing a clause it does not have.
-    overridden = _assessment(frp=30.0, dev=20.0, ai=50.0, gis=10.0, severity=55.0)
+    overridden = _assessment(calib=30.0, dev=20.0, ai=50.0, gis=10.0, severity=55.0)
     rows = _weighted_risk_factors(overridden, published_score=55.0)
     escalation = _row(rows, "Operational Escalation")
     assert escalation["score"] == 27.0, rows
@@ -750,7 +808,7 @@ def test_a_breakdown_never_hides_a_gap_it_cannot_explain():
 
     # A score that fell with no clamp behind it is the case that must be flagged
     # rather than quietly reconciled: nothing in the assessment explains it.
-    fallen = _assessment(frp=60.0, dev=40.0, ai=50.0, gis=20.0, severity=30.0)
+    fallen = _assessment(calib=60.0, dev=40.0, ai=50.0, gis=20.0, severity=30.0)
     rows = _weighted_risk_factors(fallen, published_score=30.0)
     flagged = _row(rows, UNRECONCILED_FACTOR_LABEL)
     assert flagged["score"] == -16.0, rows

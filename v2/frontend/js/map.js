@@ -212,7 +212,10 @@ export function drawAmbient(points, visible) {
       interactive: true,
     }).addTo(mapState.ambient);
 
-    marker.bindTooltip(`FIRMS Hotspot: ${p.frp} MW (${p.sat || "FIRMS"})`, {
+    /* F-107. `p` is a normalised ambient point: data.js:239 renames the feed's
+       `sat` key to `satellite`, so the old `p.sat` was always undefined and all
+       200 tooltips fell through to the literal "FIRMS". */
+    marker.bindTooltip(`FIRMS Hotspot: ${p.frp} MW (${p.satellite || "FIRMS"})`, {
       direction: "top",
       offset: [0, -r],
       className: "tactical-tooltip"

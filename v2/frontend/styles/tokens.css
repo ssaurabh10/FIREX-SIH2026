@@ -66,6 +66,21 @@
   --tier-medium:   #d9b900;
   --tier-low:      #64d977;
 
+  /* Not a tier: the "elevated above this site's own baseline" accent, used for
+     the P95 surge limit on the point graph and the peak-FRP and daytime-overpass
+     figures. It sits between --tier-high and --tier-medium on the ramp, which is
+     what makes it readable next to a real tier colour, but no score maps to it
+     and score_to_level never returns it.
+
+     render.js used this token in seven places and it was defined in no
+     stylesheet, so every unguarded use was invalid at computed-value time and
+     behaved as `unset`: the P95 surge line was not drawn at all and its label
+     fell back to default black on a dark card, hiding the threshold the chart
+     exists to show. Two of the seven (render.js:1077, :1143) already carried an
+     inline `, #f59e0b` fallback, which is the value defined here -- the three
+     unguarded sites now resolve to the colour they were written for. */
+  --tier-elevated: #f59e0b;
+
   /* Unclassified FIRMS pixels. A thermal anomaly is not a confirmed fire,
      so raw detections stay neutral until vision AI has classified them. */
   --unclassified: rgba(255, 255, 255, 0.34);
