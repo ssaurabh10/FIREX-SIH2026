@@ -107,6 +107,10 @@ function loadPrefs() {
     Object.entries(PREF_VALID).forEach(([key, valid]) => {
       if (saved[key] !== undefined && valid(saved[key])) state[key] = saved[key];
     });
+    // Basemap defaults to satellite imagery on first visit / update
+    if (saved.base_v2_set !== true) {
+      state.base = "satellite";
+    }
     // Ambient dots OFF by default unless explicitly activated in session
     if (saved.ambient_v2_set !== true) {
       state.ambient = false;
@@ -124,7 +128,7 @@ function savePrefs() {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       view: state.view, window: state.window, filter: state.filter,
       frpThreshold: state.frpThreshold,
-      base: state.base, ambient: state.ambient, ambient_v2_set: true, theme: state.theme,
+      base: state.base, base_v2_set: true, ambient: state.ambient, ambient_v2_set: true, theme: state.theme,
     }));
   } catch { /* private mode: preferences last for this session only */ }
 }
