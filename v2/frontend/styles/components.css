@@ -1160,53 +1160,62 @@
 .history-search-card {
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
-  padding: var(--s-4);
+  gap: 10px;
+  padding: 12px 16px;
   border-radius: var(--r-md);
 }
 
 .history-form-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: var(--s-3);
+  grid-template-columns: 1.4fr 1.1fr 0.9fr 0.9fr;
+  gap: 8px 12px;
   align-items: end;
 }
 
 @media (max-width: 1024px) {
   .history-form-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
   }
 }
 
 @media (max-width: 640px) {
   .history-form-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 8px;
+  }
+}
+
+@media (max-width: 440px) {
+  .history-form-grid {
     grid-template-columns: 1fr;
+    gap: 6px;
   }
 }
 
 .history-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .history-field label {
-  font-size: var(--fs-micro);
+  font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   color: var(--t-secondary);
 }
 
 .history-input,
 .history-select {
-  height: 36px;
-  padding: 0 var(--s-3);
+  height: 32px;
+  padding: 0 10px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: rgba(0, 0, 0, 0.35);
   color: var(--t-primary);
-  font-size: var(--fs-body);
+  font-size: 0.8125rem;
   font-family: inherit;
   outline: none;
   transition: border-color var(--d-fast) var(--ease-out), background-color var(--d-fast) var(--ease-out);
@@ -1228,7 +1237,7 @@
 .history-presets-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   font-size: var(--fs-micro);
 }
@@ -1238,16 +1247,16 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-right: 4px;
+  margin-right: 2px;
 }
 
 .history-pill {
-  padding: 4px 10px;
+  padding: 2px 8px;
   border-radius: 99px;
   border: 1px solid var(--line-hair);
   background: var(--fill-1);
   color: var(--t-secondary);
-  font-size: var(--fs-micro);
+  font-size: 0.7rem;
   cursor: pointer;
   transition: all var(--d-fast) var(--ease-out);
 }
@@ -1270,8 +1279,8 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--s-3);
-  padding-top: var(--s-2);
+  gap: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--line-hair);
 }
 
@@ -1286,10 +1295,10 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: var(--s-3);
-  min-height: 116px;
+  gap: 4px;
+  min-height: 72px;
   border-radius: var(--r-md);
-  padding: 16px 18px;
+  padding: 10px 14px;
   box-sizing: border-box;
   transition: border-color var(--d-fast) var(--ease-out);
 }
@@ -1300,7 +1309,8 @@
 
 .history-metric-tile .u-label {
   margin: 0;
-  min-height: 1.1rem;
+  font-size: 0.6875rem;
+  min-height: auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1309,14 +1319,19 @@
 .history-metric-tile .metric__value {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  min-height: 2.1rem;
+  gap: 4px;
+  min-height: auto;
   margin: 0;
+}
+
+.history-metric-tile .metric__value .u-metric {
+  font-size: 1.3rem;
+  line-height: 1.1;
 }
 
 .history-metric-tile .history-metric-region {
   font-family: var(--font-sans);
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -1328,21 +1343,40 @@
 
 .history-metric-tile .metric__note {
   margin: 0;
-  margin-top: auto;
-  font-size: var(--fs-micro);
+  margin-top: 2px;
+  font-size: 0.6875rem;
   color: var(--t-tertiary);
-  line-height: 1.4;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 900px) {
   .history-telemetry-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .history-metric-tile {
+    padding: 8px 10px;
+    min-height: 64px;
   }
 }
 
 @media (max-width: 520px) {
   .history-telemetry-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .history-metric-tile {
+    padding: 6px 8px;
+    min-height: 58px;
+  }
+  .history-metric-tile .metric__value .u-metric {
+    font-size: 1.1rem;
+  }
+  .history-metric-tile .history-metric-region {
+    font-size: 0.9rem;
   }
 }
 

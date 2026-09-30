@@ -2210,7 +2210,7 @@ export function renderHistory(el, histState, handlers = {}) {
 
   const telemetry = `
     <div class="history-telemetry-grid">
-      <div class="glass tile metric history-metric-tile" style="padding: 16px 18px;">
+      <div class="glass tile metric history-metric-tile">
         <p class="u-label">Matched Observations</p>
         <p class="metric__value">
           <span class="u-metric u-live">${data ? total.toLocaleString() : "--"}</span>
@@ -2218,23 +2218,23 @@ export function renderHistory(el, histState, handlers = {}) {
         </p>
         <p class="metric__note">Queried across 2,896,405 time-series points</p>
       </div>
-      <div class="glass tile metric history-metric-tile" style="padding: 16px 18px;">
+      <div class="glass tile metric history-metric-tile">
         <p class="u-label">Mean Radiative Power</p>
         <p class="metric__value">
           <span class="u-metric u-live">${meanFrpStr}</span>
           <span class="metric__unit">MW</span>
         </p>
-        <p class="metric__note">Average intensity in selected filter range</p>
+        <p class="metric__note">Average intensity in selected range</p>
       </div>
-      <div class="glass tile metric history-metric-tile" style="padding: 16px 18px;">
+      <div class="glass tile metric history-metric-tile">
         <p class="u-label">Peak Radiative Power</p>
         <p class="metric__value">
           <span class="u-metric u-live" style="color: var(--tier-critical);">${maxFrpStr}</span>
           <span class="metric__unit">MW</span>
         </p>
-        <p class="metric__note">Maximum thermal radiative signature</p>
+        <p class="metric__note">Max thermal radiative signature</p>
       </div>
-      <div class="glass tile metric history-metric-tile" style="padding: 16px 18px;">
+      <div class="glass tile metric history-metric-tile">
         <p class="u-label">Region & Date Range</p>
         <p class="metric__value">
           <span class="history-metric-region u-live" title="${escapeHtml(stateLabel)}">${escapeHtml(stateLabel)}</span>

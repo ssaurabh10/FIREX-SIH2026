@@ -172,6 +172,26 @@
   max-width: 74ch;
 }
 
+/* History Archive view-specific compact layout */
+#view-history {
+  padding-top: calc(var(--nav-h) + var(--s-3));
+}
+
+#view-history .view__head {
+  margin-bottom: var(--s-3);
+  gap: var(--s-3);
+}
+
+#view-history .view__sub {
+  margin-top: 2px;
+  font-size: var(--fs-label);
+  max-width: 82ch;
+}
+
+#view-history #history-body {
+  gap: var(--s-3);
+}
+
 /* --- Live map view -------------------------------------------------------
    Full-size immersive map layout with floating overlays:
    Incident Queue on the left, Case Dossier on the right.
