@@ -94,6 +94,25 @@ class Settings(BaseSettings):
     CACHE_ENABLED: bool = True
     CACHE_DEFAULT_TTL_SECONDS: int = 60
 
+    @field_validator("OPENROUTER_API_KEYS", mode="before")
+    @classmethod
+    def _parse_openrouter_keys(cls, value: Any) -> List[str]:
+        if not value:
+            singular = os.environ.get("OPENROUTER_API_KEY", "").strip()
+            return [singular] if singular else []
+        if isinstance(value, str):
+            val = value.strip()
+            if val.startswith("[") and val.endswith("]"):
+                import json
+                try:
+                    return [k.strip() for k in json.loads(val) if k and k.strip()]
+                except Exception:
+                    pass
+            if "," in val:
+                return [k.strip() for k in val.split(",") if k.strip()]
+            return [val] if val else []
+        return value
+
     @field_validator("DATABASE_URL")
     @classmethod
     def _resolve_relative_sqlite_path(cls, value: str) -> str:
