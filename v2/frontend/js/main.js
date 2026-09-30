@@ -9,7 +9,7 @@ import { load, store, inWindow, setTriage, getTriage } from "./data.js";
 import {
   initMap, mapState, setBase, drawCases, drawAmbient,
   select, clearSelection, hover, fitAll, home, zoomBy, resize, countInView,
-} from "./map.js?v=4";
+} from "./map.js?v=5";
 import * as ui from "./render.js?v=19";
 import { initDossier, showDrawer, showModal, isModalOpen, refresh } from "./dossier.js?v=15";
 
@@ -22,7 +22,7 @@ const state = {
   frpThreshold: 0,
   query: "",
   ambient: false,
-  base: "dark",
+  base: "satellite",
   theme: "dark",
   selected: null,
   selectedFacility: null,

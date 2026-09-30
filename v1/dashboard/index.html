@@ -150,7 +150,7 @@
         </div>
 
         <div class="mapview__stage">
-          <div class="bezel mapframe" id="mapframe" data-base="dark">
+          <div class="bezel mapframe" id="mapframe" data-base="satellite">
             <div class="bezel__core">
               <div id="map" role="application" aria-label="Thermal anomaly map of India"></div>
 
@@ -190,8 +190,8 @@
 
               <div class="ovl ovl--bl row" style="gap:var(--s-2)">
                 <div class="seg glass glass--frosted glass--over" role="radiogroup" aria-label="Base layer" id="base-seg">
-                  <button class="seg__opt" type="button" role="radio" aria-checked="true" data-base="dark">Canvas</button>
-                  <button class="seg__opt" type="button" role="radio" aria-checked="false" data-base="satellite">Imagery</button>
+                  <button class="seg__opt" type="button" role="radio" aria-checked="false" data-base="dark">Canvas</button>
+                  <button class="seg__opt" type="button" role="radio" aria-checked="true" data-base="satellite">Imagery</button>
                 </div>
                 <div class="zoombar glass glass--frosted glass--over glass--sm">
                   <button class="icon-btn" type="button" id="btn-zoom-in" aria-label="Zoom in">
@@ -435,7 +435,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin="anonymous"></script>
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=2"></script>
 
 </body>
 </html>

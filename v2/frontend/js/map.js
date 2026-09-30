@@ -14,7 +14,7 @@ const CREDIT = "Esri, Maxar, Earthstar Geographics | NASA FIRMS";
 
 export const mapState = {
   map: null,
-  base: "dark",
+  base: "satellite",
   layers: {},
   markers: new Map(),   // case id -> L.Marker
   ambient: null,
@@ -72,7 +72,7 @@ export function initMap() {
     ]);
     mapState.layers.satellite = L.tileLayer(ESRI.imagery, { maxZoom: 18, attribution: CREDIT });
 
-    mapState.layers.dark.addTo(map);
+    mapState.layers.satellite.addTo(map);
     mapState.ambient = L.layerGroup().addTo(map);
     mapState.pins = L.layerGroup().addTo(map);
 

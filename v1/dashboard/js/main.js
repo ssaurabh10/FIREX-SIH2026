@@ -21,7 +21,7 @@ const state = {
   filter: "all",
   query: "",
   ambient: true,
-  base: "dark",
+  base: "satellite",
   theme: "dark",
   selected: null,
 };
