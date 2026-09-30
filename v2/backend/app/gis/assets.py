@@ -513,9 +513,6 @@ def seed_industrial_assets(db: Session, force_refresh: bool = False) -> int:
     added_count = 0
 
     for item in INITIAL_INDUSTRIAL_FACILITIES:
-        if item["name"] in existing_assets and not force_refresh:
-            continue
-
         coords = generate_bounding_circle_polygon(
             center_lat=item["latitude"],
             center_lon=item["longitude"],
@@ -528,18 +525,29 @@ def seed_industrial_assets(db: Session, force_refresh: bool = False) -> int:
 
         if item["name"] in existing_assets:
             asset = existing_assets[item["name"]]
-            asset.facility_type = item["facility_type"]
-            asset.operator = item["operator"]
-            asset.industry = item["industry"]
-            asset.category = item["category"]
-            asset.latitude = item["latitude"]
-            asset.longitude = item["longitude"]
-            asset.state = item["state"]
-            asset.district = item["district"]
-            asset.display_address = item["display_address"]
-            asset.hazard_category = item["hazard_category"]
-            asset.buffer_radius_meters = item["buffer_radius_meters"]
-            asset.polygon_geojson = poly_geom
+            if (
+                asset.latitude != item["latitude"]
+                or asset.longitude != item["longitude"]
+                or asset.buffer_radius_meters != item["buffer_radius_meters"]
+                or asset.display_address != item.get("display_address")
+                or asset.facility_type != item["facility_type"]
+                or asset.category != item["category"]
+                or force_refresh
+            ):
+                asset.facility_type = item["facility_type"]
+                asset.operator = item["operator"]
+                asset.industry = item["industry"]
+                asset.category = item["category"]
+                asset.latitude = item["latitude"]
+                asset.longitude = item["longitude"]
+                asset.state = item["state"]
+                asset.district = item["district"]
+                asset.display_address = item.get("display_address")
+                asset.hazard_category = item["hazard_category"]
+                asset.buffer_radius_meters = item["buffer_radius_meters"]
+                asset.polygon_geojson = poly_geom
+                added_count += 1
+            continue
         else:
             asset = IndustrialAsset(
                 name=item["name"],

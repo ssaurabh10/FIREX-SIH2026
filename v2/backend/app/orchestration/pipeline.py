@@ -1004,7 +1004,7 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
         elif inc.current_max_frp >= 50.0:
             p_expl = f"Major thermal surge ({inc.current_max_frp:.1f} MW) exceeding 99th percentile threshold with elevated spread risk."
         elif is_near:
-            p_expl = f"High-value infrastructure proximity: detected inside footprint of {fac_name}."
+            p_expl = f"High-value infrastructure proximity: detected within {dist_km:.1f} km of {fac_name}."
         elif inc.observation_count and inc.observation_count > 3:
             p_expl = f"Spatial multi-pixel cluster ({inc.observation_count} satellite detections) with elevated total radiative intensity."
         else:
