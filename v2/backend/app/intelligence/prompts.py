@@ -72,10 +72,28 @@ def build_investigation_prompt(package: Dict[str, Any]) -> str:
     mining_line = ""
     operational_notice = ""
     if mining_basin:
-        mining_line = f"\n- Sovereign Mining Basin: {mining_basin.get('basin_name')} (Operator: {mining_basin.get('operator')})"
-        is_routine_flare = "NO (Open-Cast Mining / Coal Seam Basin)"
-        site_hint = "COAL_MINING_BASIN"
-        operational_notice = f"\nOPERATIONAL GUIDANCE FOR MINING BASINS:\n- This coordinate is located inside {mining_basin.get('basin_name')}.\n- Persistent thermal emissions with high nocturnal recurrence in terraced pits, coal seams, and overburden dumps represent active mining processes, spontaneous coal combustion, or heavy excavation heat, NOT petroleum gas flares.\n- Prefer 'mining_related' unless a refinery or chemical flare stack structure is clearly discernible in the optical crop.\n"
+        b_name = mining_basin.get("basin_name", "")
+        b_name_lower = b_name.lower()
+        is_coal_basin = "coal" in b_name_lower or "coking" in b_name_lower or "lignite" in b_name_lower
+        mining_line = f"\n- Sovereign Mining Basin: {b_name} (Operator: {mining_basin.get('operator')})"
+        if is_coal_basin:
+            is_routine_flare = "NO (Open-Cast Mining / Coal Seam Basin)"
+            site_hint = "COAL_MINING_BASIN"
+            operational_notice = (
+                f"\nOPERATIONAL GUIDANCE FOR MINING BASINS (COAL SEAM / EXTRACTION):\n"
+                f"- This coordinate is located inside {b_name}.\n"
+                f"- Persistent thermal emissions with high nocturnal recurrence in terraced pits, coal seams, and overburden dumps represent active mining processes, spontaneous coal combustion, or heavy excavation heat, NOT petroleum gas flares.\n"
+                f"- Prefer 'mining_related' unless a refinery or chemical flare stack structure is clearly discernible in the optical crop.\n"
+            )
+        else:
+            is_routine_flare = "NO (Open-Cast Mining / Mineral Basin)"
+            site_hint = "OPEN_CAST_MINING"
+            operational_notice = (
+                f"\nOPERATIONAL GUIDANCE FOR MINING BASINS (MINERAL EXTRACTION):\n"
+                f"- This coordinate is located inside {b_name}.\n"
+                f"- Persistent thermal emissions with high nocturnal recurrence represent active mineral extraction, heavy machinery / kiln heat, or open-cast quarrying processes, NOT petroleum gas flares or spontaneous coal combustion.\n"
+                f"- Prefer 'mining_related' unless a refinery or chemical flare stack structure is clearly discernible in the optical crop.\n"
+            )
 
     from app.gis.assets import is_metallurgical_or_manufacturing_facility
     is_metal = is_metallurgical_or_manufacturing_facility(facility_type, industry) or hist.get("is_metallurgical_facility", False)
@@ -84,7 +102,7 @@ def build_investigation_prompt(package: Dict[str, Any]) -> str:
         if is_metal:
             is_routine_flare = "NO (Integrated Steel Plant / Metallurgical Smelter)"
             site_hint = "METALLURGICAL_INDUSTRIAL"
-            operational_notice += (
+            operational_notice = (
                 f"\nOPERATIONAL GUIDANCE FOR HEAVY INDUSTRIAL / METALLURGICAL FACILITIES:\n"
                 f"- This coordinate is located inside or adjacent to {facility_name} ({facility_type}).\n"
                 f"- Continuous thermal emissions with high nocturnal recurrence represent industrial blast furnaces, basic oxygen furnaces, coke ovens, or metal smelting processes, NOT petroleum gas flares.\n"

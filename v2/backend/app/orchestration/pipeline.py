@@ -199,7 +199,7 @@ def _read_cached_location_baseline(db: Session, lat: float, lon: float) -> Dict[
             "mean_frp": cached.mean_frp or 0.0,
             "max_frp": cached.p95_frp or 0.0,
             "night_ratio": 0.0,
-            "is_routine_flare": bool(cached.is_persistent),
+            "is_routine_flare": False,
             "site_classification_hint": "PERSISTENT_THERMAL" if cached.is_persistent else "EPISODIC_THERMAL",
             "is_persistent": bool(cached.is_persistent),
             "source": "historical_baselines",
@@ -709,10 +709,6 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
         )
         is_flare_fac = is_near and is_flaring_facility(fac_type, fac_category)
 
-        # Decouple false routine flare flag for mining basins and metallurgical complexes
-        if is_in_mining or is_metal_fac:
-            is_routine = False
-
         # Landcover context for the Section 5 classification rule. The spec
         # (line 294) resolves the open-terrain case spatially: cropland and not
         # protected -> agricultural_burning; inside a national park, sanctuary
@@ -727,6 +723,13 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             landcover = {}
         is_cropland = landcover.get("primary_landcover") == "agricultural_cropland"
         is_protected = bool(landcover.get("is_protected_area", False))
+
+        # Decouple false routine flare flag for mining basins, metallurgical complexes, and cropland.
+        # An open-terrain detection far from any flaring facility without high night-time combustion is not a gas flare.
+        if is_in_mining or is_metal_fac or is_cropland:
+            is_routine = False
+        elif not is_flare_fac and base_dict.get("night_ratio", 0) < 0.3:
+            is_routine = False
 
         # INV-1 provenance. A `latest_inv` row is the only evidence that a vision
         # model actually looked at this detection. Everything else in the cascade
@@ -754,19 +757,19 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             rectified_reason = None
             if cls_name == "mining_related":
                 cls_name = "mining_or_other_thermal_source"
-            elif is_in_mining and cls_name == "gas_flare":
-                # Rectify misclassification caused by old routine flare metadata
-                cls_name = "mining_or_other_thermal_source"
-                rectified_reason = (
-                    f"Geometric reclassification to open-cast coal/mineral mining inside "
-                    f"{mining_basin_meta['name']} ({mining_basin_meta['operator']}); vision returned gas_flare."
-                )
             elif is_metal_fac and cls_name == "gas_flare":
                 # Rectify misclassification of steel plant / smelter furnace
                 cls_name = "industrial_fire"
                 rectified_reason = (
                     f"Geometric reclassification to metallurgical furnace / smelter process at "
                     f"{fac_name} ({fac_operator}); vision returned gas_flare."
+                )
+            elif is_in_mining and cls_name == "gas_flare":
+                # Rectify misclassification caused by old routine flare metadata
+                cls_name = "mining_or_other_thermal_source"
+                rectified_reason = (
+                    f"Geometric reclassification to open-cast coal/mineral mining inside "
+                    f"{mining_basin_meta['name']} ({mining_basin_meta['operator']}); vision returned gas_flare."
                 )
             ai_conf = (latest_inv.confidence or 85.0) / 100.0
             ai_unc = "low" if ai_conf >= 0.75 else "medium"
@@ -775,10 +778,10 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             cls_name = inc.classification
             if cls_name == "mining_related":
                 cls_name = "mining_or_other_thermal_source"
-            elif is_in_mining and cls_name == "gas_flare":
-                cls_name = "mining_or_other_thermal_source"
             elif is_metal_fac and cls_name == "gas_flare":
                 cls_name = "industrial_fire"
+            elif is_in_mining and cls_name == "gas_flare":
+                cls_name = "mining_or_other_thermal_source"
             # This branch is only reached when `latest_inv` is absent, so the
             # stored label is a spatial prior, not a verdict. It is capped
             # rather than trusted: `refresh_*_incidents.py` writes 88.0/90.0 here
@@ -790,11 +793,6 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
                 "Spatial prior only -- no vision investigation on record. "
                 f"Stored classification: {cls_name}."
             )
-        elif is_in_mining:
-            cls_name = "mining_or_other_thermal_source"
-            ai_conf = unverified_conf
-            ai_unc = "medium"
-            ai_reason = f"Geometric context only: detection inside the mapped {mining_basin_meta['name']} concession ({mining_basin_meta['operator']}). No vision investigation."
         elif is_metal_fac:
             cls_name = "industrial_fire"
             ai_conf = unverified_conf
@@ -805,6 +803,11 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             ai_conf = unverified_conf
             ai_unc = "medium"
             ai_reason = f"Geometric context only: detection at the mapped flaring facility {fac_name} ({fac_operator}). No vision investigation."
+        elif is_in_mining:
+            cls_name = "mining_or_other_thermal_source"
+            ai_conf = unverified_conf
+            ai_unc = "medium"
+            ai_reason = f"Geometric context only: detection inside the mapped {mining_basin_meta['name']} concession ({mining_basin_meta['operator']}). No vision investigation."
         elif is_routine:
             cls_name = "gas_flare"
             ai_conf = unverified_conf
@@ -990,10 +993,12 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             triggers.append("24H_TEMPORAL_PERSISTENCE")
 
         # Priority explanation: Why selected for optical investigation
-        if is_in_mining:
-            p_expl = f"Active sovereign mining basin ({mining_basin_meta['name']}). Monitored against historical P95 baseline ({p95_frp:.1f} MW)."
-        elif is_metal_fac:
+        if is_metal_fac:
             p_expl = f"Heavy industrial / metallurgical infrastructure ({fac_name}). Monitored against historical P95 envelope ({p95_frp:.1f} MW)."
+        elif is_near and (is_flare_fac or is_inside_fac or dist_km <= 1.5):
+            p_expl = f"High-value infrastructure proximity: detected inside footprint of {fac_name}."
+        elif is_in_mining:
+            p_expl = f"Active sovereign mining basin ({mining_basin_meta['name']}). Monitored against historical P95 baseline ({p95_frp:.1f} MW)."
         elif is_routine:
             p_expl = f"Routine industrial flare site ({active_days_365} active days/year). Monitored against historical P95 envelope ({p95_frp:.1f} MW)."
         elif inc.current_max_frp >= 50.0:
@@ -1008,13 +1013,29 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
         # Historical anomaly evaluation. Classified from the already-resolved
         # routine/mining/metallurgical context rather than a fourth rule, so this
         # label and the classification above cannot disagree about the same site.
+        # A genuine surge requires:
+        # 1. A major fire (>= 50 MW), OR
+        # 2. Statistically reliable baseline (active_days >= 5) with a meaningful exceedance
+        #    (>= 1.5x P95, at least +3 MW over P95, and >= 15 MW absolute FRP).
+        is_surge = (
+            (inc.current_max_frp >= 50.0)
+            or (
+                p95_frp > 0
+                and active_days_365 >= 5
+                and inc.current_max_frp >= 15.0
+                and inc.current_max_frp >= p95_frp * 1.5
+                and (inc.current_max_frp - p95_frp) >= 3.0
+            )
+        )
         if is_routine:
             hist_anomaly = "ROUTINE_FLARE"
         elif is_in_mining or is_metal_fac:
-            hist_anomaly = "ABNORMAL_SURGE" if (p95_frp > 0 and inc.current_max_frp > p95_frp) else "NORMAL_BASELINE"
-        elif p95_frp > 0 and inc.current_max_frp > p95_frp:
+            hist_anomaly = "ABNORMAL_SURGE" if is_surge else "NORMAL_BASELINE"
+        elif is_surge:
             hist_anomaly = "ABNORMAL_SURGE"
-        elif active_days_365 >= 10:
+        elif p95_frp > 0 and inc.current_max_frp <= p95_frp * 1.5:
+            hist_anomaly = "NORMAL_BASELINE"
+        elif active_days_365 >= 5:
             hist_anomaly = "NORMAL_BASELINE"
         else:
             hist_anomaly = "NEW_UNEXPECTED"
@@ -1127,8 +1148,8 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
         )
 
         persistence_pat = (
-            "PERSISTENT_MINING_THERMAL_SOURCE" if is_in_mining
-            else ("PERSISTENT_METALLURGICAL_EMISSION" if is_metal_fac
+            "PERSISTENT_METALLURGICAL_EMISSION" if is_metal_fac
+            else ("PERSISTENT_MINING_THERMAL_SOURCE" if is_in_mining
             else ("RECURRING_INDUSTRIAL_FLARE" if (is_routine or (inc.status == "PERSISTENT" and cls_name == "gas_flare"))
             else ("PERSISTENT_THERMAL_SOURCE" if inc.status == "PERSISTENT"
             else "NEW_DETECTION")))
@@ -1137,6 +1158,10 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
         det_satellite, det_sensor, det_product = (
             detection_meta.get(inc.id, (None, None, None, None))[1:]
         )
+
+        basin_nm = (mining_basin_meta.get("name") or "") if is_in_mining else ""
+        is_coal_basin = any(w in basin_nm.lower() for w in ("coal", "coking", "lignite"))
+        basin_fac_type = "open_cast_coal_mine" if is_coal_basin else "open_cast_mine"
 
         v1_inc = {
             "id": inc.id,
@@ -1156,7 +1181,7 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             # monitored facilities. `is_near` is the same gate the name uses, so
             # the id and the name always describe the same row or neither is set.
             "nearest_asset_id": asset_info.get("asset_id") if is_near else None,
-            "facility_type": fac_type if is_near else ("open_cast_coal_mine" if is_in_mining else None),
+            "facility_type": fac_type if is_near else (basin_fac_type if is_in_mining else None),
             "operator": fac_operator if is_near else (mining_basin_meta["operator"] if is_in_mining else None),
             "frp": inc.current_max_frp,
             # INV-2: FRP is never summed. This key used to be `cluster_total_frp`

@@ -85,8 +85,28 @@ def resolve_landcover(
             "mining_context": "Active Coal Seam / Overburden Zone"
         }
 
-    # 4. Regional Agrarian Cropland defaults for Indo-Gangetic and Deccan plains
-    if (28.0 <= lat <= 32.0 and 74.0 <= lon <= 78.0) or (24.0 <= lat <= 27.0 and 80.0 <= lon <= 88.0):
+    # 4. Regional Agrarian Cropland defaults for Indo-Gangetic, Deccan, and Coastal Plains
+    # Central Andhra open scrub / rocky hills exclusion (retains unclassified scrubland)
+    is_kurnool_scrub = (15.65 <= lat <= 15.75 and 78.15 <= lon <= 78.25)
+    
+    is_agrarian_cropland = not is_kurnool_scrub and (
+        # Northern Indo-Gangetic Plains (Punjab, Haryana, Delhi, Western UP)
+        (28.0 <= lat <= 32.5 and 74.0 <= lon <= 79.0)
+        # Central & Eastern Indo-Gangetic Plains (UP, Bihar)
+        or (24.0 <= lat <= 28.5 and 79.0 <= lon <= 88.5)
+        # Bengal Delta & Brahmaputra Valley (West Bengal, Assam)
+        or (22.0 <= lat <= 27.5 and 87.5 <= lon <= 95.5)
+        # Southern Agrarian Plains (Tamil Nadu Cauvery Basin & Southern Plains)
+        or (8.2 <= lat <= 13.5 and 76.5 <= lon <= 80.5)
+        # Deccan Plateau & Peninsular Cropland (Karnataka, Andhra Pradesh, Telangana)
+        or (13.5 <= lat <= 19.5 and 76.0 <= lon <= 83.5)
+        # Western Agricultural Belt (Maharashtra Marathwada/Vidarbha, Gujarat Saurashtra/Plains)
+        or (17.5 <= lat <= 24.5 and 69.5 <= lon <= 80.0)
+        # Central Agricultural Belt (Madhya Pradesh, Eastern Rajasthan plains)
+        or (21.5 <= lat <= 28.5 and 73.5 <= lon <= 82.5)
+    )
+
+    if is_agrarian_cropland:
         return {
             "primary_landcover": "agricultural_cropland",
             "is_protected_area": False,

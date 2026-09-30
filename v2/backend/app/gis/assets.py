@@ -182,13 +182,27 @@ INITIAL_INDUSTRIAL_FACILITIES = [
         "operator": "Jindal Steel & Power / National Aluminium Company",
         "industry": "Integrated Steel & Aluminium Smelting Complex",
         "category": "industrial_fire",
-        "latitude": 20.7850,
-        "longitude": 85.2750,
+        "latitude": 20.8750,
+        "longitude": 84.9950,
         "state": "Odisha",
         "district": "Angul",
-        "display_address": "Nisha Industrial Zone, Angul, Odisha, India",
+        "display_address": "Angul Steel Plant, Industrial Zone, Angul, Odisha, India",
         "hazard_category": "HIGH_THERMAL_METALLURGIC",
-        "buffer_radius_meters": 5000.0,
+        "buffer_radius_meters": 4500.0,
+    },
+    {
+        "name": "Tata Steel Meramandali (Bhushan Steel), Dhenkanal",
+        "facility_type": "steel_plant",
+        "operator": "Tata Steel Limited",
+        "industry": "Integrated Steel Plant & Hot Strip Mill",
+        "category": "industrial_fire",
+        "latitude": 20.7944,
+        "longitude": 85.2582,
+        "state": "Odisha",
+        "district": "Dhenkanal",
+        "display_address": "Narendrapur, Dhenkanal / Angul Border, Odisha, India",
+        "hazard_category": "HIGH_THERMAL_METALLURGIC",
+        "buffer_radius_meters": 4000.0,
     },
     {
         "name": "Vedanta Aluminium Smelter & Captive Power, Jharsuguda",
@@ -612,6 +626,7 @@ def find_nearest_asset(lat: float, lon: float, db: Session) -> Dict[str, Any]:
             "is_inside_facility": is_inside,
             "state": nearest.state,
             "district": nearest.district,
+            "display_address": nearest.display_address,
             "hazard_category": nearest.hazard_category
         }
 
@@ -627,5 +642,6 @@ def find_nearest_asset(lat: float, lon: float, db: Session) -> Dict[str, Any]:
         "is_inside_facility": False,
         "state": None,
         "district": None,
+        "display_address": None,
         "hazard_category": None
     }

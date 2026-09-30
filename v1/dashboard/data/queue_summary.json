@@ -1,13 +1,13 @@
 {
-  "active_count": 56,
+  "active_count": 131,
   "tier_histogram": {
-    "LOW": 25,
-    "MEDIUM": 30,
-    "HIGH": 1,
+    "LOW": 66,
+    "MEDIUM": 60,
+    "HIGH": 5,
     "CRITICAL": 0
   },
-  "attention_count": 1,
-  "closed_attention_count": 44,
+  "attention_count": 5,
+  "closed_attention_count": 45,
   "active_statuses": [
     "NEW",
     "INVESTIGATING",
@@ -18,6 +18,17 @@
     "REOPENED"
   ],
   "closed_attention": [
+    {
+      "id": "c646661f-c24a-4f69-a2e5-d0e70ef98a11",
+      "incident_code": "INC-2026-0441",
+      "latitude": 27.87459,
+      "longitude": 96.90467,
+      "status": "RESOLVED",
+      "severity_level": "HIGH",
+      "severity_score": 50.6,
+      "last_detected_at": "2026-09-26T07:03:00",
+      "open_alerts": 1
+    },
     {
       "id": "35936483-cb90-487d-8c49-d7cafddf132a",
       "incident_code": "INC-2026-0113",
