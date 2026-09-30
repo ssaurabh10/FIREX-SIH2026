@@ -17,7 +17,7 @@ provider degrade explicitly rather than silently using a baked-in key. See
 ``has_firms_key`` / ``has_ai_keys``.
 """
 import os
-from typing import List
+from typing import List, Any
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
