@@ -199,10 +199,31 @@ function revealSelected() {
   else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom;
 }
 
+function setMobileQueueOpen(open) {
+  const rail = document.getElementById("mapview-rail");
+  const btn = document.getElementById("btn-toggle-mobile-queue");
+  if (!rail) return;
+  rail.setAttribute("data-mobile-open", open ? "1" : "0");
+  if (btn) btn.setAttribute("aria-expanded", String(open));
+}
+
+function closeMobileQueue() {
+  if (window.innerWidth <= 768) {
+    setMobileQueueOpen(false);
+  }
+}
+
+function toggleMobileQueue() {
+  const rail = document.getElementById("mapview-rail");
+  const isOpen = rail?.getAttribute("data-mobile-open") === "1";
+  setMobileQueueOpen(!isOpen);
+}
+
 function pick(id, { modal = false, fly = true } = {}) {
   const c = caseById(id);
   if (!c) return;
   state.selected = id;
+  closeMobileQueue();
   select(id, { fly: fly && state.view === "map" });
   showDrawer(c);
   if (modal) showModal(c);
@@ -259,16 +280,19 @@ function updateInView(counts) {
    Every pressed state is pushed back from state, so a window changed in the
    settings view is already correct on the map segment when you return to it. */
 
-function updateSpotlightAmbience() {
+function updateSpotlightAmbience(shouldScroll = false) {
   const nav = document.getElementById("spotlight-nav");
   if (!nav) return;
   const activeTab = nav.querySelector(`.spotlight-nav__item[data-view="${state.view}"]`);
   if (activeTab) {
     const navRect = nav.getBoundingClientRect();
     const tabRect = activeTab.getBoundingClientRect();
-    const leftOffset = tabRect.left - navRect.left;
+    const leftOffset = tabRect.left - navRect.left + nav.scrollLeft;
     nav.style.setProperty("--ambience-x", `${leftOffset}px`);
     nav.style.setProperty("--active-tab-w", `${tabRect.width}px`);
+    if (shouldScroll && window.innerWidth <= 768) {
+      activeTab.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
   }
 }
 
@@ -278,7 +302,7 @@ function initSpotlightNav() {
   
   nav.addEventListener("mousemove", (e) => {
     const navRect = nav.getBoundingClientRect();
-    const mouseX = e.clientX - navRect.left;
+    const mouseX = e.clientX - navRect.left + nav.scrollLeft;
     nav.style.setProperty("--spotlight-x", `${mouseX}px`);
     nav.style.setProperty("--spotlight-opacity", "1");
   });
@@ -287,7 +311,11 @@ function initSpotlightNav() {
     nav.style.setProperty("--spotlight-opacity", "0");
   });
 
-  updateSpotlightAmbience();
+  nav.addEventListener("scroll", () => {
+    updateSpotlightAmbience(false);
+  }, { passive: true });
+
+  updateSpotlightAmbience(true);
 }
 
 function syncControls() {
@@ -308,7 +336,8 @@ function syncControls() {
   });
   const themeToggle = document.getElementById("theme-toggle-input");
   if (themeToggle) themeToggle.checked = state.theme === "dark";
-  updateSpotlightAmbience();
+
+  updateSpotlightAmbience(true);
 }
 
 /* --- Views ---------------------------------------------------------------- */
@@ -693,6 +722,8 @@ function renderAll() {
   if (el["rail-counts"]) ui.renderRailCounts(el["rail-counts"], win, store.cases);
   if (el["risk-hist"]) ui.renderRiskHist(el["risk-hist"], win, el["risk-span"]);
   if (el.spine) ui.renderSpine(el.spine, list, state.selected, el["spine-count"]);
+  const mobBadge = document.getElementById("mobile-queue-badge");
+  if (mobBadge) mobBadge.textContent = String(list.length);
   if (el.filterbar) ui.renderFilterBar(el.filterbar, win, state.filter);
   if (el["inv-filters"]) ui.renderFilterBar(el["inv-filters"], win, state.filter);
   if (el["map-strip"]) ui.renderStrip(el["map-strip"], list, amb);
@@ -903,6 +934,8 @@ function wireControls() {
   on("btn-zoom-in", () => zoomBy(1));
   on("btn-zoom-out", () => zoomBy(-1));
   on("btn-ambient", () => { state.ambient = !state.ambient; renderAll(); });
+  on("btn-toggle-mobile-queue", () => toggleMobileQueue());
+  on("btn-close-mobile-rail", () => setMobileQueueOpen(false));
 
   const facInput = document.getElementById("facility-search-input");
   if (facInput) {

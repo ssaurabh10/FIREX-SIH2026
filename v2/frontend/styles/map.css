@@ -740,3 +740,64 @@
   box-shadow: 0 0 10px rgba(255, 170, 51, 0.25), var(--bezel);
   border: 1px solid rgba(255, 170, 51, 0.35);
 }
+
+@media (max-width: 768px) {
+  .ovl--bl {
+    left: 10px;
+    bottom: 68px;
+    right: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .ovl--bl > * {
+    pointer-events: auto;
+  }
+
+  .ovl--bl .seg {
+    padding: 2px;
+  }
+
+  .ovl--bl .seg__opt {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+  }
+
+  .ovl--bl .zoombar {
+    flex-direction: row;
+    gap: 2px;
+  }
+
+  .ovl--bl .zoombar .icon-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .ovl--bl .icon-btn {
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+  }
+
+  .ovl--tr {
+    top: 50px;
+    right: 10px;
+  }
+
+  .ovl--br {
+    bottom: 68px;
+    right: 10px;
+  }
+
+  .mapkey {
+    max-width: calc(100vw - 20px);
+  }
+
+  .mapkey[open] .mapkey__pop {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+}

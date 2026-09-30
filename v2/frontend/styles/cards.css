@@ -547,3 +547,18 @@
   box-shadow: 0 0 16px rgba(56, 189, 248, 0.14);
 }
 
+@media (max-width: 768px) {
+  .metric-card {
+    padding: 14px !important;
+  }
+  .metric-card .u-metric {
+    font-size: 1.6rem !important;
+  }
+  .case {
+    padding: 12px;
+  }
+  .row--wrap {
+    gap: 4px !important;
+  }
+}
+

@@ -25,12 +25,12 @@
 <link rel="stylesheet" href="styles/tokens.css?v=2">
 <link rel="stylesheet" href="styles/base.css?v=2">
 <link rel="stylesheet" href="styles/surfaces.css?v=2">
-<link rel="stylesheet" href="styles/layout.css?v=2">
-<link rel="stylesheet" href="styles/components.css?v=5">
+<link rel="stylesheet" href="styles/layout.css?v=3">
+<link rel="stylesheet" href="styles/components.css?v=6">
 <link rel="stylesheet" href="styles/charts.css?v=2">
-<link rel="stylesheet" href="styles/cards.css?v=4">
-<link rel="stylesheet" href="styles/map.css?v=5">
-<link rel="stylesheet" href="styles/dossier.css?v=2">
+<link rel="stylesheet" href="styles/cards.css?v=5">
+<link rel="stylesheet" href="styles/map.css?v=6">
+<link rel="stylesheet" href="styles/dossier.css?v=3">
 <link rel="stylesheet" href="styles/toggle.css?v=2">
 </head>
 <body>
@@ -114,7 +114,26 @@
     <section class="view" id="view-map" data-active="1" aria-label="Live map">
       <div class="mapview">
 
-        <div class="mapview__rail">
+        <!-- Mobile Floating Queue Trigger Pill -->
+        <button class="mobile-queue-btn glass glass--frosted" id="btn-toggle-mobile-queue" type="button" aria-expanded="false" aria-label="Toggle Priority Incidents Queue">
+          <svg class="i i--sm" aria-hidden="true" style="color:var(--signal)"><use href="#i-flame"/></svg>
+          <span class="mobile-queue-btn__label">Priority Queue</span>
+          <span class="mobile-queue-btn__badge" id="mobile-queue-badge">58</span>
+          <svg class="i i--sm mobile-queue-btn__chev" aria-hidden="true"><use href="#i-chev-up"/></svg>
+        </button>
+
+        <div class="mapview__rail" id="mapview-rail" data-mobile-open="0">
+          <!-- Mobile sheet handle & dismiss bar -->
+          <div class="mobile-sheet-bar" id="mobile-sheet-bar">
+            <span class="mobile-sheet-handle"></span>
+            <div class="mobile-sheet-bar__row">
+              <span class="tag tag--tier" style="--tier:var(--signal);font-weight:600">PRIORITY QUEUE</span>
+              <button class="icon-btn mobile-sheet-close" id="btn-close-mobile-rail" type="button" aria-label="Close Queue">
+                <svg class="i i--sm" aria-hidden="true"><use href="#i-x"/></svg>
+              </button>
+            </div>
+          </div>
+
           <!-- Satellite Orbit & Persistence Sync Widget -->
           <div class="glass glass--over panel" style="padding: var(--s-3); margin-bottom: var(--s-2); flex-shrink: 0;">
             <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -305,7 +324,7 @@
           <h1 class="u-display">Investigations</h1>
           <p class="view__sub">Each case pairs a satellite heat detection with the high-resolution optical image analyzed by AI vision. Open an incident to review the evidence and verify status.</p>
         </div>
-        <div class="row" id="inv-filters"></div>
+        <div class="row row--scroll" id="inv-filters"></div>
       </header>
       <div class="grid-3" id="inv-grid"></div>
     </section>
@@ -507,7 +526,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin="anonymous"></script>
-<script type="module" src="js/main.js?v=21"></script>
+<script type="module" src="js/main.js?v=22"></script>
 
 </body>
 </html>

@@ -1447,4 +1447,53 @@
   color: var(--t-tertiary);
 }
 
+/* Mobile Filter Bar & Form Optimizations */
+@media (max-width: 768px) {
+  .row--scroll,
+  #inv-filters,
+  #industrial-sector-filter {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .row--scroll::-webkit-scrollbar,
+  #inv-filters::-webkit-scrollbar,
+  #industrial-sector-filter::-webkit-scrollbar {
+    display: none;
+  }
+
+  .row--scroll .pill,
+  #inv-filters .pill,
+  #industrial-sector-filter .seg__opt {
+    flex-shrink: 0;
+  }
+
+  .searchbox {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .history-search-card {
+    padding: 14px !important;
+  }
+
+  .history-search-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .history-pagination {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+    text-align: center;
+  }
+}
+
 
