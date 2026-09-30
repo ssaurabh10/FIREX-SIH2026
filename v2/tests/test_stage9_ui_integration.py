@@ -547,6 +547,16 @@ def test_console_feed_route_contract(client, db_session):
                     "image_url", "raw_image_url"):
             assert key in mine, f"console feed row is missing {key!r}"
 
+        # Verify ai_evidence across all incidents is a clean human-readable list of strings
+        for row in incidents:
+            if row.get("ai_evidence"):
+                assert isinstance(row["ai_evidence"], list)
+                for item in row["ai_evidence"]:
+                    assert isinstance(item, str)
+                    assert not (item.strip().startswith("{") and "visual_evidence" in item), (
+                        f"ai_evidence for {row.get('incident_code')} contains raw unparsed dict: {item[:100]}"
+                    )
+
         # --- INV-1 provenance -------------------------------------------------
         # `incumbent` above carries the exact shape the geometry scripts wrote:
         # classification "industrial_fire" at 88.0 and no AIInvestigation row.
@@ -750,6 +760,79 @@ def test_history_search_api(client, db_session):
         assert "results" in q_payload
         assert q_payload["returned"] <= 3
         assert q_payload["returned"] == len(q_payload["results"])
+    finally:
+        db_session.query(Observation).filter(Observation.id.in_(obs_ids)).delete(
+            synchronize_session=False
+        )
+        db_session.commit()
+
+
+def test_history_search_state_strict_isolation_and_district_query(client, db_session):
+    """
+    Verifies:
+    1. Search for 'Jharkhand' strictly excludes points in overlapping rectangles that resolve to Odisha or Chhattisgarh.
+    2. Search for 'Dhanbad' uses Dhanbad's coordinate boundary (23.6-24.0 N, 86.1-86.7 E) and resolves district to Dhanbad.
+    3. Specifying both state=Jharkhand and query=Dhanbad does not discard query and returns only Dhanbad points.
+    """
+    obs_data = [
+        # Dhanbad, Jharkhand (within Dhanbad bbox 23.6-24.0 N, 86.1-86.7 E and Jharkhand bbox)
+        ("obs-test-dhanbad", 23.78, 86.38, 25.0),
+        # Ranchi, Jharkhand (outside Dhanbad bbox, but inside Jharkhand bbox)
+        ("obs-test-ranchi", 23.35, 85.33, 20.0),
+        # Odisha point that falls inside Jharkhand's coarse bbox (lat 21.9-25.3, lon 83.3-87.9)
+        ("obs-test-odisha-overlap", 22.10, 85.00, 30.0),
+        # Chhattisgarh point that falls inside Jharkhand's coarse bbox
+        ("obs-test-chhattisgarh-overlap", 22.35, 83.35, 35.0),
+    ]
+
+    obs_ids = [d[0] for d in obs_data]
+    for obs_id, lat, lon, frp in obs_data:
+        db_session.merge(Observation(
+            id=obs_id, latitude=lat, longitude=lon, frp_mw=frp,
+            acquired_at=datetime.utcnow(), satellite="N20", sensor="VIIRS",
+            confidence_score=0.9,
+        ))
+    db_session.commit()
+
+    try:
+        # 1. State search for Jharkhand must NOT return points from Odisha or Chhattisgarh
+        res_jh = client.get("/api/history/search?state=Jharkhand&limit=50")
+        assert res_jh.status_code == 200
+        payload_jh = res_jh.json()
+        returned_ids_jh = {row["id"] for row in payload_jh["results"]}
+
+        assert "obs-test-dhanbad" in returned_ids_jh
+        assert "obs-test-ranchi" in returned_ids_jh
+        assert "obs-test-odisha-overlap" not in returned_ids_jh, "Odisha overlap point was not filtered out of Jharkhand search"
+        assert "obs-test-chhattisgarh-overlap" not in returned_ids_jh, "Chhattisgarh overlap point was not filtered out of Jharkhand search"
+        for row in payload_jh["results"]:
+            assert row["state"] == "Jharkhand"
+
+        # 2. Query search for Dhanbad uses Dhanbad coordinate boundary and returns Dhanbad only
+        res_dh = client.get("/api/history/search?query=Dhanbad&limit=50")
+        assert res_dh.status_code == 200
+        payload_dh = res_dh.json()
+        returned_ids_dh = {row["id"] for row in payload_dh["results"]}
+
+        assert "obs-test-dhanbad" in returned_ids_dh
+        assert "obs-test-ranchi" not in returned_ids_dh, "Ranchi point should not appear in Dhanbad query"
+        assert "obs-test-odisha-overlap" not in returned_ids_dh
+        assert "obs-test-chhattisgarh-overlap" not in returned_ids_dh
+
+        dhanbad_row = next(r for r in payload_dh["results"] if r["id"] == "obs-test-dhanbad")
+        assert dhanbad_row["state"] == "Jharkhand"
+        assert dhanbad_row["district"] == "Dhanbad"
+
+        # 3. Both state=Jharkhand and query=Dhanbad: query is not discarded
+        res_both = client.get("/api/history/search?state=Jharkhand&query=Dhanbad&limit=50")
+        assert res_both.status_code == 200
+        payload_both = res_both.json()
+        returned_ids_both = {row["id"] for row in payload_both["results"]}
+
+        assert "obs-test-dhanbad" in returned_ids_both
+        assert "obs-test-ranchi" not in returned_ids_both
+        assert "obs-test-odisha-overlap" not in returned_ids_both
+        assert "obs-test-chhattisgarh-overlap" not in returned_ids_both
     finally:
         db_session.query(Observation).filter(Observation.id.in_(obs_ids)).delete(
             synchronize_session=False

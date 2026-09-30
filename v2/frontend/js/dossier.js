@@ -61,6 +61,34 @@ function shot(src, label, cls = "shot") {
     </figure>`;
 }
 
+function formatEvidenceLine(line) {
+  if (!line) return "";
+  if (typeof line === "object") {
+    const parts = [];
+    for (const k of ["visual_evidence", "contextual_evidence", "evidence", "observations"]) {
+      if (Array.isArray(line[k])) parts.push(...line[k]);
+    }
+    if (parts.length) return parts.join(" • ");
+    return JSON.stringify(line);
+  }
+  const s = String(line).trim();
+  if (s.includes("visual_evidence") && s.startsWith("{")) {
+    const pattern = /(?:visual_evidence|contextual_evidence)["']\s*:\s*\[([\s\S]*?)\]/g;
+    const parts = [];
+    let block;
+    while ((block = pattern.exec(s)) !== null) {
+      const strPattern = /['"]((?:\\.|[^'"\\])*)['"]/g;
+      let sm;
+      while ((sm = strPattern.exec(block[1])) !== null) {
+        const val = sm[1].replace(/\\'/g, "'").replace(/\\"/g, '"').trim();
+        if (val.length > 3) parts.push(val);
+      }
+    }
+    if (parts.length) return parts.join(" • ");
+  }
+  return s;
+}
+
 /* Numbered so an observation can be cited by index in a written report. */
 function evidence(list, limit) {
   const items = limit ? list.slice(0, limit) : list;
@@ -70,7 +98,7 @@ function evidence(list, limit) {
   return `<ol class="ev well">${items.map((line, i) => `
     <li class="ev__item">
       <span class="ev__n">${String(i + 1).padStart(2, "0")}</span>
-      <span>${escapeHtml(line)}</span>
+      <span>${escapeHtml(formatEvidenceLine(line))}</span>
     </li>`).join("")}${
     limit && list.length > limit
       ? `<li class="ev__item"><span class="ev__n"></span><span class="u-micro">${list.length - limit} more in the full dossier</span></li>`

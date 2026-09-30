@@ -931,7 +931,52 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
         # against `is_in_mining` (registered basins) and `is_cropland`
         # (landcover), leaving the state name where it belongs: in the label.
 
-        ai_ev = latest_inv.evidence_points if (latest_inv and latest_inv.evidence_points) else []
+        ai_ev: List[str] = []
+        if latest_inv and latest_inv.evidence_points:
+            raw_ev = latest_inv.evidence_points
+            if isinstance(raw_ev, str):
+                s = raw_ev.strip()
+                if (s.startswith("{") and s.endswith("}")) or "visual_evidence" in s:
+                    try:
+                        import ast
+                        raw_ev = ast.literal_eval(s)
+                    except Exception:
+                        pass
+            if isinstance(raw_ev, dict):
+                for k in ("visual_evidence", "contextual_evidence"):
+                    val = raw_ev.get(k)
+                    if isinstance(val, list):
+                        ai_ev.extend([str(x).strip() for x in val if str(x).strip()])
+                    elif isinstance(val, str) and val.strip():
+                        ai_ev.append(val.strip())
+                if not ai_ev and "evidence" in raw_ev:
+                    val = raw_ev.get("evidence")
+                    if isinstance(val, list):
+                        ai_ev.extend([str(x).strip() for x in val if str(x).strip()])
+                    elif isinstance(val, str) and val.strip():
+                        ai_ev.append(val.strip())
+            elif isinstance(raw_ev, list):
+                for item in raw_ev:
+                    if isinstance(item, str):
+                        s = item.strip()
+                        if (s.startswith("{") and s.endswith("}")) or "visual_evidence" in s:
+                            try:
+                                import ast
+                                parsed = ast.literal_eval(s)
+                                if isinstance(parsed, dict):
+                                    for k in ("visual_evidence", "contextual_evidence"):
+                                        val = parsed.get(k)
+                                        if isinstance(val, list):
+                                            ai_ev.extend([str(x).strip() for x in val if str(x).strip()])
+                                        elif isinstance(val, str) and val.strip():
+                                            ai_ev.append(val.strip())
+                                    continue
+                            except Exception:
+                                pass
+                        if s:
+                            ai_ev.append(s)
+                    elif item is not None:
+                        ai_ev.append(str(item))
 
         # Operational triggers
         triggers = []
@@ -1165,7 +1210,7 @@ def generate_console_feed_data(db: Session) -> Dict[str, Any]:
             # console can distinguish the two without inferring it from the
             # confidence value.
             "ai_verified": ai_verified,
-            "ai_evidence": ai_ev if isinstance(ai_ev, list) else [str(ai_ev)],
+            "ai_evidence": ai_ev,
             "ai_reasoning": ai_reason,
             "image_url": f"/crops/{inc.id}/annotated.jpg",
             "raw_image_url": f"/crops/{inc.id}/raw.jpg",

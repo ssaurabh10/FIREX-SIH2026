@@ -155,6 +155,54 @@ function instant(date, time) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function normaliseEvidence(raw) {
+  if (!raw) return [];
+  const list = Array.isArray(raw) ? raw : [raw];
+  const out = [];
+
+  for (const item of list) {
+    if (!item) continue;
+    if (typeof item === "object") {
+      for (const k of ["visual_evidence", "contextual_evidence", "evidence", "observations"]) {
+        const v = item[k];
+        if (Array.isArray(v)) {
+          for (const s of v) {
+            if (typeof s === "string" && s.trim()) out.push(s.trim());
+          }
+        } else if (typeof v === "string" && v.trim()) {
+          out.push(v.trim());
+        }
+      }
+      continue;
+    }
+
+    if (typeof item === "string") {
+      const s = item.trim();
+      if (s.includes("visual_evidence") || s.includes("contextual_evidence") || (s.startsWith("{") && s.endsWith("}"))) {
+        const pattern = /(?:visual_evidence|contextual_evidence|evidence|observations)["']\s*:\s*\[([\s\S]*?)\]/g;
+        let matchedAny = false;
+        let block;
+        while ((block = pattern.exec(s)) !== null) {
+          const inner = block[1];
+          const strPattern = /['"]((?:\\.|[^'"\\])*)['"]/g;
+          let sm;
+          while ((sm = strPattern.exec(inner)) !== null) {
+            const val = sm[1].replace(/\\'/g, "'").replace(/\\"/g, '"').trim();
+            if (val.length > 3) {
+              out.push(val);
+              matchedAny = true;
+            }
+          }
+        }
+        if (matchedAny) continue;
+      }
+      if (s) out.push(s);
+    }
+  }
+
+  return out;
+}
+
 function normaliseCase(raw) {
   const conf = parseConfidence(raw.confidence);
   const uncertainty = String(raw.ai_uncertainty || "").toLowerCase();
@@ -223,7 +271,7 @@ function normaliseCase(raw) {
         : [],
     },
 
-    evidence: Array.isArray(raw.ai_evidence) ? raw.ai_evidence : [],
+    evidence: normaliseEvidence(raw.ai_evidence),
     reasoning: raw.ai_reasoning || "",
     images: { annotated: raw.image_url || "", raw: raw.raw_image_url || "" },
 

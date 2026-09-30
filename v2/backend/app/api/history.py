@@ -27,8 +27,12 @@ from app.behavior.profile import (
     refresh_behavior_features
 )
 from app.gis.spatial import haversine_distance_km
-from app.gis.boundaries import INDIAN_STATE_REGIONS, resolve_admin_boundary
-from app.gis.assets import find_nearest_asset
+from app.gis.boundaries import (
+    INDIAN_STATE_REGIONS,
+    INDIAN_DISTRICT_SUBREGIONS,
+    resolve_admin_boundary
+)
+from app.gis.assets import find_nearest_asset, get_cached_assets
 import math
 from datetime import datetime, timedelta
 
@@ -290,18 +294,60 @@ def search_historical_observations(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid end_date format, use YYYY-MM-DD")
 
-    # 2. State bounding box resolution
-    target_state = state or query
+    # 2. State & District / Facility Resolution
+    target_state = None
+    target_district = None
     state_bbox = None
-    if target_state:
-        target_clean = target_state.strip().lower()
+    district_bbox = None
+
+    if state:
+        s_clean = state.strip().lower()
         for s_name, bbox in INDIAN_STATE_REGIONS.items():
-            if target_clean in s_name.lower():
+            if s_clean == s_name.lower() or s_clean in s_name.lower():
+                target_state = s_name
                 state_bbox = bbox
                 break
+        if not target_state:
+            target_state = state.strip()
 
-    if state_bbox:
-        min_lat, max_lat, min_lon, max_lon, _ = state_bbox
+    q_clean = query.strip().lower() if query else None
+    if q_clean:
+        # Check if query matches a known district subregion (e.g. Dhanbad)
+        for d_min_lat, d_max_lat, d_min_lon, d_max_lon, d_state, d_name in INDIAN_DISTRICT_SUBREGIONS:
+            if q_clean == d_name.lower() or q_clean in d_name.lower() or d_name.lower() in q_clean:
+                district_bbox = (d_min_lat, d_max_lat, d_min_lon, d_max_lon)
+                target_district = d_name
+                if not target_state:
+                    target_state = d_state
+                break
+
+        # If not matched to a district, and no state was selected, check if query is a state
+        if not district_bbox and not target_state:
+            for s_name, bbox in INDIAN_STATE_REGIONS.items():
+                if q_clean == s_name.lower() or q_clean in s_name.lower():
+                    target_state = s_name
+                    state_bbox = bbox
+                    break
+
+        # If still no bounding box, check if query matches a specific facility
+        if not district_bbox and not state_bbox:
+            cached = get_cached_assets(db)
+            matched_assets = [
+                a for a in cached
+                if q_clean in (a.name or "").lower() or q_clean in (a.operator or "").lower()
+            ]
+            if len(matched_assets) == 1:
+                a = matched_assets[0]
+                district_bbox = (a.latitude - 0.15, a.latitude + 0.15, a.longitude - 0.15, a.longitude + 0.15)
+                if not target_state and a.state:
+                    target_state = a.state
+                if a.district:
+                    target_district = a.district
+
+    # Apply bounding box to SQL query: prefer fine district/facility bbox over broad state bbox
+    active_bbox = district_bbox or state_bbox
+    if active_bbox:
+        min_lat, max_lat, min_lon, max_lon = active_bbox[0], active_bbox[1], active_bbox[2], active_bbox[3]
         filters.append(Observation.latitude >= min_lat)
         filters.append(Observation.latitude <= max_lat)
         filters.append(Observation.longitude >= min_lon)
@@ -317,39 +363,73 @@ def search_historical_observations(
     # Query matching records
     q = db.query(Observation).filter(*filters).order_by(Observation.acquired_at.desc())
     total_matches = q.count()
-    rows = q.offset(offset).limit(limit).all()
 
-    # Calculate summary metrics
+    # Determine post-filtering requirements
+    # Broad state bounding boxes overlap neighboring states (e.g. Jharkhand bbox overlaps Odisha/Chhattisgarh).
+    # We strictly enforce that resolved state matches target_state.
+    needs_strict_state = bool(target_state)
+    needs_query_filter = bool(q_clean and not district_bbox)
+
+    results = []
     max_val = 0.0
     sum_val = 0.0
-    results = []
 
-    for r in rows:
-        f_val = float(r.frp_mw or 0.0)
-        max_val = max(max_val, f_val)
-        sum_val += f_val
+    chunk_size = max(limit * 2, 100)
+    sql_offset = offset if (not needs_strict_state and not needs_query_filter) else (offset if district_bbox else 0)
+    matched_count = 0 if sql_offset == 0 else offset
+    total_scanned = 0
+    max_scan_limit = max(offset + limit * 5, 2000)
 
-        # Sovereign administrative resolution
-        admin = resolve_admin_boundary(r.latitude, r.longitude)
-        nearest = find_nearest_asset(r.latitude, r.longitude, db)
+    while len(results) < limit and total_scanned < max_scan_limit:
+        chunk = q.offset(sql_offset).limit(chunk_size).all()
+        if not chunk:
+            break
+        sql_offset += len(chunk)
+        total_scanned += len(chunk)
 
-        results.append({
-            "id": r.id,
-            "latitude": round(r.latitude, 4),
-            "longitude": round(r.longitude, 4),
-            "frp_mw": round(f_val, 2),
-            "acquired_at": r.acquired_at.isoformat() if r.acquired_at else None,
-            "satellite": r.satellite or "VIIRS",
-            "sensor": r.sensor or "VIIRS",
-            "confidence": r.confidence_raw or "nominal",
-            "daynight": r.daynight or "N",
-            "state": admin.get("state") or "India",
-            "district": admin.get("district") or "Unknown",
-            "nearest_facility": nearest.get("facility_name"),
-            "distance_km": nearest.get("distance_km")
-        })
+        for r in chunk:
+            admin = resolve_admin_boundary(r.latitude, r.longitude)
+            r_state = admin.get("state")
+            r_district = admin.get("district")
 
-    mean_val = round(sum_val / len(rows), 2) if rows else 0.0
+            # 1. Strict state filtering: exclude points resolving to other states
+            if needs_strict_state:
+                if not r_state or (target_state.lower() != r_state.lower() and target_state.lower() not in r_state.lower()):
+                    continue
+
+            # 2. Text query filtering if query was not resolved to an exact coordinate box
+            nearest = find_nearest_asset(r.latitude, r.longitude, db)
+            if needs_query_filter:
+                combined_text = f"{r_district or ''} {r_state or ''} {nearest.get('facility_name') or ''} {nearest.get('operator') or ''} {nearest.get('industry') or ''} {nearest.get('category') or ''}".lower()
+                if q_clean not in combined_text:
+                    continue
+
+            matched_count += 1
+            if matched_count > offset and len(results) < limit:
+                f_val = float(r.frp_mw or 0.0)
+                max_val = max(max_val, f_val)
+                sum_val += f_val
+
+                results.append({
+                    "id": r.id,
+                    "latitude": round(r.latitude, 4),
+                    "longitude": round(r.longitude, 4),
+                    "frp_mw": round(f_val, 2),
+                    "acquired_at": r.acquired_at.isoformat() if r.acquired_at else None,
+                    "satellite": r.satellite or "VIIRS",
+                    "sensor": r.sensor or "VIIRS",
+                    "confidence": r.confidence_raw or "nominal",
+                    "daynight": r.daynight or "N",
+                    "state": r_state or "India",
+                    "district": r_district or "Unknown",
+                    "nearest_facility": nearest.get("facility_name"),
+                    "distance_km": nearest.get("distance_km")
+                })
+
+        if len(chunk) < chunk_size:
+            break
+
+    mean_val = round(sum_val / len(results), 2) if results else 0.0
 
     return {
         "total_matches": total_matches,
@@ -360,7 +440,7 @@ def search_historical_observations(
             "max_frp": round(max_val, 2),
             "mean_frp": mean_val,
             "min_frp": min_frp,
-            "state_filter": target_state if state_bbox else None
+            "state_filter": target_state if (state_bbox or district_bbox or target_state) else None
         },
         "results": results
     }
