@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: firex-sih2026
+    env: python
+    region: singapore
+    plan: free
+    rootDir: v2
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: FIRMS_MAP_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false

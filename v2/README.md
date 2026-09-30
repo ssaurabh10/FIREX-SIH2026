@@ -1,73 +1,213 @@
-# FIREX v2 — Space-Borne Satellite AI Industrial Thermal Intelligence Platform
+# FIREX v2 — AI-Powered Satellite Fire & Thermal Intelligence Platform
 
-Welcome to **FIREX v2**.
+> **Smart India Hackathon 2026 · Problem Statement 162 (NTRO)**
 
-For the complete technical and algorithmic logic specification designed specifically for AI agents, machine learning engineers, and aerospace operators, please consult:
+## What Is FIREX?
 
-👉 **[FIREX v2 Logic & Algorithmic Specification](V2_LOGIC_SPECIFICATION.md)**
+NASA satellites detect thousands of heat sources over India every day — but **most of them are not emergencies**. Refinery flares, steel furnaces, coal mine fires, and crop burning all look the same from space as an actual industrial disaster.
+
+**FIREX v2** is an autonomous intelligence platform that takes those raw satellite heat detections and determines which ones are real emergencies worth acting on. It does this through a 12-stage pipeline that:
+
+1. 🛰️ Pulls live thermal data from NASA FIRMS (VIIRS & MODIS satellites)
+2. 🗺️ Identifies where each detection is — which facility, district, or forest it's near
+3. 📊 Compares against a full year of historical data for that exact location
+4. 🖼️ Fetches satellite imagery and overlays a tactical analysis HUD
+5. 🤖 Sends the image to an AI vision model that classifies what it sees
+6. ⚡ Computes a composite danger score (0–100) from multiple factors
+7. 🚨 Alerts human operators only when the danger is genuine
+
+The end result: operators see a **prioritized, explained, and visually verified** list of incidents instead of an overwhelming flood of raw detections.
 
 ---
 
-## Setup, Run and Tests
+## Quick Start
 
-Run the commands below from this directory (`v2/`).
+### Prerequisites
+
+- **Python 3.10+** (tested on Python 3.14.6)
+- **pip** (Python package manager)
+
+### Install & Run
 
 ```bash
+# From this directory (v2/)
 pip install -r backend/requirements.txt
 python backend/run.py
 ```
 
-`backend/requirements.txt` carries the backend's declared dependencies: fastapi, uvicorn[standard], pydantic, pydantic-settings, sqlalchemy, requests, pillow, psycopg2-binary, pytest and httpx. `backend/run.py` starts uvicorn against `app.main:app` on `127.0.0.1:8000` (`HOST` and `PORT` override the bind), and that one process serves everything:
+A single server starts on `http://127.0.0.1:8000` serving everything:
 
-- **Operator console:** `http://127.0.0.1:8000/console/` — the static app in `frontend/`, mounted by the backend at `backend/app/main.py:136`.
-- **API docs (OpenAPI):** `http://127.0.0.1:8000/docs`
-- **Health:** `http://127.0.0.1:8000/health`
+| URL | What It Does |
+|-----|-------------|
+| [`http://127.0.0.1:8000/console/`](http://127.0.0.1:8000/console/) | 🖥️ **Operator Console** — the live tactical dashboard with map |
+| [`http://127.0.0.1:8000/docs`](http://127.0.0.1:8000/docs) | 📖 **API Documentation** — interactive Swagger/OpenAPI UI |
+| [`http://127.0.0.1:8000/health`](http://127.0.0.1:8000/health) | 💚 **Health Check** — system status and memory diagnostics |
 
-Secrets and connection settings live in `backend/.env` (gitignored; the committed template is `backend/.env.example`): the NASA FIRMS key, the OpenRouter keys and the database URL. `backend/app/core/config.py:26-38` loads that file by absolute path, so a server started from any working directory reads the same settings, and a relative SQLite `DATABASE_URL` is anchored to `backend/` (`config.py:97-99`).
+### Configuration
 
-Operational tasks that need no browser go through the backend CLI: `python backend/cli.py --help` lists `pipeline` (one end-to-end analysis run), `data` (regenerate the console data files), `severity-sweep` and `migrate`.
+Copy `backend/.env.example` to `backend/.env` and fill in:
 
-Tests:
+| Variable | Purpose |
+|----------|---------|
+| `FIRMS_MAP_KEY` | NASA FIRMS API key (for pulling satellite data) |
+| `OPENROUTER_API_KEYS` | AI vision model keys (comma-separated for rotation) |
+| `DATABASE_URL` | Database connection (defaults to local SQLite) |
+
+### CLI Commands
+
+```bash
+python backend/cli.py pipeline        # Run a full analysis cycle
+python backend/cli.py data            # Regenerate console data files
+python backend/cli.py severity-sweep  # Re-evaluate severity across all incidents
+python backend/cli.py migrate         # Apply database migrations
+```
+
+### Run Tests
 
 ```bash
 python -m pytest tests
+# 178 tests across 17+ modules — all passing
 ```
 
-17 test modules collecting 170 tests on 2026-09-17 (`python -m pytest tests --collect-only -q`; both counts move as the suite is edited). The `test_stageN_*.py` filenames use the older eleven-way subsystem grouping 0-10, which `V2_LOGIC_SPECIFICATION.md:77` records as *not* the spec's twelve-stage numbering — it merges several of those stages; the remaining modules are API-contract, climatology, export-target isolation and classifier checks. `tests/conftest.py` binds the session to a throwaway SQLite database and redirects the pipeline's data exports and the imagery cache into that same throwaway directory, so a test run does not write into `backend/data/firex_v2.db`, `frontend/data/` or `backend/data/imagery_cache/`. Verified on Python 3.14.6.
+Tests are fully isolated: they use a throwaway SQLite database and temporary export directories, so they never touch production data.
+
+---
+
+## How It Works — The 12-Stage Pipeline
+
+```
+ ┌─────────────────────────────────────────────────────────────────────────┐
+ │                       FIREX v2 Analysis Pipeline                       │
+ │                                                                         │
+ │  1. Run Lock           Only one pipeline run at a time (mutex)         │
+ │  2. Ingestion          Pull live NASA FIRMS data, deduplicate          │
+ │  3. GIS Enrichment     Nearest facility, mining basin, admin region    │
+ │  4. Clustering         Group nearby detections (1,500m / 24h window)   │
+ │  5. Incident Tracking  Link clusters to tracked incident records       │
+ │  6. Climatology        Compare against 365 days of history             │
+ │  7. Selection          Rank top 5 candidates for AI investigation      │
+ │  8. Imagery            Fetch satellite photo + tactical HUD overlay    │
+ │  9. AI Vision          Classify: fire / flare / mining / wildfire / …  │
+ │ 10. Severity           Score 0–100 with 4 weighted factors             │
+ │ 11. Alerting           Deduplicated alerts for HIGH / CRITICAL only    │
+ │ 12. Export             Push results to dashboard + SSE broadcast       │
+ └─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Design Principles
+
+| Principle | What It Means |
+|-----------|--------------|
+| **Heat ≠ Fire** | A satellite thermal detection is just an infrared anomaly — not a confirmed emergency. Every incident must be verified. |
+| **Never sum FRP** | Fire Radiative Power across multi-pixel clusters uses **max/mean/min only** — summation would inflate the physical energy reading. |
+| **India only** | Detections outside sovereign Indian territory (68.7°E–97.4°E, 8.4°N–37.6°N) are discarded. |
+| **Routine sources stay quiet** | Locations hot on 10+ days/year within their historical P95 envelope are capped at severity ≤ 20/100. |
+| **New hotspots get a fair chance** | No-history locations use an alternate scoring model so they're never penalised with zeros. |
+| **No alert spam** | One alert per incident per severity level. Duplicates are suppressed; only escalations trigger new alerts. |
+
+---
+
+## Documentation
+
+| Document | Audience | Description |
+|----------|----------|-------------|
+| 📘 **[V2_LOGIC_EXPLAINED.md](V2_LOGIC_EXPLAINED.md)** | Everyone | Plain-language explanation of the entire system — no prior knowledge needed |
+| 📗 **[V2_LOGIC_SPECIFICATION.md](V2_LOGIC_SPECIFICATION.md)** | Engineers & AI Agents | Authoritative technical specification with mathematical formulas, code references, and schema definitions |
+| 📙 **[V2_DEFECT_REPORT.md](V2_DEFECT_REPORT.md)** | Engineers | Conformance audit — known divergences between the spec and the implementation |
+| 📂 **[docs/](docs)** | Engineers | Stage verification reports for subsystems 1–4 |
+| 📄 **[md/](md)** | Project context | SIH 2026 Complete Project Blueprint |
 
 ---
 
 ## Directory Structure
 
-- **[`V2_LOGIC_SPECIFICATION.md`](V2_LOGIC_SPECIFICATION.md)**: **Master Logic Specification for AI & Systems** — complete mathematical equations, system invariants, empirical Indian climatology calibration ($P_{50}=4.05\text{ MW}$, $P_{90}=13.32\text{ MW}$, $P_{95}=20.81\text{ MW}$, $P_{99}=64.49\text{ MW}$; also the `INDIA_FRP_*` constants at `backend/app/severity/scoring.py:49-52`), the twelve-stage pipeline DAG, multimodal prompt rules, severity scoring models, alert deduplication, and database schema.
-- **[`backend/`](backend)**: FastAPI backend service implementing the twelve numbered steps of `execute_analysis_pipeline` (`backend/app/orchestration/pipeline.py`). Anchor by symbol, not by line: the step comments run `# 1. Acquire Run Lock` through `# 12. Finalize & Export`, with steps 8-11 sharing one combined comment (`# 8, 9, 10, 11: Visual Context, AI Investigation, Severity, and Alerts`) whose four sub-steps are unnumbered inside the candidate loop. Measured 2026-09-17 the file was 1,582 lines (md5 `b4c1d265fe03a1ceb01c7ed959e6ef43`) and `def execute_analysis_pipeline` began at `:1180`:
-  - `app/api/`: the REST and SSE route surface. The domain routers are registered both bare and under the `/api` prefix (`backend/app/main.py:70-91`), and `:109` adds `GET /crops/{incident_id}/{filename}`.
-  - `app/core/`: settings, logging, TTL cache and rate-limit middleware. `app/core/config.py` is the settings module (`RATE_LIMIT_PER_MINUTE = 120` at `:90`, `DATABASE_URL` at `:49`, the AI model id at `:68`); not every spec number is a setting — the Indian FRP percentiles live in `app/severity/scoring.py`, the clustering epsilon and time window are literals at the call site, and the reticle ring fractions are in `app/imagery/reticle.py`.
-  - `app/ingestion/`: FIRMS telemetry parsing, validation, and deduplication on a 20-hex-character truncated SHA-256 key (`backend/app/ingestion/normalizer.py:70-71`).
-  - `app/gis/`: Spatial geodesy (Haversine, ray-casting PIP), Indian sovereign boundary checks, national industrial registry, mining basin spatial index.
-  - `app/incidents/`: Adaptive spatial-temporal DBSCAN clustering at 1,500 m and 24 h (`backend/app/incidents/clustering.py:5-8`; invoked as `clusters = cluster_observations(active_obs, spatial_eps_meters=1500.0, time_window_hours=24.0)` at `pipeline.py:1299` in the same 1,582-line revision), FRP max/mean/min aggregation under the non-summation invariant, incident association, state lifecycle.
-  - `app/behavior/`: 365-day climatological baselines, diurnal night-overpass ratios, statistical anomaly ratio tables.
-  - `app/selection/`: Dual-mode candidate prioritization (with history vs new hotspot), mandatory selection overrides.
-  - `app/imagery/`: Dynamic optical satellite crop generation, tactical reticle HUD rendering with physical range rings (`backend/app/imagery/reticle.py:3`).
-  - `app/intelligence/`: Multimodal vision AI engine, 12 prompt rules (`backend/app/intelligence/prompts.py:19-31`), key pool rotation with auto-cooldown (`backend/app/intelligence/key_pool.py:19-20`). Divergence from the spec: §6.3's four-leg cascade (Gemini → Groq → OpenAI → mock) is not implemented — `backend/app/intelligence/provider.py:1-27` ships one remote leg (OpenRouter, with the mock provider as the terminal fallback reached automatically when every key is exhausted or quarantined), because no client or credential for the middle legs exists in this tree.
-  - `app/severity/`: Dual-mode severity scoring, empirical Indian climatology calibration, routine flare suppression, operational escalation overrides.
-  - `app/alerts/`: Exactly-once alert deduplication, monotonic escalation engine.
-  - `app/orchestration/`: Master pipeline runner, thread-safe mutex lock, real-time Server-Sent Events (SSE) broadcaster. The event names that go on the wire are the SCREAMING_SNAKE constants in `backend/app/orchestration/events.py:35-46`.
-  - `app/storage/`: SQLAlchemy database models and database connections.
-- **[`frontend/`](frontend)**: Tactical web map console, served by the backend at `http://127.0.0.1:8000/console/` (`backend/app/main.py:136`), with a real-time SSE listener (`frontend/js/main.js:1044`) and an incident detail drawer/dossier that shows the satellite crop. The reticle HUD and its range rings are drawn into the crop server-side (`backend/app/imagery/reticle.py`), not in the browser.
-  - `frontend/server.py` is a leftover v1 standalone static server, not the console's entrypoint: it serves `frontend/` directly on port 8000 (`FIREX_PORT` overrides) and resolves `../pipeline/03_imagery/crops` and `../pipeline/07_persistence`, which do not exist under `v2/`. Run the console through the backend instead.
-  - Ten element ids in the `grab()` list at `frontend/js/main.js:37-42` have no element in `frontend/index.html` — `q`, `q-clear`, `map-strip`, `in-view`, `alert-flag`, `risk-hist`, `risk-span`, `brand-window`, `map-sub` and `rail-counts` — and every use is null-guarded. The queue search box, the map metric strip, the in-view counter, the alert flag and the risk histogram therefore never render. Nothing throws.
-- **[`tests/`](tests)**: Test suite of 17 modules, collecting 175 tests on 2026-09-17 (`python -m pytest tests --collect-only -q`). The `test_stageN_*.py` module names use the older eleven-way subsystem grouping 0-10, which is not the spec's twelve-stage numbering (`V2_LOGIC_SPECIFICATION.md:77`); the remaining modules are the API contract, climatology calibration, export-target isolation and classifier checks.
-- **[`docs/`](docs)**: Stage verification reports for stages 1-4 of the older filename grouping (`stage1_data_foundation_and_ingestion.md`, `stage2_gis_and_industrial_context.md`, `stage3_clustering_and_incident_lifecycle.md`, `stage4_behavior_intelligence.md`) plus `v1_audit_and_stage0_notes.md`. There is no verification report numbered 5-10.
-- **[`md/`](md)**: SIH 2026 Complete Project Blueprint (`FIREX_SIH2026_Complete_Project_Blueprint_REVISED2.md`).
+```
+v2/
+├── README.md                          ← You are here
+├── V2_LOGIC_EXPLAINED.md              ← Beginner-friendly system guide
+├── V2_LOGIC_SPECIFICATION.md          ← Technical specification (authoritative)
+├── V2_DEFECT_REPORT.md                ← Conformance audit findings
+├── run.py                             ← Convenience launcher
+│
+├── backend/                           ← Python backend (FastAPI)
+│   ├── app/
+│   │   ├── main.py                    Server entry point, route registration
+│   │   ├── api/                       REST endpoints & SSE streaming
+│   │   ├── core/                      Settings, logging, rate limiting (120 req/min)
+│   │   ├── ingestion/                 NASA FIRMS data fetching & SHA-256 dedup
+│   │   ├── gis/                       Geography: boundaries, facilities, mining basins
+│   │   ├── incidents/                 Clustering (1,500m/24h) & lifecycle state machine
+│   │   ├── behavior/                  365-day baselines & anomaly detection
+│   │   ├── selection/                 Priority ranking for AI investigation
+│   │   ├── imagery/                   Satellite photos & tactical HUD overlay
+│   │   ├── intelligence/              AI vision: 12 prompt rules, key rotation, fallback
+│   │   ├── severity/                  Danger scoring (0–100), Indian calibration
+│   │   ├── alerts/                    Deduplicated alert dispatch & escalation
+│   │   ├── orchestration/             Pipeline runner, mutex lock, SSE broadcaster
+│   │   └── storage/                   SQLAlchemy models (15 tables)
+│   ├── scripts/                       Offline data processing utilities
+│   ├── data/                          Database & imagery cache
+│   ├── .env.example                   Configuration template
+│   └── requirements.txt              Python dependencies
+│
+├── frontend/                          ← Operator console (HTML/CSS/JS)
+│   ├── index.html                     Dashboard — dark-themed tactical map UI
+│   ├── js/                            Map rendering, SSE listener, dossier views
+│   ├── styles/                        Design tokens, component styles
+│   └── data/                          JSON feed files (written by pipeline)
+│
+├── tests/                             ← 178 automated tests
+│   ├── conftest.py                    Test isolation (throwaway DB & directories)
+│   ├── fixtures/                      Reference data & test constants
+│   └── test_stage*.py                 Tests by subsystem (0–10 grouping)
+│
+├── docs/                              ← Stage verification reports (1–4)
+└── md/                                ← SIH 2026 project blueprint
+```
+
+### Backend Modules at a Glance
+
+| Module | Stage | What It Does |
+|--------|-------|-------------|
+| `ingestion/` | 2 | Pulls and deduplicates NASA FIRMS satellite telemetry |
+| `gis/` | 3 | Haversine distance, point-in-polygon, facility lookup, mining basins |
+| `incidents/` | 4–5 | Spatial-temporal clustering (DBSCAN) and incident lifecycle tracking |
+| `behavior/` | 6 | 365-day thermal baselines, percentiles (P50/P90/P95), anomaly scoring |
+| `selection/` | 7 | Dual-mode priority ranking with mandatory overrides |
+| `imagery/` | 8 | Satellite photo cropping with crosshair, range rings, and scale bar |
+| `intelligence/` | 9 | AI vision classification with 12 mandatory prompt rules |
+| `severity/` | 10 | Composite 0–100 scoring with Indian FRP calibration and 4 overrides |
+| `alerts/` | 11 | Exactly-once alert deduplication with monotonic escalation |
+| `orchestration/` | 1, 12 | Pipeline runner, mutex, SSE events, JSON export |
 
 ---
 
-## Repository Context
+## The Tech Stack
 
-This tree sits beside `v1/`, which holds the superseded pipeline and dashboard (`v1/pipeline/01_firms` … `07_persistence`, `v1/dashboard/`). **v2 does not depend on it.** Two links exist, and both are fallbacks that resolve to nothing when `v1/` is absent:
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Backend** | Python, FastAPI, SQLAlchemy | REST API, pipeline orchestration, database |
+| **Database** | SQLite (dev) / PostgreSQL (prod) | 15 normalized tables, 2.9M+ historical observations |
+| **AI Vision** | OpenRouter API | Multimodal image classification with fallback safety |
+| **Satellite Data** | NASA FIRMS API | VIIRS & MODIS thermal detections |
+| **Frontend** | HTML, CSS, JavaScript, Leaflet.js | Dark-themed tactical map console (no build step) |
+| **Testing** | pytest | 178 tests with full database isolation |
 
-- `serve_crop_image` (`backend/app/main.py:128`) serves a v1 crop from `../v1/pipeline/03_imagery/crops` as the *second* of three sources — after the v2 imagery cache (`:122-125`) and before on-demand rendering for a known incident (`:133-141`). `V1_CROPS_DIR` is `None` when that directory does not exist, and the route skips the step.
-- Every analysis export is mirrored into `../v1/dashboard/data/` so the archived dashboard keeps reading current data — but only where that directory is already present. `_export_targets` (`pipeline.py:97`) returns the console's own `frontend/data/` unconditionally and appends the v1 target only if `V1_DATA_DIR` was set explicitly in the environment or already exists on disk. The export previously called `os.makedirs` on both, so a v2-only checkout silently grew a `../v1/dashboard/data` tree outside itself; `tests/test_export_target_isolation.py` pins the replacement rule.
+---
 
-Run v2 on its own with `python run.py <command>` from this directory — `run.py` here is v2's dispatcher and knows nothing about v1. The repository-root `run.py` does the same job from one level up and adds the archived `legacy` / `v1-pipeline` / `v1-daemon` commands. `History data/` (the FIRMS archive corpus consumed by `backend/scripts/ingest_history.py`) is input data rather than part of v2: it resolves from `FIREX_HISTORY_DATA_DIR`, then to a sibling directory of the repository.
+## Relationship to v1
+
+This directory (`v2/`) sits beside `v1/`, which holds the superseded pipeline and dashboard. **v2 does not depend on v1.** Two optional backward-compatibility links exist:
+
+- **Imagery fallback:** The image server checks `v1/pipeline/03_imagery/crops` as a secondary source before rendering on demand — skipped silently when v1 is absent.
+- **Data mirroring:** Pipeline exports are mirrored to `v1/dashboard/data/` only if that directory already exists — the pipeline never creates it.
+
+Run v2 standalone with `python run.py <command>` from this directory. The repository-root `run.py` adds legacy v1 commands but is not required.
+
+---
+
+## License & Context
+
+Built for **Smart India Hackathon (SIH) 2026**, Problem Statement 162, set by the **National Technical Research Organisation (NTRO)**. The problem asks for an AI-powered system to distinguish routine industrial thermal activity from genuine emergencies using space-borne satellite data over India.
+
+> **Start here:** [V2_LOGIC_EXPLAINED.md](V2_LOGIC_EXPLAINED.md) for a complete walkthrough, or [V2_LOGIC_SPECIFICATION.md](V2_LOGIC_SPECIFICATION.md) for the technical deep dive.

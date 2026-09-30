@@ -24,7 +24,7 @@ app = FastAPI(
 )
 
 from app.core.ratelimit import RateLimitMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi import Request
 
 # CORS configuration
@@ -54,9 +54,13 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Root route
 @app.get("/")
-def root():
+def root(request: Request):
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        return RedirectResponse(url="/console/", status_code=302)
     return {
         "message": "Welcome to FIREX v2 - Space-Borne Satellite AI Industrial Thermal Intelligence Platform",
+        "console": "/console/",
         "docs": "/docs",
         "health": "/health",
         "api": "/api",
