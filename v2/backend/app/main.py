@@ -153,9 +153,35 @@ def serve_crop_image(incident_id: str, filename: str, db: Session = Depends(get_
 if os.path.exists(FRONTEND_DIR):
     app.mount("/console", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
+async def _keep_alive_loop(ping_url: str):
+    """
+    Background keep-alive worker for cloud hosting platforms (e.g. Render).
+    Pings the public health endpoint every 8 minutes to prevent Render's 15-minute inactivity spin-down.
+    """
+    import asyncio
+    import httpx
+    logger.info(f"[KeepAlive] Cloud keep-alive background worker active for {ping_url}")
+    await asyncio.sleep(45)
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(ping_url, headers={"User-Agent": "FIREX-KeepAlive/1.0"})
+                logger.info(f"[KeepAlive] Self-ping status {resp.status_code} from {ping_url}")
+        except Exception as e:
+            logger.debug(f"[KeepAlive] Self-ping cycle note: {e}")
+        await asyncio.sleep(480)
+
 @app.on_event("startup")
 async def on_startup():
+    import asyncio
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} in {settings.ENV} mode")
+    ping_url = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("SELF_PING_URL")
+    if not ping_url and os.getenv("RENDER"):
+        ping_url = "https://firex-sih2026.onrender.com/health"
+    if ping_url:
+        if not ping_url.endswith("/health"):
+            ping_url = ping_url.rstrip("/") + "/health"
+        asyncio.create_task(_keep_alive_loop(ping_url))
 
 @app.on_event("shutdown")
 async def on_shutdown():
