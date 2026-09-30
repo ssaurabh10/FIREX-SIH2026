@@ -1,0 +1,23 @@
+name: Render Keep-Alive Heartbeat
+
+on:
+  schedule:
+    # Ping every 10 minutes to prevent Render free-tier 15-minute inactivity timeout
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # Allows manual ping from the GitHub Actions tab
+
+jobs:
+  keepalive:
+    name: Ping Render Health Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake / Keep Alive FIREX Backend
+        run: |
+          echo "Sending heartbeat to Render..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 30 "https://firex-sih2026.onrender.com/health")
+          echo "Response HTTP Status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "FIREX is healthy and awake!"
+          else
+            echo "Instance was likely sleeping or starting up (status: $STATUS). Ping registered to wake container."
+          fi
