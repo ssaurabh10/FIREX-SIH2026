@@ -1506,7 +1506,8 @@
 @media (max-width: 768px) {
   .row--scroll,
   #inv-filters,
-  #industrial-sector-filter {
+  #industrial-sector-filter,
+  #industrial-group-filter {
     display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -1519,13 +1520,15 @@
 
   .row--scroll::-webkit-scrollbar,
   #inv-filters::-webkit-scrollbar,
-  #industrial-sector-filter::-webkit-scrollbar {
+  #industrial-sector-filter::-webkit-scrollbar,
+  #industrial-group-filter::-webkit-scrollbar {
     display: none;
   }
 
   .row--scroll .pill,
   #inv-filters .pill,
-  #industrial-sector-filter .seg__opt {
+  #industrial-sector-filter .seg__opt,
+  #industrial-group-filter .seg__opt {
     flex-shrink: 0;
   }
 
@@ -1534,8 +1537,60 @@
     min-width: 0 !important;
   }
 
+  /* Sync Analysis Modal on Mobile */
+  .sync-scrim {
+    padding: var(--s-3) !important;
+  }
+
+  .sync-modal {
+    width: 100% !important;
+    max-height: calc(100dvh - 24px) !important;
+    padding: 14px 16px !important;
+    gap: 10px !important;
+    border-radius: var(--r-lg) !important;
+  }
+
+  .sync-head {
+    padding-bottom: 8px !important;
+  }
+
+  .sync-title-group h2 {
+    font-size: 1rem !important;
+  }
+
+  .sync-stage-row {
+    padding: 6px 10px !important;
+    gap: 8px !important;
+    grid-template-columns: 20px 1fr auto !important;
+  }
+
+  .sync-stage-icon {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 0.58rem !important;
+  }
+
+  .sync-stage-name {
+    font-size: 0.78rem !important;
+  }
+
+  .sync-stage-desc {
+    font-size: 0.65rem !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .sync-log-terminal {
+    max-height: 60px !important;
+    padding: 6px 10px !important;
+    font-size: 0.62rem !important;
+  }
+
+  /* History archive responsive tweaks */
   .history-search-card {
-    padding: 14px !important;
+    padding: 12px 14px !important;
   }
 
   .history-search-grid {
@@ -1548,6 +1603,14 @@
     gap: 8px;
     align-items: stretch;
     text-align: center;
+  }
+
+  /* Compact metric tiles in Overview on mobile */
+  .metric {
+    padding: 10px 12px !important;
+  }
+  .metric__value .u-metric {
+    font-size: 1.35rem !important;
   }
 }
 

@@ -762,13 +762,14 @@
 @media (max-width: 768px) {
   .ovl--bl {
     left: 10px;
-    bottom: 68px;
     right: 10px;
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 52px);
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
     pointer-events: none;
+    z-index: 30;
   }
 
   .ovl--bl > * {
@@ -780,33 +781,26 @@
   }
 
   .ovl--bl .seg__opt {
-    padding: 4px 8px;
-    font-size: 0.7rem;
-  }
-
-  .ovl--bl .zoombar {
-    flex-direction: row;
-    gap: 2px;
-  }
-
-  .ovl--bl .zoombar .icon-btn {
-    width: 28px;
-    height: 28px;
+    padding: 5px 9px;
+    font-size: 0.72rem;
+    min-height: 32px;
   }
 
   .ovl--bl .icon-btn {
-    width: 28px;
-    height: 28px;
-    padding: 4px;
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+    border-radius: var(--r-sm);
   }
 
   .ovl--tr {
-    top: 50px;
-    right: 10px;
+    top: calc(var(--nav-h, 50px) + 12px);
+    right: 12px;
+    z-index: 30;
   }
 
   .ovl--br {
-    bottom: 68px;
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 52px);
     right: 10px;
   }
 
