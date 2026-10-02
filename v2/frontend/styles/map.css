@@ -765,11 +765,19 @@
     right: 10px;
     bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 52px);
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
     gap: 6px;
     align-items: center;
     pointer-events: none;
     z-index: 30;
+    padding-bottom: 2px;
+  }
+
+  .ovl--bl::-webkit-scrollbar {
+    display: none;
   }
 
   .ovl--bl > * {

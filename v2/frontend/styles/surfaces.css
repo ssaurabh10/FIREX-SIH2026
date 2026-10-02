@@ -68,6 +68,40 @@
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.12);
 }
 
+[data-theme="light"] .mapview__rail {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .mobile-sheet-bar {
+  background: rgba(248, 250, 252, 0.98);
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .mobile-sheet-handle {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+[data-theme="light"] .mobile-sheet-close {
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.1);
+  color: var(--t-primary);
+}
+
+[data-theme="light"] .mobile-queue-btn {
+  background: rgba(255, 255, 255, 0.94);
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+
+[data-theme="light"] .drawer__head,
+[data-theme="light"] .drawer__foot {
+  background: rgba(248, 250, 252, 0.98);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
 [data-theme="light"] .spotlight-nav {
   background: rgba(255, 255, 255, 0.82);
   border-color: rgba(15, 23, 42, 0.12);

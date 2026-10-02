@@ -1593,9 +1593,53 @@
     padding: 12px 14px !important;
   }
 
+  .history-form-grid,
   .history-search-grid {
     grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .history-presets-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    width: 100%;
+  }
+
+  .history-presets-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .history-presets-row .history-pill {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    min-height: 28px;
+  }
+
+  .history-actions-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
     gap: 10px !important;
+  }
+
+  .history-actions-row .row {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .history-actions-row .btn {
+    flex: 1 1 auto;
+    min-height: 36px;
+    justify-content: center;
+  }
+
+  .history-table-container {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
   }
 
   .history-pagination {
