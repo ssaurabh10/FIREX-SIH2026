@@ -578,47 +578,7 @@ function renderAnomalyRadar(cases) {
     </div>`;
 }
 
-function renderMissionLog(cases, confirmed, priority, surgesCount) {
-  const now = new Date();
-  const ts = (minsAgo) => {
-    const d = new Date(now.getTime() - minsAgo * 60000);
-    return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}Z`;
-  };
 
-  return `
-    <div class="ov-log-terminal">
-      <div class="ov-log-row">
-        <span class="ov-log-time">${ts(1)}</span>
-        <span class="ov-log-tag ov-log-tag--ok">[BORDER CHECK]</span>
-        <span class="ov-log-text">National boundary verified: 100% of detections confirmed strictly within Indian territory.</span>
-      </div>
-      <div class="ov-log-row">
-        <span class="ov-log-time">${ts(3)}</span>
-        <span class="ov-log-tag">[SATELLITES]</span>
-        <span class="ov-log-text">NASA satellite feeds synchronized: NOAA-20 / Suomi-NPP VIIRS and Terra/Aqua MODIS passes ingested.</span>
-      </div>
-      <div class="ov-log-row">
-        <span class="ov-log-time">${ts(5)}</span>
-        <span class="ov-log-tag ov-log-tag--warn">[BASELINE]</span>
-        <span class="ov-log-text">365-day historical baseline evaluated: ${surgesCount} unusual surges flagged above normal limits.</span>
-      </div>
-      <div class="ov-log-row">
-        <span class="ov-log-time">${ts(8)}</span>
-        <span class="ov-log-tag">[VISION AI]</span>
-        <span class="ov-log-text">High-resolution satellite images analyzed: ${confirmed} detections visually verified by AI vision.</span>
-      </div>
-      <div class="ov-log-row">
-        <span class="ov-log-time">${ts(12)}</span>
-        <span class="ov-log-tag ov-log-tag--crit">[RISK ENGINE]</span>
-        <span class="ov-log-text">Multi-factor risk scored: ${priority} elevated incidents populated in active watch queue.</span>
-      </div>
-      <div class="ov-log-row">
-        <span class="ov-log-time">${ts(15)}</span>
-        <span class="ov-log-tag ov-log-tag--ok">[FACILITIES]</span>
-        <span class="ov-log-text">Facility association checked: 5.0 km radius safety buffer verified.</span>
-      </div>
-    </div>`;
-}
 
 export function renderOverview(el, ctx) {
   const { cases, ambient, selected } = ctx;
@@ -735,33 +695,32 @@ export function renderOverview(el, ctx) {
     timeline(cases, selected),
     { foot: legend() });
 
-  // 5. Row 4: Pipeline Sentinel + Mission Operational Log
+  // 5. Row 4: Pipeline Sentinel & Data Feed Integrity
   const integrity = panel("Data Feed & Pipeline Status", integrityTag(),
-    kvRows([
-      ["Border Check", "STRICT (Zero foreign / cross-border detections allowed)"],
-      ["Facility Proximity", "ENFORCED (5.0 km radius gate; zero spurious links)"],
-      ["Active Constellation", "VIIRS (Suomi-NPP, NOAA-20) + MODIS (Terra, Aqua)"],
-      ["Active Incidents", `${cases.length} in window (${store.cases.length} in feed)`],
-      ["Background Points", `${ambient.length} calibrated sensor returns`],
-      ["Latest Satellite Pass", stampDate(store.anchor)],
-      noticeRow(),
-      ["System Errors", store.errors.length
-        ? store.errors.map((e) => escapeHtml(`${e.source}: ${e.message}`)).join("<br>")
-        : "none"],
-    ], "kv kv--wide"),
-    { foot: `<p class="u-micro">Continuous data feed validation against Indian borders and instrument calibration.</p>` });
-
-  const missionLog = panel("System Activity Stream",
-    `<span class="tag"><span class="tag__dot"></span>System Active</span>`,
-    renderMissionLog(cases, confirmed, priority, surgesCount),
-    { foot: `<p class="u-micro">Live chronological event dispatch log and automated subsystem status reports.</p>` });
+    `<div class="grid-2" style="gap:var(--s-4);">
+      ${kvRows([
+        ["Border Check", "STRICT (Zero foreign / cross-border detections allowed)"],
+        ["Facility Proximity", "ENFORCED (5.0 km radius gate; zero spurious links)"],
+        ["Active Constellation", "VIIRS (Suomi-NPP, NOAA-20) + MODIS (Terra, Aqua)"],
+        ["Active Incidents", `${cases.length} in window (${store.cases.length} in feed)`],
+      ], "kv kv--wide")}
+      ${kvRows([
+        ["Background Points", `${ambient.length} calibrated sensor returns`],
+        ["Latest Satellite Pass", stampDate(store.anchor)],
+        noticeRow(),
+        ["System Errors", store.errors.length
+          ? store.errors.map((e) => escapeHtml(`${e.source}: ${e.message}`)).join("<br>")
+          : "none (Operational)"],
+      ], "kv kv--wide")}
+    </div>`,
+    { foot: `<p class="u-micro">Continuous data feed validation against Indian national borders, instrument calibration, and cloud storage.</p>` });
 
   set(el, `
     ${head}
     <div class="grid-2">${work}${regional}</div>
     <div class="grid-2" style="margin-top:var(--s-3)">${climatologyPanel}${threatSpectrum}</div>
     ${when}
-    <div class="grid-2" style="margin-top:var(--s-3)">${integrity}${missionLog}</div>
+    <div style="margin-top:var(--s-3)">${integrity}</div>
   `);
 
   renderEnhancedQueue(el.querySelector("#ov-queue"), cases, selected, 6);

@@ -976,8 +976,6 @@ function wireControls() {
   const on = (id, fn) => document.getElementById(id)?.addEventListener("click", fn);
   on("btn-fit", () => fitAll());
   on("btn-home", () => home());
-  on("btn-zoom-in", () => zoomBy(1));
-  on("btn-zoom-out", () => zoomBy(-1));
   on("btn-ambient", () => { state.ambient = !state.ambient; renderAll(); });
   on("btn-toggle-mobile-queue", () => toggleMobileQueue());
   on("btn-close-mobile-rail", () => setMobileQueueOpen(false));
