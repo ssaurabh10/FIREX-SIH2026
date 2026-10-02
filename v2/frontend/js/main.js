@@ -38,7 +38,7 @@ const el = {};
 function grab() {
   [
     "brand-window", "map-sub", "rail-counts", "risk-hist", "risk-span", "spine", "spine-count",
-    "filterbar", "map-strip", "in-view", "alert-flag", "q", "q-clear", "mapkey-glyphs",
+    "filterbar", "map-strip", "in-view", "q", "q-clear", "mapkey-glyphs",
     "inv-grid", "inv-filters",
     "industrial-body", "history-body", "settings-body",
   ].forEach((id) => { el[id] = document.getElementById(id); });
@@ -300,13 +300,7 @@ function anchorStamp() {
 
 /* --- Header state --------------------------------------------------------- */
 
-/* The bell carries a dot, not a number, so the count lives in the label where
-   a screen reader and a tooltip can both reach it. */
-function updateAlerts(win) {
-  const waiting = win.filter((c) =>
-    (c.risk.tier === "CRITICAL" || c.risk.tier === "HIGH") && getTriage(c.id) === "UNREVIEWED");
-  if (el["alert-flag"]) el["alert-flag"].hidden = waiting.length === 0;
-}
+
 
 function updateInView(counts) {
   if (!el["in-view"]) return;
@@ -767,7 +761,6 @@ function renderAll() {
   drawAmbientIfChanged(amb);
 
   syncControls();
-  updateAlerts(win);
   updateInView();
   renderView();
   markSelection();
@@ -809,31 +802,7 @@ function armClear(btn) {
   armTimer = setTimeout(renderAll, 4000);
 }
 
-/* The bell is only worth pressing if it lands on the case that needs the
-   decision, so it widens the filter far enough to show it.
 
-   This has no live trigger. It was bound to `#btn-alerts`, which no element in
-   `index.html` ever carried, so the binding was a no-op from the day it was
-   written; the reference is gone now, leaving this reachable only if the bell
-   is given an element again. Kept rather than deleted because it is the only
-   implementation of the behaviour -- drop it if the bell is not coming back. */
-function jumpToPriority() {
-  const waiting = windowed().filter((c) =>
-    (c.risk.tier === "CRITICAL" || c.risk.tier === "HIGH") && getTriage(c.id) === "UNREVIEWED");
-  if (!waiting.length) return;
-
-  const target = waiting[0];
-  const active = FILTERS.find((f) => f.id === state.filter);
-  if (active && !active.test(target)) state.filter = "critical";
-  if (state.query) {
-    state.query = "";
-    if (el.q) el.q.value = "";
-    if (el["q-clear"]) el["q-clear"].hidden = true;
-  }
-  setView("map");
-  renderAll();
-  pick(target.id, { modal: false });
-}
 
 /* --- Wiring ---------------------------------------------------------------
    Delegated from the document, because most of these controls are written by
