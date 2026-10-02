@@ -43,7 +43,10 @@ V1_ENV = "FIREX_V1_DATA_DIR"
 # The paths the defaults must still produce when nothing overrides them: the
 # served console fallback and its v1 twin, anchored on the repository root.
 SOURCE_TREE_FRONTEND = os.path.join(pipeline._REPO_ROOT, "v2", "frontend", "data")
-SOURCE_TREE_V1 = os.path.join(pipeline._REPO_ROOT, "v1", "dashboard", "data")
+_v1_candidate = os.path.join(pipeline._REPO_ROOT, "archive", "v1", "dashboard", "data")
+if not os.path.isdir(_v1_candidate) and os.path.isdir(os.path.join(pipeline._REPO_ROOT, "v1", "dashboard", "data")):
+    _v1_candidate = os.path.join(pipeline._REPO_ROOT, "v1", "dashboard", "data")
+SOURCE_TREE_V1 = _v1_candidate
 
 
 def _resolve_in_subprocess(env_overrides):

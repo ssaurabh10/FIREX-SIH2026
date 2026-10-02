@@ -74,12 +74,14 @@ class OpenRouterProvider(BaseAIProvider):
         model: Optional[str] = None,
         base_url: Optional[str] = None,
         timeout: Optional[int] = None,
-        max_retries: Optional[int] = None
+        max_retries: Optional[int] = None,
+        preferred_key_idx: Optional[int] = None
     ):
         self.model = model or settings.AI_MODEL
         self.base_url = (base_url or settings.AI_API_BASE_URL).rstrip("/")
         self.timeout = timeout or settings.AI_TIMEOUT_SECONDS
         self.max_retries = max_retries or settings.AI_MAX_RETRIES or key_pool.total_keys
+        self.preferred_key_idx = preferred_key_idx
 
     def _build_messages(self, prompt: str, image_data_uri: str) -> list:
         """
@@ -109,8 +111,16 @@ class OpenRouterProvider(BaseAIProvider):
 
         while attempts < total_attempts:
             attempts += 1
-            key = key_pool.get_current_key()
-            key_id = key_pool.get_key_identifier()
+            # Acquire key: use preferred_key_idx on the first attempt if specified
+            req_idx = self.preferred_key_idx if (attempts == 1 and self.preferred_key_idx is not None) else None
+            key_idx, key, key_id = None, "", ""
+            if hasattr(key_pool, "acquire_key"):
+                key_idx, key, key_id = key_pool.acquire_key(preferred_idx=req_idx)
+
+            if not key:
+                key = key_pool.get_current_key()
+                key_id = key_pool.get_key_identifier()
+                key_idx = getattr(key_pool, "current_idx", None)
 
             if not key:
                 # Every key is unusable -- quarantined by spec 6.3 cooldowns or the
@@ -133,7 +143,7 @@ class OpenRouterProvider(BaseAIProvider):
                 "temperature": settings.AI_TEMPERATURE
             }
 
-            key_pool.record_call()
+            key_pool.record_call(key_idx)
             try:
                 logger.info(f"[OpenRouter] Querying {self.model} via {key_id} (attempt {attempts}/{total_attempts})...")
                 resp = requests.post(endpoint, headers=headers, json=payload, timeout=self.timeout)
@@ -147,7 +157,7 @@ class OpenRouterProvider(BaseAIProvider):
                     reasoning = msg.get("reasoning_details") or msg.get("reasoning")
 
                     report = self._parse_json_response(content, reasoning, key_id)
-                    key_pool.record_success()
+                    key_pool.record_success(key_idx)
                     key_pool.advance_after_success()
                     return report
 
@@ -160,18 +170,18 @@ class OpenRouterProvider(BaseAIProvider):
                         f"[OpenRouter] {key_id} returned HTTP {resp.status_code} ({resp.text[:120]}). "
                         f"Quarantining key and failing over..."
                     )
-                    key_pool.quarantine_key(resp.status_code)
+                    key_pool.quarantine_key(resp.status_code, idx=key_idx)
 
                 else:
                     logger.warning(
                         f"[OpenRouter] {key_id} returned unexpected status {resp.status_code}: {resp.text[:150]}"
                     )
-                    key_pool.record_error()
+                    key_pool.record_error(key_idx)
                     key_pool.rotate_key()
 
             except requests.exceptions.RequestException as e:
                 logger.warning(f"[OpenRouter] Network or timeout error with {key_id}: {e}")
-                key_pool.record_error()
+                key_pool.record_error(key_idx)
                 key_pool.rotate_key()
 
         logger.error(f"[OpenRouter] All {total_attempts} attempts exhausted across key pool.")

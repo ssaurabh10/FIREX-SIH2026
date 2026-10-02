@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.storage.models import Incident, AIInvestigation, IncidentEvent
 from app.imagery.package import build_investigation_package
 from app.intelligence.vision import analyze_incident_scene
-from app.intelligence.provider import BaseAIProvider
+from app.intelligence.provider import BaseAIProvider, OpenRouterProvider, get_ai_provider
 from app.intelligence.schemas import AIInvestigationReport
 
 logger = logging.getLogger(__name__)
@@ -20,17 +20,21 @@ def run_incident_investigation(
     db: Session,
     custom_radius_meters: Optional[float] = None,
     force_reinvestigate: bool = False,
-    provider: Optional[BaseAIProvider] = None
+    provider: Optional[BaseAIProvider] = None,
+    preferred_key_idx: Optional[int] = None,
+    precomputed_report: Optional[AIInvestigationReport] = None
 ) -> Dict[str, Any]:
     """
     Executes an end-to-end multimodal AI investigation for a candidate incident.
     """
+    if provider is None and preferred_key_idx is not None:
+        provider = OpenRouterProvider(preferred_key_idx=preferred_key_idx)
     incident = db.query(Incident).filter(Incident.id == incident_id).first()
     if not incident:
         raise ValueError(f"Incident {incident_id} not found in database.")
 
     # 1. Check existing investigation if not forced
-    if not force_reinvestigate:
+    if not force_reinvestigate and precomputed_report is None:
         existing = db.query(AIInvestigation).filter(
             AIInvestigation.incident_id == incident_id
         ).order_by(AIInvestigation.created_at.desc()).first()
@@ -57,8 +61,8 @@ def run_incident_investigation(
         custom_radius_meters=custom_radius_meters
     )
 
-    # 3. Analyze scene through configured AI Provider
-    report: AIInvestigationReport = analyze_incident_scene(package, provider=provider)
+    # 3. Analyze scene through configured AI Provider (or use precomputed parallel report)
+    report: AIInvestigationReport = precomputed_report or analyze_incident_scene(package, provider=provider)
 
     # 4. Map uncertainty tier
     if report.confidence >= 80.0:

@@ -54,15 +54,12 @@ BANNER = r"""
 # this command actually performs.
 V2_CLI_COMMANDS = ("pipeline", "data", "severity-sweep", "migrate")
 
-# Archived v1 entrypoints. These paths moved under v1/ when the v2 tree landed;
-# the dispatcher previously pointed at the pre-move locations (`pipeline/`,
-# `dashboard/`, `archive/` at the repository root) and every one of them had
-# been dead ever since (R14).
+# Archived v1 entrypoints. Moved under archive/v1 as a historical prototype.
 V1_SCRIPTS = {
-    "v1-pipeline": os.path.join("v1", "pipeline", "05_orchestrator", "run_pipeline.py"),
-    "v1-daemon": os.path.join("v1", "pipeline", "07_persistence", "daemon.py"),
+    "v1-pipeline": os.path.join("archive", "v1", "pipeline", "05_orchestrator", "run_pipeline.py"),
+    "v1-daemon": os.path.join("archive", "v1", "pipeline", "07_persistence", "daemon.py"),
 }
-V1_LEGACY_SERVER = os.path.join("v1", "archive", "legacy_ui", "server.py")
+V1_LEGACY_SERVER = os.path.join("archive", "v1", "archive", "legacy_ui", "server.py")
 
 
 def cmd_serve(args):

@@ -152,6 +152,45 @@ def test_selection_prefers_the_longest_cooled_usable_key():
 
     assert pool.get_current_key() == "key-A-1234567890"
 
+
+def test_acquire_key_preferred_and_round_robin():
+    keys = ["key-A-1234567890", "key-B-1234567890", "key-C-1234567890", "key-D-1234567890"]
+    pool = KeyPoolManager(api_keys=keys)
+
+    # Preferred key checkout
+    idx, key, key_id = pool.acquire_key(preferred_idx=2)
+    assert idx == 2
+    assert key == keys[2]
+    assert "Key #3" in key_id
+
+    # Normal checkout advances round-robin
+    idx2, key2, _ = pool.acquire_key()
+    assert idx2 == 3
+    assert key2 == keys[3]
+
+    # Wraps around
+    idx3, key3, _ = pool.acquire_key()
+    assert idx3 == 0
+    assert key3 == keys[0]
+
+
+def test_acquire_key_concurrent_threads():
+    from concurrent.futures import ThreadPoolExecutor
+    keys = ["key-A-1234567890", "key-B-1234567890", "key-C-1234567890", "key-D-1234567890"]
+    pool = KeyPoolManager(api_keys=keys)
+
+    def worker_checkout(worker_id):
+        return pool.acquire_key(preferred_idx=worker_id % len(keys))
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        results = list(executor.map(worker_checkout, range(4)))
+
+    acquired_indices = [r[0] for r in results]
+    # All 4 distinct keys should be checked out across the 4 concurrent workers
+    assert sorted(acquired_indices) == [0, 1, 2, 3]
+
+
+
 # ---------------------------------------------------------------------------
 # 2. TAXONOMY & SCHEMA VALIDATION TESTS
 # ---------------------------------------------------------------------------

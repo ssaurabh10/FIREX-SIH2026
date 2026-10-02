@@ -16,4 +16,13 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: firex-postgres
+          property: connectionString
+
+databases:
+  - name: firex-postgres
+    databaseName: firex_db
+    user: firex_user
+    region: singapore
+    plan: free

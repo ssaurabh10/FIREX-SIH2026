@@ -17,14 +17,14 @@
 
 ## 🗂️ The v1 / v2 Split
 
-This repository holds two trees, and only one of them is the product.
+This repository holds the active production platform in `v2/`, and the archived prototype in `archive/v1/`.
 
 | Tree | Status | Entry point |
 |---|---|---|
-| `v2/` | **The live platform.** FastAPI backend, the operator console, the test suite, the logic specification. | `python run.py serve`, `pipeline`, `data`, `severity-sweep`, `migrate` |
-| `v1/` | **Archived prototype.** The original script-per-stage pipeline, its own GIS dashboard, and an even older UI. Kept for reference and demo history. | `python run.py legacy`, `v1-pipeline`, `v1-daemon` |
+| `v2/` | **The live platform (PRIMARY).** FastAPI backend, the operator console, the test suite, spatial clustering, and multi-key AI intelligence. | `python run.py serve`, `pipeline`, `data`, `severity-sweep`, `migrate` |
+| `archive/v1/` | **Archived prototype.** The original script-per-stage pipeline, historical GIS dashboard, and benchmark reference fixtures. | `python run.py legacy`, `v1-pipeline`, `v1-daemon` |
 
-`run.py` at the repository root is a dispatcher. `pipeline`, `data`, `severity-sweep` and `migrate` are forwarded verbatim to `v2/backend/cli.py` (`run.py`, `V2_CLI_COMMANDS`, which the dispatcher does not parse itself). `serve` does not delegate: `cmd_serve` launches `v2/backend/run.py`, the uvicorn entrypoint, as a subprocess with `PORT` and `HOST` in the environment. `legacy`, `v1-pipeline` and `v1-daemon` run scripts under `v1/` by explicit name (`V1_SCRIPTS`, `V1_LEGACY_SERVER`). The two trees do not share a database: v2 writes `v2/backend/data/firex_v2.db`, v1 wrote `v1/pipeline/07_persistence/firex_history.db`.
+`run.py` at the repository root is a dispatcher with `v2/` as its primary target. Commands `serve`, `pipeline`, `data`, `severity-sweep`, and `migrate` operate strictly on `v2/`. The `archive/v1/` tree is preserved for historical provenance.
 
 ---
 

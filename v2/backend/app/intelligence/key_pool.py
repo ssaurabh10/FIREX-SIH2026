@@ -105,6 +105,51 @@ class KeyPoolManager:
             self.current_idx = idx
             return self.api_keys[idx]
 
+    def get_key_at(self, idx: int) -> Tuple[str, str]:
+        """
+        Thread-safe query for key at index `idx` if usable.
+        Returns (key_str, key_id). Returns ("", "") if index is invalid or in cooldown.
+        """
+        with self.lock:
+            if not self.api_keys or idx < 0 or idx >= len(self.api_keys):
+                return "", "No-Key"
+            now = time.monotonic()
+            if not self._is_usable_locked(idx, now):
+                return "", f"Key #{idx + 1} (Quarantined)"
+            key = self.api_keys[idx]
+            prefix = key[:14] if len(key) >= 14 else key
+            return key, f"Key #{idx + 1} ({prefix}...)"
+
+    def acquire_key(self, preferred_idx: Optional[int] = None) -> Tuple[Optional[int], str, str]:
+        """
+        Thread-safe key checkout for concurrent workers.
+        If `preferred_idx` is provided and usable (not cooling down), that key is selected.
+        Otherwise, selects the best available key starting from current_idx.
+        Advances current_idx so the next concurrent caller gets the next key in round-robin order.
+        Returns (selected_idx, key_str, key_identifier).
+        """
+        with self.lock:
+            if not self.api_keys:
+                return None, "", "No-Key"
+            now = time.monotonic()
+            selected_idx = None
+            if preferred_idx is not None and 0 <= preferred_idx < len(self.api_keys):
+                if self._is_usable_locked(preferred_idx, now):
+                    selected_idx = preferred_idx
+
+            if selected_idx is None:
+                selected_idx = self._select_index_locked(now)
+
+            if selected_idx is None:
+                return None, "", "No-Key"
+
+            # Advance current_idx for subsequent callers
+            self.current_idx = (selected_idx + 1) % len(self.api_keys)
+            key = self.api_keys[selected_idx]
+            prefix = key[:14] if len(key) >= 14 else key
+            key_id = f"Key #{selected_idx + 1} ({prefix}...)"
+            return selected_idx, key, key_id
+
     def get_key_identifier(self, idx: Optional[int] = None) -> str:
         with self.lock:
             target_idx = self.current_idx if idx is None else idx

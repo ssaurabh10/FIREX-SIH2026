@@ -45,6 +45,7 @@ from app.selection.engine import select_investigation_candidates
 from app.imagery.service import get_or_create_incident_imagery
 from app.intelligence.service import run_incident_investigation
 from app.intelligence.provider import FALLBACK_CONFIDENCE_CEILING
+from app.intelligence.key_pool import key_pool
 from app.severity.service import evaluate_incident_severity
 from app.severity.scoring import (
     calculate_frp_severity,
@@ -88,7 +89,10 @@ _REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
 )
 FRONTEND_DATA_DIR = os.environ.get("FIREX_FRONTEND_DATA_DIR") or os.path.join(_REPO_ROOT, "v2", "frontend", "data")
-V1_DATA_DIR = os.environ.get("FIREX_V1_DATA_DIR") or os.path.join(_REPO_ROOT, "v1", "dashboard", "data")
+_v1_candidate = os.path.join(_REPO_ROOT, "archive", "v1", "dashboard", "data")
+if not os.path.isdir(_v1_candidate) and os.path.isdir(os.path.join(_REPO_ROOT, "v1", "dashboard", "data")):
+    _v1_candidate = os.path.join(_REPO_ROOT, "v1", "dashboard", "data")
+V1_DATA_DIR = os.environ.get("FIREX_V1_DATA_DIR") or _v1_candidate
 
 # Whether V1_DATA_DIR was set by the environment rather than derived from the
 # source tree. An explicit setting is an operator instruction and is honoured
@@ -1654,7 +1658,8 @@ def execute_analysis_pipeline(
         alerts_emitted = 0
         total_candidates = len(candidates)
 
-        # 8, 9, 10, 11: Visual Context, AI Investigation, Severity, and Alerts
+        # 8, 9, 10, 11: Visual Context, AI Investigation (Parallelized across Key Pool), Severity, and Alerts
+        prepared_candidates = []
         for idx, candidate in enumerate(candidates, start=1):
             inc_id = candidate["incident_id"]
             incident = db.query(Incident).filter(Incident.id == inc_id).first()
@@ -1701,33 +1706,95 @@ def execute_analysis_pipeline(
             )
             get_or_create_incident_imagery(inc_id, db, force_refresh=needs_ai)
 
-            # AI Investigation step
+            pkg = None
             if needs_ai:
-                event_broadcaster.publish(
-                    EVENT_AI_STARTED,
-                    {
-                        "incident_id": inc_id,
-                        "incident_code": incident.incident_code,
-                        "candidate_index": idx,
-                        "candidates_total": total_candidates,
-                        "stage_pct": ai_start_pct,
-                        "message": f"AI Vision analyzing Target {idx}/{total_candidates} ({incident.incident_code})..."
-                    },
-                    run_id=run_id
+                from app.imagery.package import build_investigation_package
+                pkg = build_investigation_package(inc_id, db)
+
+            prepared_candidates.append({
+                "idx": idx,
+                "inc_id": inc_id,
+                "incident_code": incident.incident_code,
+                "needs_ai": needs_ai,
+                "ai_start_pct": ai_start_pct,
+                "ai_done_pct": ai_done_pct,
+                "package": pkg
+            })
+
+        # Multimodal Vision AI: Execute concurrent parallel investigations across the key pool
+        ai_reports = {}
+        items_needing_ai = [c for c in prepared_candidates if c["needs_ai"] and c["package"] is not None]
+
+        for item in items_needing_ai:
+            event_broadcaster.publish(
+                EVENT_AI_STARTED,
+                {
+                    "incident_id": item["inc_id"],
+                    "incident_code": item["incident_code"],
+                    "candidate_index": item["idx"],
+                    "candidates_total": total_candidates,
+                    "stage_pct": item["ai_start_pct"],
+                    "message": f"AI Vision analyzing Target {item['idx']}/{total_candidates} ({item['incident_code']})..."
+                },
+                run_id=run_id
+            )
+
+        if items_needing_ai:
+            from concurrent.futures import ThreadPoolExecutor
+            from app.intelligence.vision import analyze_incident_scene
+            from app.intelligence.provider import OpenRouterProvider, get_ai_provider
+
+            pool_size = max(1, getattr(key_pool, "total_keys", 1))
+            max_workers = min(len(items_needing_ai), pool_size)
+
+            def _worker_investigate(task_pair):
+                batch_idx, c_item = task_pair
+                key_assigned_idx = batch_idx % pool_size
+                if getattr(settings, "AI_PROVIDER", "openrouter").lower() == "mock":
+                    provider = get_ai_provider()
+                else:
+                    provider = OpenRouterProvider(preferred_key_idx=key_assigned_idx)
+                report = analyze_incident_scene(c_item["package"], provider=provider)
+                return c_item["inc_id"], report
+
+            tasks = list(enumerate(items_needing_ai))
+            if max_workers > 1:
+                logger.info(f"[Pipeline] Dispatching {len(items_needing_ai)} AI vision investigations in parallel across {max_workers} worker threads.")
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    for inc_id, rep in executor.map(_worker_investigate, tasks):
+                        ai_reports[inc_id] = rep
+            else:
+                for task in tasks:
+                    inc_id, rep = _worker_investigate(task)
+                    ai_reports[inc_id] = rep
+
+        # Persistence, Severity Assessment & Alert Emission
+        for c_item in prepared_candidates:
+            inc_id = c_item["inc_id"]
+            incident = db.query(Incident).filter(Incident.id == inc_id).first()
+            if not incident:
+                continue
+
+            if c_item["needs_ai"]:
+                precomputed = ai_reports.get(inc_id)
+                ai_report = run_incident_investigation(
+                    inc_id,
+                    db,
+                    force_reinvestigate=True,
+                    precomputed_report=precomputed
                 )
-                ai_report = run_incident_investigation(inc_id, db, force_reinvestigate=True)
                 investigations_run += 1
                 event_broadcaster.publish(
                     EVENT_AI_COMPLETED,
                     {
                         "incident_id": inc_id,
                         "incident_code": incident.incident_code,
-                        "candidate_index": idx,
+                        "candidate_index": c_item["idx"],
                         "candidates_total": total_candidates,
-                        "stage_pct": ai_done_pct,
+                        "stage_pct": c_item["ai_done_pct"],
                         "classification": ai_report["classification"],
                         "confidence": ai_report["confidence"],
-                        "message": f"Target {idx}/{total_candidates} verified: {ai_report['classification']} ({ai_report['confidence']}%)"
+                        "message": f"Target {c_item['idx']}/{total_candidates} verified: {ai_report['classification']} ({ai_report['confidence']}%)"
                     },
                     run_id=run_id
                 )

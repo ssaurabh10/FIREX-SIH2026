@@ -35,6 +35,8 @@ History data/
 # to it instead of matching every path named config.py in the repository.
 v1/**/config.py
 v1/**/key_pool.py
+archive/v1/**/config.py
+archive/v1/**/key_pool.py
 section1_firms/config.py
 section4_vision_ai/config.py
 section5_pipeline/config.py
