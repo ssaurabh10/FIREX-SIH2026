@@ -151,7 +151,7 @@ v2/
 │   └── requirements.txt              Python dependencies
 │
 ├── frontend/                          ← Operator console (HTML/CSS/JS)
-│   ├── index.html                     Dashboard — dark-themed tactical map UI
+│   ├── index.html                     Dashboard — tactical map UI (Dark/Light themes, 5 views)
 │   ├── js/                            Map rendering, SSE listener, dossier views
 │   ├── styles/                        Design tokens, component styles
 │   └── data/                          JSON feed files (written by pipeline)
@@ -190,7 +190,7 @@ v2/
 | **Database** | SQLite (dev) / PostgreSQL (prod) | 15 normalized tables, 2.9M+ historical observations |
 | **AI Vision** | OpenRouter API | Multimodal image classification with fallback safety |
 | **Satellite Data** | NASA FIRMS API | VIIRS & MODIS thermal detections |
-| **Frontend** | HTML, CSS, JavaScript, Leaflet.js | Dark-themed tactical map console (no build step) |
+| **Frontend** | HTML, CSS, JavaScript, Leaflet.js | Tactical map console with Live Map, Investigations, Industry, History, and Settings views (no build step) |
 | **Testing** | pytest | 178 tests with full database isolation |
 
 ---

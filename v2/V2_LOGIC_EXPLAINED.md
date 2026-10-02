@@ -620,38 +620,41 @@ This means the operator always sees the most current severity assessment, not a 
 
 ## 9. The Operator Console (Frontend Dashboard)
 
-The operator console is a **dark-themed tactical web application** that provides a real-time view of all thermal intelligence across India.
+The operator console is a **tactical web application** that provides a real-time operational picture of all satellite thermal intelligence across India.
 
 ### What the Console Shows
 
-1. **Interactive map** — Shows all of India with:
-   - Incident markers colored by severity (green/yellow/orange/red)
-   - Clickable markers that open detailed incident dossiers
-   - Background ambient FIRMS detections as context
+The console is organized into five primary operator views via the spotlight navigation bar:
 
-2. **Incident queue** — A sortable list of all active incidents showing:
-   - Incident code (e.g., `INC-2026-0142`)
-   - Classification icon and label
-   - Severity score and level badge
-   - Location (state, district)
-   - FRP value
-   - Time since last detection
+1. **Live Map** — The primary real-time operational picture across India:
+   - **Interactive Leaflet Map**: Clean circular incident markers scaled by Fire Radiative Power (FRP) and colored by threat tier (Critical, High, Medium, Low), with category icons (industrial, agricultural, unclassified).
+   - **Basemap Switcher**: Instant switching between high-resolution Satellite Imagery and monochromatic Canvas layers.
+   - **FRP Difference Filter**: Fast thresholds (`All FRP`, `≥ 2 MW`, and default `≥ 5 MW`) to focus on major thermal emitters.
+   - **Priority Incidents List**: Real-time ranked list of top thermal targets by risk score and heat output, with quick filters and marker legend.
+   - **Ambient Context**: Optional background layer of raw unclassified satellite hotspots.
 
-3. **Incident dossier** — When you click an incident, a detailed panel opens showing:
-   - The satellite photo with tactical HUD overlay
-   - AI classification and confidence
-   - Historical baseline comparison
-   - Full evidence breakdown (visual, contextual, uncertainties)
-   - Severity factor breakdown (FRP, deviation, AI, GIS contributions)
+2. **Investigations** — Evidence verification workbench:
+   - Side-by-side incident cards pairing satellite infrared detections with high-resolution optical imagery analyzed by AI vision.
+   - Human operator verification and triage tools.
 
-4. **Real-time pipeline progress** — When the pipeline is running, shows live stage-by-stage progress via SSE
+3. **Industry** — National industrial registry and baseline tracking:
+   - Comprehensive facility register categorized across key sectors (Refinery & Flares, Steel & Metals, Coal & Mining, Power Generation, Chemical Plants).
+   - Facility search and 365-day normal thermal envelope comparison.
+
+4. **History** — Historical observation archive:
+   - Deep search interface querying over 2.89 million historical thermal detections across India.
+   - Multi-parameter filtering by state, district, date range, and minimum FRP.
+
+5. **Settings & Incident Dossier**:
+   - **Incident Dossier**: Deep-dive inspector drawer displaying optical satellite crops, tactical HUD range rings, AI confidence breakdown, and deterministic 5-factor risk scores.
+   - **Settings**: Local operator preferences, persistence toggles, and console controls.
 
 ### Technology
 
-- **No build step** — Pure HTML, CSS, and JavaScript (no React, no Webpack)
-- **Map:** Leaflet.js — an open-source mapping library
-- **Fonts:** Geist (display) and JetBrains Mono (monospace/data)
-- **Design:** Dark theme with carefully chosen color tokens for severity levels
+- **No build step** — Pure modern HTML5, CSS3, and ES6 JavaScript (zero React, zero Webpack)
+- **Map engine:** Leaflet.js with custom GPU-accelerated SVG glyph markers
+- **Theme system:** Full Dark and Light theme support with animated toggle and ambient spotlight tracking
+- **Responsive design:** Fully optimized for desktop monitors, tablets, and mobile smartphones with slide-out sheets
 - **Served by the backend** at `http://localhost:8000/console/`
 
 ---
