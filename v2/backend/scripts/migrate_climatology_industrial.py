@@ -12,6 +12,9 @@ from app.gis.assets import INITIAL_INDUSTRIAL_FACILITIES, is_metallurgical_or_ma
 from app.gis.spatial import haversine_distance_km
 
 def migrate_industrial_climatology():
+    if not settings.DATABASE_URL.startswith("sqlite"):
+        print("[!] This migration script only supports SQLite databases.")
+        sys.exit(1)
     db_path = settings.DATABASE_URL.replace("sqlite:///", "")
     con = sqlite3.connect(db_path, timeout=60.0)
     cur = con.cursor()

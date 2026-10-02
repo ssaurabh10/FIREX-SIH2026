@@ -11,14 +11,14 @@ from app.storage.models import Incident, IncidentEvent
 from app.core.logging import logger
 
 VALID_TRANSITIONS = {
-    "NEW": ["INVESTIGATING", "ACTIVE", "RESOLVED"],
-    "INVESTIGATING": ["ACTIVE", "PERSISTENT", "RESOLVED"],
+    "NEW": ["INVESTIGATING", "ACTIVE", "ESCALATED", "PERSISTENT", "SUBSIDING", "RESOLVED"],
+    "INVESTIGATING": ["ACTIVE", "ESCALATED", "PERSISTENT", "SUBSIDING", "RESOLVED"],
     "ACTIVE": ["INVESTIGATING", "PERSISTENT", "ESCALATED", "SUBSIDING", "RESOLVED"],
     "PERSISTENT": ["INVESTIGATING", "ACTIVE", "ESCALATED", "SUBSIDING", "RESOLVED"],
     "ESCALATED": ["ACTIVE", "PERSISTENT", "SUBSIDING", "RESOLVED"],
-    "SUBSIDING": ["ACTIVE", "RESOLVED"],
-    "RESOLVED": ["ACTIVE", "REOPENED"],
-    "REOPENED": ["ACTIVE", "INVESTIGATING", "RESOLVED"]
+    "SUBSIDING": ["ACTIVE", "ESCALATED", "PERSISTENT", "RESOLVED"],
+    "RESOLVED": ["ACTIVE", "ESCALATED", "PERSISTENT", "REOPENED"],
+    "REOPENED": ["ACTIVE", "INVESTIGATING", "ESCALATED", "PERSISTENT", "SUBSIDING", "RESOLVED"]
 }
 
 VALID_STATES = set(VALID_TRANSITIONS.keys())
@@ -54,6 +54,11 @@ def transition_incident_state(
     """
     curr = incident.status or "NEW"
     new_state_upper = new_state.upper()
+
+    if new_state_upper not in VALID_STATES:
+        raise ValueError(
+            f"Invalid state '{new_state}'. Valid states are: {sorted(list(VALID_STATES))}"
+        )
 
     allowed = VALID_TRANSITIONS.get(curr, [])
     if new_state_upper not in allowed and new_state_upper != curr:

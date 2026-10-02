@@ -16,6 +16,7 @@ from app.storage.database import get_db
 from app.storage.models import IndustrialAsset
 from app.gis.assets import seed_industrial_assets
 from app.gis.enrichment import enrich_coordinate_gis_context
+from app.core.security import verify_api_key, escape_like_pattern
 
 router = APIRouter(tags=["Industry Intelligence"])
 
@@ -56,15 +57,11 @@ def list_industries(
     if cached is not None:
         return cached
 
-    # Ensure seed data exists
-    if db.query(IndustrialAsset).count() == 0:
-        seed_industrial_assets(db)
-
     query = db.query(IndustrialAsset)
     if facility_type:
-        query = query.filter(IndustrialAsset.facility_type.ilike(f"%{facility_type}%"))
+        query = query.filter(IndustrialAsset.facility_type.ilike(f"%{escape_like_pattern(facility_type)}%"))
     if state:
-        query = query.filter(IndustrialAsset.state.ilike(f"%{state}%"))
+        query = query.filter(IndustrialAsset.state.ilike(f"%{escape_like_pattern(state)}%"))
     if category:
         query = query.filter(IndustrialAsset.category == category)
 
@@ -76,7 +73,7 @@ def list_industries(
 
 @router.get("/industries/search", response_model=List[IndustrialAssetResponse])
 def search_industries(
-    q: str = Query(..., min_length=1, description="Search query string"),
+    q: str = Query(..., min_length=1, max_length=100, description="Search query string"),
     limit: int = Query(default=20, le=100),
     db: Session = Depends(get_db)
 ):
@@ -88,10 +85,7 @@ def search_industries(
     if cached is not None:
         return cached
 
-    if db.query(IndustrialAsset).count() == 0:
-        seed_industrial_assets(db)
-
-    term = f"%{q.strip()}%"
+    term = f"%{escape_like_pattern(q.strip())}%"
     results = (
         db.query(IndustrialAsset)
         .filter(
@@ -128,7 +122,7 @@ def get_industry_by_id(asset_id: str, db: Session = Depends(get_db)):
     cache.set(cache_key, result, ttl=300)
     return result
 
-@router.post("/industries/seed")
+@router.post("/industries/seed", dependencies=[Depends(verify_api_key)])
 def trigger_seed_industries(db: Session = Depends(get_db)):
     """
     Trigger manual seeding of Indian industrial registry.

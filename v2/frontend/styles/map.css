@@ -829,7 +829,8 @@
     max-width: calc(100vw - 20px);
   }
 
-  .mapkey[open] .mapkey__pop {
+  .mapkey[open] .mapkey__pop,
+  .mapkey[open] .mapkey__panel {
     max-height: 50vh;
     overflow-y: auto;
   }

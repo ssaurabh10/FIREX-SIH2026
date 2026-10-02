@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.storage.database import get_db
 from app.intelligence.service import run_incident_investigation, get_incident_investigations
+from app.core.security import verify_api_key
 
 router = APIRouter(prefix="/investigation", tags=["AI Investigation"])
 
-@router.post("/{incident_id}", summary="Run AI Multimodal Investigation")
+@router.post("/{incident_id}", summary="Run AI Multimodal Investigation", dependencies=[Depends(verify_api_key)])
 def trigger_investigation(
     incident_id: str,
     custom_radius_meters: Optional[float] = Query(None, ge=100.0, le=10000.0, description="Optional custom radius in meters"),

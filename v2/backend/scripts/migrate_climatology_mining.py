@@ -11,6 +11,9 @@ from app.core.config import settings
 from app.gis.mining_basins import is_in_major_mining_basin
 
 def migrate_mining_climatology():
+    if not settings.DATABASE_URL.startswith("sqlite"):
+        print("[!] This migration script only supports SQLite databases.")
+        sys.exit(1)
     db_path = settings.DATABASE_URL.replace("sqlite:///", "")
     con = sqlite3.connect(db_path, timeout=60.0)
     cur = con.cursor()

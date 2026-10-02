@@ -118,6 +118,7 @@ def compute_investigation_priority(
     conf_norm = map_firms_confidence(confidence_raw, instrument, confidence_score)
 
     frp_ratio = 1.0
+    raw_ratio = 1.0
     if has_history and historical_median_frp and historical_median_frp > 0.0:
         # Section 4.5 / 4.4: R_frp = FRP_current / max(1.0, Median_FRP). The 1.0
         # floor on the denominator is load-bearing. Without it a detection below
@@ -128,13 +129,16 @@ def compute_investigation_priority(
         # 2.0x "notable thermal excursion" band) but reads 3.2x unfloored, which
         # fires the override (defect F-063). behavior/anomaly.py floors the same
         # denominator, and the two modules must not disagree.
-        frp_ratio = round(frp_mw / max(1.0, historical_median_frp), 2)
+        # Defect M-5: Test raw quotient rather than rounded ratio so [2.995, 3.0)
+        # does not falsely trigger the override.
+        raw_ratio = frp_mw / max(1.0, historical_median_frp)
+        frp_ratio = round(raw_ratio, 2)
 
     override_triggered, override_reasons = evaluate_selection_overrides(
         frp_mw=frp_mw,
         confidence=conf_norm,
         persistence_score=persistence_score,
-        frp_ratio=frp_ratio
+        frp_ratio=raw_ratio
     )
 
     if has_history:

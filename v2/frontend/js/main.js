@@ -734,7 +734,7 @@ function renderAll() {
   if (el["map-sub"]) {
     let sub;
     if (failed) {
-      sub = "Incident cases did not load. Start the console through server.py, then reload.";
+      sub = "Incident cases did not load. Start the console through backend/run.py, then reload.";
     } else if (!mapState.map) {
       sub = `${list.length} of ${win.length} detections listed. The map is unavailable, so they are in the spine and the other views only.`;
     } else {

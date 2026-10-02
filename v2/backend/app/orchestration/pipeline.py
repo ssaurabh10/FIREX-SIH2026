@@ -29,7 +29,7 @@ from app.core.logging import logger
 from app.storage.models import (
     Observation, Incident, IndustrialAsset, AIInvestigation,
     SeverityAssessment, AlertRecord, AnalysisRun, ThermalClimatology,
-    HistoricalBaseline, IncidentObservation
+    HistoricalBaseline, IncidentObservation, BehaviorProfile
 )
 from app.ingestion.firms import FIRMSClient
 from app.gis.enrichment import enrich_coordinate_gis_context
@@ -53,6 +53,7 @@ from app.severity.scoring import (
     score_to_level,
     SEVERITY_LEVELS,
 )
+from app.core.clock import data_reference_time
 from app.orchestration.lock import pipeline_lock, AnalysisAlreadyRunningError
 from app.orchestration.events import (
     event_broadcaster,
@@ -171,6 +172,7 @@ def _read_cached_location_baseline(db: Session, lat: float, lon: float) -> Dict[
         .first()
     )
     if clim:
+        prof = db.query(BehaviorProfile).filter(BehaviorProfile.spatial_reference == spatial_key).first()
         return {
             "spatial_key": spatial_key,
             "observation_count": clim.observation_count or 0,
@@ -178,7 +180,7 @@ def _read_cached_location_baseline(db: Session, lat: float, lon: float) -> Dict[
             "median_frp": clim.median_frp or 0.0,
             "p90_frp": clim.p90_frp or 0.0,
             "p95_frp": clim.p95_frp or 0.0,
-            "mean_frp": clim.median_frp or 0.0,
+            "mean_frp": prof.mean_frp if prof and prof.mean_frp else None,
             "max_frp": clim.max_frp or 0.0,
             "night_ratio": clim.night_ratio or 0.0,
             "is_routine_flare": bool(clim.is_routine_flare),
@@ -193,6 +195,16 @@ def _read_cached_location_baseline(db: Session, lat: float, lon: float) -> Dict[
         .first()
     )
     if cached:
+        prof = None
+        if cached.profile_id:
+            prof = db.query(BehaviorProfile).filter(BehaviorProfile.id == cached.profile_id).first()
+        if not prof:
+            prof = db.query(BehaviorProfile).filter(BehaviorProfile.spatial_reference == spatial_key).first()
+        clim_cell = db.query(ThermalClimatology).filter(ThermalClimatology.spatial_key == spatial_key).first()
+        resolved_max = (
+            (prof.max_frp if prof and prof.max_frp else None)
+            or (clim_cell.max_frp if clim_cell and clim_cell.max_frp else None)
+        )
         return {
             "spatial_key": spatial_key,
             "observation_count": cached.detection_count_90d or 0,
@@ -201,7 +213,7 @@ def _read_cached_location_baseline(db: Session, lat: float, lon: float) -> Dict[
             "p90_frp": cached.p90_frp or 0.0,
             "p95_frp": cached.p95_frp or 0.0,
             "mean_frp": cached.mean_frp or 0.0,
-            "max_frp": cached.p95_frp or 0.0,
+            "max_frp": resolved_max,
             "night_ratio": 0.0,
             "is_routine_flare": False,
             "site_classification_hint": "PERSISTENT_THERMAL" if cached.is_persistent else "EPISODIC_THERMAL",
@@ -1406,6 +1418,7 @@ def run_severity_sweep(db: Session, force: bool = False) -> Dict[str, Any]:
     targets = query.all()
     evaluated: List[str] = []
     failed: List[Dict[str, str]] = []
+    dispatched_alerts: List[Dict[str, Any]] = []
 
     for inc in targets:
         if not is_within_indian_sovereign_territory(inc.latitude, inc.longitude):
@@ -1413,6 +1426,16 @@ def run_severity_sweep(db: Session, force: bool = False) -> Dict[str, Any]:
         try:
             result = evaluate_incident_severity(inc.id, db)
             evaluated.append(f"{inc.incident_code}:{result['severity_level']}")
+            alert_info = result.get("alert")
+            if alert_info and alert_info.get("is_new", True):
+                dispatched_alerts.append({
+                    "alert_id": alert_info.get("alert_id"),
+                    "incident_id": inc.id,
+                    "incident_code": inc.incident_code,
+                    "severity_level": result["severity_level"],
+                    "status": alert_info.get("status", "NEW"),
+                    "title": alert_info.get("title", ""),
+                })
         except Exception as sev_err:
             db.rollback()
             failed.append({"incident_code": inc.incident_code or inc.id, "error": str(sev_err)})
@@ -1426,6 +1449,7 @@ def run_severity_sweep(db: Session, force: bool = False) -> Dict[str, Any]:
         "evaluated": len(evaluated),
         "failed": failed,
         "considered": len(targets),
+        "dispatched_alerts": dispatched_alerts,
     }
 
 
@@ -1592,8 +1616,9 @@ def execute_analysis_pipeline(
         )
 
         # 3. GIS Enrichment
-        # Query active observations in past 72 hours for spatial analysis
-        time_cutoff = datetime.utcnow() - timedelta(hours=72)
+        # Query active observations in past 72 hours for spatial analysis relative to data reference time (M-7)
+        ref_time = data_reference_time(db, use_cache=False)
+        time_cutoff = ref_time - timedelta(hours=72)
         active_obs = db.query(Observation).filter(Observation.acquired_at >= time_cutoff).all()
 
         # If sparse, take recent 50 observations
@@ -1856,6 +1881,22 @@ def execute_analysis_pipeline(
         # only its top five. This is what makes the console's tier histogram and
         # the alert feed describe the same system.
         sweep = run_severity_sweep(db)
+        for alert_item in sweep.get("dispatched_alerts", []):
+            alerts_emitted += 1
+            event_broadcaster.publish(
+                EVENT_ALERT_CREATED,
+                {
+                    "alert_id": alert_item.get("alert_id"),
+                    "incident_id": alert_item.get("incident_id"),
+                    "incident_code": alert_item.get("incident_code"),
+                    "severity_level": alert_item.get("severity_level"),
+                    "status": alert_item.get("status", "NEW"),
+                    "title": alert_item.get("title", ""),
+                    "message": f"Dispatched {alert_item.get('severity_level')} alert for {alert_item.get('incident_code')}"
+                },
+                run_id=run_id
+            )
+
         event_broadcaster.publish(
             EVENT_SEVERITY_COMPLETED,
             {

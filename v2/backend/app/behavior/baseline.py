@@ -230,16 +230,38 @@ def get_or_create_location_baseline(
             # from this branch by the cache guard above.)
             is_routine = False
             hint = "EPISODIC_THERMAL"
+
+        # Look up active days and max frp for this cell (Findings H-1, M-1)
+        prof = None
+        if existing_bl.profile_id:
+            prof = db.query(BehaviorProfile).filter(BehaviorProfile.id == existing_bl.profile_id).first()
+        if not prof:
+            prof = db.query(BehaviorProfile).filter(BehaviorProfile.spatial_reference == spatial_key).first()
+        clim_cell = db.query(ThermalClimatology).filter(ThermalClimatology.spatial_key == spatial_key).first()
+
+        active_days = (
+            (prof.active_days if prof and prof.active_days else None)
+            or (clim_cell.active_days if clim_cell and clim_cell.active_days else None)
+            or 0
+        )
+        resolved_max_frp = (
+            (prof.max_frp if prof and prof.max_frp else None)
+            or (clim_cell.max_frp if clim_cell and clim_cell.max_frp else None)
+            or None
+        )
+
         return {
             "spatial_key": spatial_key,
             "window_days": window_days,
             "observation_count": count,
+            "active_days": active_days,
+            "active_days_365d": active_days,
             "median_frp": existing_bl.median_frp,
             "p90_frp": existing_bl.p90_frp,
             "p95_frp": existing_bl.p95_frp,
             "mean_frp": existing_bl.mean_frp,
             "min_frp": 0.0,
-            "max_frp": existing_bl.p95_frp or 0.0,
+            "max_frp": resolved_max_frp,
             "history_reliability": existing_bl.history_reliability,
             "history_reliability_label": classify_history_reliability(count),
             "is_persistent": existing_bl.is_persistent,
@@ -281,15 +303,19 @@ def get_or_create_location_baseline(
             hint = "PERSISTENT_INDUSTRIAL" if bool(clim.is_routine_flare) else (clim.site_classification_hint or "EPISODIC_THERMAL")
 
         is_persistent = bool(is_routine or (count >= 5 and active_days >= 3) or is_mining or is_metal_fac)
+        prof = db.query(BehaviorProfile).filter(BehaviorProfile.spatial_reference == spatial_key).first()
+        resolved_mean_frp = prof.mean_frp if (prof and prof.mean_frp) else None
+
         return {
             "spatial_key": spatial_key,
             "window_days": window_days,
             "observation_count": count,
+            "active_days": active_days,
             "active_days_365d": active_days,
             "median_frp": clim.median_frp or 0.0,
             "p90_frp": clim.p90_frp or 0.0,
             "p95_frp": clim.p95_frp or 0.0,
-            "mean_frp": clim.median_frp or 0.0,
+            "mean_frp": resolved_mean_frp,
             "min_frp": 0.0,
             "max_frp": clim.max_frp or 0.0,
             "night_ratio": clim.night_ratio or 0.0,

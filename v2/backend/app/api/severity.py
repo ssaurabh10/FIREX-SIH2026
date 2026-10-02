@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.storage.database import get_db
 from app.severity.service import evaluate_incident_severity, get_incident_severity_history
+from app.core.security import verify_api_key
 
 router = APIRouter(prefix="/severity", tags=["Severity Engine"])
 
-@router.post("/evaluate/{incident_id}", summary="Evaluate Operational Incident Severity")
+@router.post("/evaluate/{incident_id}", summary="Evaluate Operational Incident Severity", dependencies=[Depends(verify_api_key)])
 def evaluate_severity(
     incident_id: str,
     db: Session = Depends(get_db)

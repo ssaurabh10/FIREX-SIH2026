@@ -357,15 +357,14 @@ def compute_incident_severity(
     # units of that median, and its anchors are the bands themselves: P50 -> 25.0,
     # P90 -> 52.5, P95 -> 65.4, P99 -> 100.0. It was already computed for every
     # incident and persisted, but reached the composite only for a routine flare
-    # (`is_routine_flare`: 493 of the 331,418 climatology cells), so the one
-    # curve with a defensible reference was the one almost never used.
-    #
-    # Applied unconditionally, including to the with-history model. FRP is an
-    # absolute quantity in both models and the relative judgement is already
-    # carried by Historical Deviation's 30%; using a different absolute curve
-    # according to whether a site has a baseline would make the same 10 MW fire
-    # score differently for that reason alone.
-    effective_frp_score = india_calibrated_frp
+    # Per Spec V2_LOGIC_SPECIFICATION.md:273 (§4.6.1):
+    # Effective FRP Score (S_FRP_eff): Uses S_FRP_calib for routine flaring facilities; uses S_FRP otherwise (H-3).
+    if is_routine_flare:
+        effective_frp_score = india_calibrated_frp
+        frp_curve_used = "india_calibrated"
+    else:
+        effective_frp_score = frp_score
+        frp_curve_used = "raw"
 
     if has_history:
         model_name = "KNOWN_HOTSPOT_WITH_HISTORY"
@@ -423,21 +422,10 @@ def compute_incident_severity(
         final_score = base_score
 
     # INV-4 -- Routine continuous thermal output inside the facility's own
-    # empirical 365-day P95 envelope is suppressed to a low score. Section 4.6.2
-    # clamps only S_dev, which is not sufficient on its own: with S_dev held at
-    # its own 20.0 ceiling the KNOWN_HOTSPOT model still returns
-    #   0.35*S_frp + 0.30*20.0 + 0.20*S_ai + 0.15*S_gis,
-    # so a large but entirely routine flare (say 5,000 MW against a 6,000 MW P95
-    # ceiling, AI `gas_flare` at 90%) reached the mid-70s -- CRITICAL -- while
-    # INV-4's headline promises such a detection is "clamped to low severity
-    # scores (<= 20.0)". The invariant is the contract; clamp the composite.
-    #
-    # The clause is widened from "is a routine flare" to "is a chronic source",
-    # so a facility the year of record shows hot on 90+ days is protected on the
-    # same terms a flare already was. `is_routine_flare` itself is left alone:
-    # a steel plant is not a flare, and the prompt and the classifier both say so.
-    # What the two share is not a label but the property that matters here --
-    # their thermal output is routine, so an ordinary reading is not an event.
+    # empirical 365-day P95 envelope is suppressed to a low score.
+    # Finding H-2: Operational overrides (forced CRITICAL / industrial_fire) must NEVER
+    # be demoted by suppression down to LOW/20.0, adhering to the contract that
+    # operational overrides raise the level, never lower it.
     is_chronic = (
         active_days_365 >= CHRONIC_ACTIVE_DAYS
         and observation_count >= MIN_CHRONIC_OBSERVATIONS
@@ -445,17 +433,18 @@ def compute_incident_severity(
     spike_bar = SPIKE_MULTIPLE_CHRONIC if is_chronic else SPIKE_MULTIPLE_QUIET
     is_anomalous = p95_frp <= 0.0 or frp_mw >= spike_bar * p95_frp
 
+    has_active_escalation = (forced_level in ["CRITICAL", "HIGH"]) or (classification == "industrial_fire")
     routine_suppressed = (
-        (is_routine_flare or is_chronic) and p95_frp > 0.0 and not is_anomalous
+        (is_routine_flare or is_chronic)
+        and p95_frp > 0.0
+        and not is_anomalous
+        and not has_active_escalation
     )
     if routine_suppressed:
         if final_score > 20.0:
             if is_routine_flare:
                 trigger_note = f"ROUTINE_FLARE_SUPPRESSION (composite {final_score:.1f} -> 20.0)"
             else:
-                # Carry the numbers that justify the clamp: an operator seeing a
-                # steel plant drop from CRITICAL to LOW needs to be able to check
-                # the reasoning, and both figures are already in hand here.
                 trigger_note = (
                     f"CHRONIC_SOURCE_SUPPRESSION (composite {final_score:.1f} -> 20.0; "
                     f"site active {active_days_365} of 366 days, reading {p95_ratio:.2f}x "
@@ -512,7 +501,7 @@ def compute_incident_severity(
             # attributed to an override the record never had. Records predating
             # the key have no marker and the renderer falls back to that older
             # rule -- see _weighted_risk_factors.
-            "frp_curve": "india_calibrated",
+            "frp_curve": frp_curve_used,
             "historical_deviation_score": dev_score,
             "ai_source_severity_score": ai_score,
             "gis_context_score": gis_score,

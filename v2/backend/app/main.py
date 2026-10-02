@@ -28,10 +28,12 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi import Request
 
 # CORS configuration
+# Prevent reflected origin vulnerability when wildcard origins are configured (H-4)
+allow_credentials = False if ("*" in settings.CORS_ORIGINS) else True
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -122,19 +124,16 @@ from app.imagery.service import get_or_create_incident_imagery
 
 @app.get("/crops/{incident_id}/{filename}")
 def serve_crop_image(incident_id: str, filename: str, db: Session = Depends(get_db)):
-    # 1. Check v2 imagery cache
+    # 1. Check v2 imagery cache (using commonpath to ensure trailing directory separator containment, L-2)
     file_path = os.path.abspath(os.path.join(V2_CROPS_DIR, incident_id, filename))
-    if file_path.startswith(V2_CROPS_DIR) and os.path.exists(file_path):
+    if os.path.commonpath([file_path, V2_CROPS_DIR]) == V2_CROPS_DIR and os.path.exists(file_path):
         media_type = "application/json" if filename.endswith(".json") else "image/jpeg"
         return FileResponse(file_path, media_type=media_type)
 
     # 2. Check the archived v1 crops dir, on checkouts that still have one.
-    #    V1_CROPS_DIR is None when `v1/` is absent, and the guard also keeps the
-    #    `startswith` containment test below meaningful -- joining onto None
-    #    would raise rather than 404.
     if V1_CROPS_DIR:
         v1_path = os.path.abspath(os.path.join(V1_CROPS_DIR, incident_id, filename))
-        if v1_path.startswith(V1_CROPS_DIR) and os.path.exists(v1_path):
+        if os.path.commonpath([v1_path, V1_CROPS_DIR]) == V1_CROPS_DIR and os.path.exists(v1_path):
             media_type = "application/json" if filename.endswith(".json") else "image/jpeg"
             return FileResponse(v1_path, media_type=media_type)
 

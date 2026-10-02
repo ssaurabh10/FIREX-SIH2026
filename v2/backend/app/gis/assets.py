@@ -592,9 +592,6 @@ def get_cached_assets(db: Session) -> List[IndustrialAsset]:
 
     if _ASSETS_CACHE is None:
         _ASSETS_CACHE = db.query(IndustrialAsset).all()
-        if not _ASSETS_CACHE:
-            seed_industrial_assets(db)
-            _ASSETS_CACHE = db.query(IndustrialAsset).all()
     return _ASSETS_CACHE
 
 def find_nearest_asset(lat: float, lon: float, db: Session) -> Dict[str, Any]:

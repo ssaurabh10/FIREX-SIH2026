@@ -19,6 +19,7 @@
   --t-quiet:     rgba(255, 255, 255, 0.24);
 
   --line-strong: rgba(255, 255, 255, 0.12);
+  --line-active: rgba(255, 255, 255, 0.22);
   --line:        rgba(255, 255, 255, 0.075);
   --line-hair:   rgba(255, 255, 255, 0.055);
 
@@ -39,6 +40,7 @@
   --t-quiet:     rgba(15, 23, 42, 0.35);
 
   --line-strong: rgba(15, 23, 42, 0.18);
+  --line-active: rgba(15, 23, 42, 0.28);
   --line:        rgba(15, 23, 42, 0.11);
   --line-hair:   rgba(15, 23, 42, 0.07);
 
@@ -56,6 +58,7 @@
      It means "selected / focused / active", never "important". */
   --signal:      #1688f7;
   --signal-soft: rgba(22, 136, 247, 0.14);
+  --signal-fade: rgba(22, 136, 247, 0.20);
   --signal-line: rgba(22, 136, 247, 0.42);
 
   /* --- Risk ramp ----------------------------------------------------------

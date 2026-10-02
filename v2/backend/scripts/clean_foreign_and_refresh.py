@@ -34,9 +34,9 @@ def main():
             db.delete(inc)
         db.commit()
 
-        # 2. Delete foreign observations (> 35.7°N)
-        del_obs_count = db.query(Observation).filter(Observation.latitude > 35.7).delete()
-        print(f"Deleted {del_obs_count} foreign observations with latitude > 35.7°N")
+        # 2. Delete foreign observations (> 37.6°N)
+        del_obs_count = db.query(Observation).filter(Observation.latitude > 37.6).delete()
+        print(f"Deleted {del_obs_count} foreign observations with latitude > 37.6°N")
         db.commit()
 
         # 3. Re-resolve state & district for remaining incidents

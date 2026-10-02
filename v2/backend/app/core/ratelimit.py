@@ -24,13 +24,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not settings.RATE_LIMIT_ENABLED:
             return await call_next(request)
 
-        # Skip rate limiting for static dashboard assets, css, js, and imagery crops
+        # Skip rate limiting for purely static dashboard assets, documentation, and openapi schema
+        # Finding H-7: /crops is NOT exempt because dynamic on-demand synthesis
+        # fetches external tiles and writes files/DB rows on cache miss.
         path = request.url.path
-        if path.startswith(("/console", "/crops", "/docs", "/redoc", "/openapi.json")):
+        if path.startswith(("/console", "/docs", "/redoc", "/openapi.json")):
             return await call_next(request)
 
-        # Determine client identifier
-        client_ip = request.client.host if request.client else "127.0.0.1"
+        # Determine client identifier (respecting X-Forwarded-For if available behind proxies, M-4)
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            client_ip = forwarded_for.split(",")[0].strip()
+        else:
+            client_ip = request.client.host if request.client else "127.0.0.1"
         now = time.time()
         window_start = now - 60.0
 

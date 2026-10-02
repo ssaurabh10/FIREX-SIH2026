@@ -15,7 +15,9 @@ from app.storage.database import get_db
 from app.storage.models import Incident, Observation, IncidentObservation, IncidentEvent
 from app.incidents.clustering import cluster_observations
 from app.incidents.association import sync_clusters_to_incidents
-from app.incidents.state import transition_incident_state
+from app.incidents.state import transition_incident_state, VALID_STATES
+from app.core.security import verify_api_key, escape_like_pattern
+from app.core.clock import data_reference_time
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
 
@@ -95,7 +97,7 @@ def get_incidents(
     if is_inside_facility is not None:
         query = query.filter(Incident.is_inside_facility == is_inside_facility)
     if state:
-        query = query.filter(Incident.state.ilike(f"%{state}%"))
+        query = query.filter(Incident.state.ilike(f"%{escape_like_pattern(state)}%"))
 
     return query.order_by(Incident.last_detected_at.desc()).offset(offset).limit(limit).all()
 
@@ -134,7 +136,7 @@ def get_incident_by_id(incident_id: str, db: Session = Depends(get_db)):
     resp_dict["events"] = [IncidentEventSummary.model_validate(e) for e in events]
     return resp_dict
 
-@router.post("/cluster-sync")
+@router.post("/cluster-sync", dependencies=[Depends(verify_api_key)])
 def trigger_cluster_sync(
     spatial_eps_meters: float = 1500.0,
     time_window_hours: float = 24.0,
@@ -155,8 +157,9 @@ def trigger_cluster_sync(
 
     Defaults follow Section 4.3 (spec line 129): eps_s = 1500 m, tau = 24.0 h.
     """
-    # Stage 3 input window: observations acquired in the last 72 hours
-    time_cutoff = datetime.utcnow() - timedelta(hours=72)
+    # Stage 3 input window: observations acquired in the last 72 hours relative to archive clock (M-7)
+    ref_time = data_reference_time(db)
+    time_cutoff = ref_time - timedelta(hours=72)
     observations = (
         db.query(Observation)
         .filter(Observation.acquired_at >= time_cutoff)
@@ -202,7 +205,7 @@ def trigger_cluster_sync(
         ]
     }
 
-@router.post("/{incident_id}/state")
+@router.post("/{incident_id}/state", dependencies=[Depends(verify_api_key)])
 def update_incident_state(
     incident_id: str,
     payload: StateTransitionRequest,
@@ -218,6 +221,12 @@ def update_incident_state(
     )
     if not incident:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
+
+    if payload.new_state.upper() not in VALID_STATES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid state '{payload.new_state}'. Valid states are: {sorted(list(VALID_STATES))}"
+        )
 
     updated = transition_incident_state(
         db,

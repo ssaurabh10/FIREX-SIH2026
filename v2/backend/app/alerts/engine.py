@@ -109,7 +109,7 @@ def evaluate_and_emit_alert(
                     f"Incident {incident.incident_code} escalated to {severity_level} "
                     f"(Score: {assessment.get('severity_score'):.1f}). "
                     f"Classification: {incident.classification}. "
-                    f"Max FRP: {incident.current_max_frp:.1f} MW."
+                    f"Max FRP: {(incident.current_max_frp or 0.0):.1f} MW."
                 ),
                 status="NEW",
                 created_at=datetime.utcnow()
@@ -158,7 +158,7 @@ def evaluate_and_emit_alert(
         f"Incident {incident.incident_code} reached {severity_level} severity "
         f"(Score: {score:.1f}, Confidence: {assessment.get('severity_confidence', 0.0):.1f}%). "
         f"Classification: {incident.classification}. "
-        f"Observed FRP: {incident.current_max_frp:.1f} MW."
+        f"Observed FRP: {(incident.current_max_frp or 0.0):.1f} MW."
     )
 
     alert = AlertRecord(

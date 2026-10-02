@@ -273,7 +273,8 @@ def build_climatology(min_detections: int = 3, db_path: str = None,
         ))
 
     print(f"[*] Identified {routine_flares_count} permanent flaring / industrial hot cells in India.")
-    print(f"[*] Inserting / updating {len(climatology_records)} records in 'thermal_climatology'...")
+    if not climatology_records:
+        raise RuntimeError("aggregate_thermal_cells produced 0 records; aborting to prevent wiping thermal_climatology table!")
 
     # Insert or replace into thermal_climatology. Whole-table replace: changing the grid invalidates
     # every existing row (see the module docstring), and the 0.01° rows of the previous release must

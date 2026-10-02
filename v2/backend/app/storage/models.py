@@ -28,7 +28,7 @@ class Observation(Base):
 
     id = Column(String, primary_key=True, default=generate_uuid)
     source = Column(String, default="NASA_FIRMS", index=True)
-    external_id = Column(String, nullable=True, index=True)
+    external_id = Column(String, nullable=True, unique=True, index=True)
     latitude = Column(Float, nullable=False, index=True)
     longitude = Column(Float, nullable=False, index=True)
     frp_mw = Column(Float, nullable=False, default=0.0)
@@ -63,8 +63,8 @@ class Incident(Base):
     first_detected_at = Column(DateTime, nullable=False)
     last_detected_at = Column(DateTime, nullable=False)
     observation_count = Column(Integer, default=1)
-    current_max_frp = Column(Float, default=0.0)
-    current_mean_frp = Column(Float, default=0.0)
+    current_max_frp = Column(Float, nullable=False, default=0.0)
+    current_mean_frp = Column(Float, nullable=False, default=0.0)
     
     # Priority & Severity
     investigation_priority = Column(Float, default=0.0)

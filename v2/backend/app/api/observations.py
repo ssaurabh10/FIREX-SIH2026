@@ -16,6 +16,7 @@ from app.storage.database import get_db
 from app.storage.models import Observation
 from app.ingestion.firms import FIRMSClient
 from app.core.config import settings
+from app.core.security import verify_api_key, escape_like_pattern
 from app.gis.spatial import haversine_distance_km
 
 router = APIRouter(prefix="/observations", tags=["Observations"])
@@ -68,7 +69,7 @@ def get_observations(
     if min_frp is not None:
         query = query.filter(Observation.frp_mw >= min_frp)
     if satellite:
-        query = query.filter(Observation.satellite.ilike(f"%{satellite}%"))
+        query = query.filter(Observation.satellite.ilike(f"%{escape_like_pattern(satellite)}%"))
     if daynight:
         query = query.filter(Observation.daynight == daynight.upper())
 
@@ -131,7 +132,7 @@ def get_observation_by_id(observation_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Observation not found")
     return obs
 
-@router.post("/ingest")
+@router.post("/ingest", dependencies=[Depends(verify_api_key)])
 def trigger_ingestion(payload: IngestionRequest, db: Session = Depends(get_db)):
     """
     Triggers FIRMS ingestion. If file_path is provided, loads from local CSV fixture.
@@ -139,13 +140,19 @@ def trigger_ingestion(payload: IngestionRequest, db: Session = Depends(get_db)):
     """
     client = FIRMSClient()
     if payload.file_path:
-        stats = client.ingest_from_file(db, payload.file_path, product=payload.product or settings.FIRMS_DEFAULT_PRODUCTS[0])
-        return {
-            "status": "success",
-            "mode": "fixture_file",
-            "file": payload.file_path,
-            "stats": stats
-        }
+        try:
+            stats = client.ingest_from_file(db, payload.file_path, product=payload.product or settings.FIRMS_DEFAULT_PRODUCTS[0])
+            return {
+                "status": "success",
+                "mode": "fixture_file",
+                "file": payload.file_path,
+                "stats": stats
+            }
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e)
+            )
     
     csv_text = client.fetch_live_csv(product=payload.product or "VIIRS_NOAA20_NRT", days=payload.days or 1)
     if not csv_text:

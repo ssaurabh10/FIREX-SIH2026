@@ -92,11 +92,11 @@ INDIA_MAINLAND_RING: List[List[float]] = [
     # India-Nepal border east of Banbasa
     [81.1, 28.3], [82.0, 27.9], [83.0, 27.5], [84.0, 27.5], [84.6, 27.15],
     [85.3, 26.9], [86.2, 26.65], [87.0, 26.4], [87.6, 26.35], [88.05, 26.4],
-    # Sikkim and the Bhutan flank
-    [88.1, 26.9], [88.15, 27.9], [88.9, 27.3], [89.1, 26.6], [89.7, 26.7],
+    # Sikkim and the Bhutan flank (corrected to include North Sikkim arc: Lachen, Lachung, Chungthang)
+    [88.1, 26.9], [88.05, 27.7], [88.15, 28.08], [88.65, 28.15], [88.92, 27.85], [88.9, 27.1], [89.7, 26.7],
     [91.6, 27.8],
-    # Arunachal Pradesh and the McMahon Line
-    [92.5, 27.5], [94.0, 27.5], [95.4, 29.0], [96.4, 29.4], [97.4, 28.2],
+    # Arunachal Pradesh and the McMahon Line (corrected to follow the McMahon arc: Tawang, Ziro, Daporijo)
+    [91.7, 27.85], [92.0, 27.85], [92.6, 28.2], [93.5, 28.5], [94.3, 28.7], [95.4, 29.0], [96.4, 29.4], [97.4, 28.2],
     [97.0, 27.2], [96.5, 26.0],
     # India-Myanmar border (Nagaland, Manipur, Mizoram)
     [95.2, 26.0], [94.6, 24.0], [93.4, 23.0], [93.2, 22.0], [92.6, 21.5],
@@ -104,13 +104,13 @@ INDIA_MAINLAND_RING: List[List[float]] = [
     # salient itself; this chord runs through Bangladeshi airspace only)
     [91.9, 23.0], [91.0, 23.3], [89.1, 22.1], [89.0, 21.65], [88.0, 21.55],
     [86.9, 21.5],
-    # Eastern coast
-    [86.5, 20.3], [85.85, 19.81], [85.3, 19.7], [84.0, 18.4],
-    [83.4, 17.7], [80.3, 15.9], [80.35, 13.1], [80.3, 11.5], [79.9, 10.3],
+    # Eastern coast (refined for Paradip, Kakinada, Machilipatnam & Krishna delta)
+    [86.75, 20.3], [85.85, 19.81], [85.3, 19.7], [84.0, 18.4],
+    [83.4, 17.7], [82.35, 17.0], [81.25, 16.15], [80.8, 15.8], [80.3, 15.2], [80.35, 13.1], [80.3, 11.5], [79.9, 10.3],
     [79.3, 9.2], [78.35, 8.9], [78.25, 8.75], [77.6, 8.35], [77.55, 8.05],
-    # Western coast
-    [76.9, 8.45], [76.55, 8.9], [76.2, 9.95], [75.8, 11.25], [74.75, 12.9],
-    [74.5, 14.0], [73.8, 15.0], [72.75, 19.0], [72.55, 20.6], [72.9, 21.4],
+    # Western coast (refined for Alappuzha, Kozhikode, Kannur, and Hazira industrial zone)
+    [76.9, 8.45], [76.55, 8.9], [76.3, 9.5], [76.2, 9.95], [75.75, 11.25], [75.32, 11.9], [74.75, 12.9],
+    [74.5, 14.0], [73.8, 15.0], [72.75, 19.0], [72.55, 20.6], [72.6, 21.12], [72.9, 21.4],
     [72.3, 21.6],
     # Saurashtra and the Gulf of Kutch
     [70.7, 20.9], [70.0, 21.4], [69.5, 21.6], [68.95, 22.25], [68.7, 23.0],
@@ -176,10 +176,11 @@ FOREIGN_EXCLUSION_GEOMETRIES: List[Dict[str, object]] = [
         [86.2, 26.65], [87.0, 26.4], [87.6, 26.35], [88.15, 26.4],
         [88.2, 28.2], [80.9, 30.45], [80.9, 30.2],
     ]]},
-    # Bhutan (Sikkim's eastern neighbour, between the Teesta and the Manas)
+    # Bhutan (Sikkim's eastern neighbour, between the Teesta and the Manas).
+    # Corrected eastern and western borders so it does not swallow Tawang (Arunachal) or North Sikkim.
     {"type": "Polygon", "coordinates": [[
-        [88.75, 26.6], [89.4, 26.7], [90.5, 26.7], [91.6, 26.8], [92.1, 26.9],
-        [92.1, 28.3], [89.0, 28.3], [88.75, 26.6],
+        [88.85, 26.7], [89.4, 26.7], [90.5, 26.7], [91.6, 26.8], [91.5, 27.8],
+        [91.5, 28.2], [88.95, 28.2], [88.85, 26.7],
     ]]},
     # Bangladesh (the West Bengal notch, the Meghalaya/Assam arc and the
     # Tripura/Mizoram eastern flank). The Tripura salient is notched out so

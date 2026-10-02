@@ -134,6 +134,14 @@ def sync_clusters_to_incidents(
             # Update existing incident
             logger.info(f"Associating cluster {cluster.cluster_id} to existing incident {matched_inc.incident_code}")
             
+            # Query already linked observation IDs for this incident to ensure idempotency (M-9, M-10)
+            existing_obs_ids = set(
+                row[0] for row in db.query(IncidentObservation.observation_id)
+                .filter(IncidentObservation.incident_id == matched_inc.id)
+                .all()
+            )
+            new_cluster_obs = [obs for obs in cluster.observations if obs.id not in existing_obs_ids]
+
             # Update temporal envelope (with timezone-naive safety)
             c_last = cluster.last_detected_at.replace(tzinfo=None) if (cluster.last_detected_at and getattr(cluster.last_detected_at, "tzinfo", None)) else cluster.last_detected_at
             m_last = matched_inc.last_detected_at.replace(tzinfo=None) if (matched_inc.last_detected_at and getattr(matched_inc.last_detected_at, "tzinfo", None)) else matched_inc.last_detected_at
@@ -145,14 +153,19 @@ def sync_clusters_to_incidents(
             if c_first and m_first and c_first < m_first:
                 matched_inc.first_detected_at = c_first
 
-            # Update FRP statistics enforcing non-summation rule
-            matched_inc.current_max_frp = max(matched_inc.current_max_frp, cluster.max_frp)
-            old_count = matched_inc.observation_count or 1
-            new_count = len(cluster.observations)
-            total_count = old_count + new_count
-            matched_inc.current_mean_frp = round(
-                (matched_inc.current_mean_frp * old_count + cluster.mean_frp * new_count) / max(1, total_count), 2
-            )
+            # Update FRP statistics enforcing non-summation rule and idempotency (M-9)
+            if new_cluster_obs:
+                new_max = max(o.frp_mw for o in new_cluster_obs)
+                matched_inc.current_max_frp = max(matched_inc.current_max_frp or 0.0, new_max)
+                old_count = matched_inc.observation_count or len(existing_obs_ids) or 0
+                new_count = len(new_cluster_obs)
+                new_sum = sum(o.frp_mw for o in new_cluster_obs)
+                if old_count == 0:
+                    matched_inc.current_mean_frp = round(new_sum / new_count, 2)
+                else:
+                    matched_inc.current_mean_frp = round(
+                        ((matched_inc.current_mean_frp or 0.0) * old_count + new_sum) / (old_count + new_count), 2
+                    )
             
             # Dynamic footprint expansion
             dist_from_center_m = haversine_distance_meters(
@@ -165,17 +178,19 @@ def sync_clusters_to_incidents(
             matched_inc.updated_at = datetime.utcnow()
             target_incident = matched_inc
 
-            record_incident_event(
-                db,
-                incident_id=target_incident.id,
-                event_type="incident.updated",
-                payload={
-                    "method": method,
-                    "score": score,
-                    "new_observations": len(cluster.observations),
-                    "current_max_frp": target_incident.current_max_frp
-                }
-            )
+            # Emit update event only when new observations were actually added (M-10)
+            if new_cluster_obs:
+                record_incident_event(
+                    db,
+                    incident_id=target_incident.id,
+                    event_type="incident.updated",
+                    payload={
+                        "method": method,
+                        "score": score,
+                        "new_observations": len(new_cluster_obs),
+                        "current_max_frp": target_incident.current_max_frp
+                    }
+                )
         else:
             # Create brand new incident
             incident_count += 1

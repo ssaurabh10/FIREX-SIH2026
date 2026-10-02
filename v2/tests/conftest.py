@@ -73,6 +73,7 @@ os.environ["FIREX_TEST_DB_DIR"] = _test_db_dir
 TEST_DB_PATH = os.path.abspath(os.path.join(_test_db_dir, "firex_test.db"))
 os.environ["FIREX_TEST_DB"] = TEST_DB_PATH
 os.environ["DATABASE_URL"] = "sqlite:///" + TEST_DB_PATH.replace("\\", "/")
+os.environ.setdefault("API_KEY_AUTH_ENABLED", "false")
 
 if TEST_DB_PATH == LIVE_DB_PATH:
     raise RuntimeError(

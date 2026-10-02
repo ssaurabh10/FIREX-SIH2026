@@ -593,9 +593,13 @@ export function renderOverview(el, ctx) {
   let dayPasses = 0;
   let nightPasses = 0;
   cases.forEach((c) => {
-    if (c.persistence?.dayNightStatus?.includes("DAY")) {
+    const s = String(c.persistence?.dayNightStatus || "").toUpperCase();
+    if (s.includes("DAY") && s.includes("NIGHT")) {
       dayPasses++;
-    } else if (c.persistence?.dayNightStatus?.includes("NIGHT")) {
+      nightPasses++;
+    } else if (s.includes("DAY")) {
+      dayPasses++;
+    } else if (s.includes("NIGHT")) {
       nightPasses++;
     } else {
       const h = c.at ? c.at.getUTCHours() : 12;
@@ -1923,7 +1927,7 @@ export function renderAnalytics(el, cases, ambient) {
   const head = `<div class="grid-4">
     ${tile(metric(fmt.int(risk.n), "", "Cases scored", `${ambient.length} background hotspots alongside`))}
     ${tile(metric(fmt.dec(risk.mean), "", "Mean risk", `Median ${risk.median}, range ${risk.min} to ${risk.max}`), 40)}
-    ${tile(metric(fmt.dec(frp.median), "MW", "Median FRP", `Total ${fmt.dec(frp.sum)} MW`), 80)}
+    ${tile(metric(fmt.dec(frp.median), "MW", "Median FRP", `Mean ${fmt.dec(frp.mean)} MW`), 80)}
     ${tile(metric(fmt.dec(frp.max), "MW", "Peak Heat Output", "Highest radiative power in window"), 120)}
   </div>`;
 
@@ -1939,7 +1943,7 @@ export function renderAnalytics(el, cases, ambient) {
       colsChart(histogram(cases.map((c) => c.frp), 8, 0, frpMax),
         { ticks: ["0", `${frpMax / 2}`, `${frpMax}`],
           title: (i) => `${fmt.dec(i * frpMax / 8)} to ${fmt.dec((i + 1) * frpMax / 8)} MW`,
-          summary: `Radiative power distribution, eight bins from 0 to ${frpMax} megawatts, total ${fmt.dec(frp.sum)} megawatts.` }),
+          summary: `Radiative power distribution, eight bins from 0 to ${frpMax} megawatts across ${risk.n} detections.` }),
       { foot: `<p class="u-micro">FRP is monochrome here on purpose. It measures energy, not risk, and the two must not be read as the same axis.</p>` })}
   </div>`;
 
@@ -2322,7 +2326,7 @@ export function renderHistory(el, histState, handlers = {}) {
 export function renderFailure(el, source, message) {
   set(el, `<div class="glass tile--lg">
     ${stateBlock(`${source} unavailable`,
-      `${message}. Start the console through server.py so the data and crop mounts resolve, then reload.`,
+      `${message}. Start the console through backend/run.py so the data and crop mounts resolve, then reload.`,
       "i-warning")}
   </div>`);
 }

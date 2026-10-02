@@ -14,6 +14,7 @@ from app.core.clock import data_reference_time
 from app.incidents.aggregation import resolve_firms_confidence
 from app.severity.scoring import compute_incident_severity
 from app.severity.state_machine import determine_lifecycle_state
+from app.incidents.state import transition_incident_state
 from app.alerts.engine import evaluate_and_emit_alert
 from app.gis.landcover import resolve_landcover
 
@@ -63,6 +64,22 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
     # disable suppression whenever the cache is cold, which is exactly the first
     # run after a scoring change.
     active_days = base_dict.get("active_days_365d", base_dict.get("active_days", 0)) or 0
+    if not active_days:
+        from app.storage.models import BehaviorProfile, ThermalClimatology
+        prof = None
+        facility_id = getattr(incident, "nearest_asset_id", None) or getattr(incident, "facility_id", None)
+        if facility_id:
+            prof = db.query(BehaviorProfile).filter(BehaviorProfile.facility_id == facility_id).first()
+        if not prof:
+            spatial_key = f"GRID_{round(incident.latitude, 2)}_{round(incident.longitude, 2)}"
+            prof = db.query(BehaviorProfile).filter(BehaviorProfile.spatial_reference == spatial_key).first()
+        if prof and prof.active_days:
+            active_days = prof.active_days
+        else:
+            spatial_key = f"GRID_{round(incident.latitude, 2)}_{round(incident.longitude, 2)}"
+            clim = db.query(ThermalClimatology).filter(ThermalClimatology.spatial_key == spatial_key).first()
+            if clim and clim.active_days:
+                active_days = clim.active_days
     baseline_obs_count = base_dict.get("observation_count", 0) or 0
 
     # Check eco-sensitive protected area containment
@@ -126,8 +143,15 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
     incident.severity_score = assessment["severity_score"]
     incident.severity_level = assessment["severity_level"]
     incident.severity_confidence = assessment["severity_confidence"]
-    incident.status = next_status
-    incident.updated_at = datetime.utcnow()
+    if next_status != incident.status:
+        transition_incident_state(
+            db,
+            incident=incident,
+            new_state=next_status,
+            reason=f"Severity assessment lifecycle update: {assessment['severity_level']} (recency {hours_since_last:.1f}h)"
+        )
+    else:
+        incident.updated_at = datetime.utcnow()
 
     # Make the persisted breakdown self-describing. `SeverityAssessment.factors`
     # used to carry only the component scores, so nothing downstream could
@@ -178,6 +202,7 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
             "score": assessment["severity_score"],
             "level": assessment["severity_level"],
             "confidence": assessment["severity_confidence"],
+            "status": incident.status,
             "model_used": assessment["model_used"],
             "alert_emitted": alert_dispatched,
             "alert_deduplicated": bool(alert_record is not None and not alert_dispatched),

@@ -14,6 +14,7 @@ from app.alerts.engine import (
     AlertNotFound,
     InvalidAlertTransition,
 )
+from app.core.security import verify_api_key
 
 router = APIRouter(prefix="/alerts", tags=["Alert Engine"])
 
@@ -57,8 +58,8 @@ def _alert_action_response(updated, message: str) -> Dict[str, Any]:
 # than being caught by an integration test (F-014). Both spellings are served
 # from one handler so the documented contract and the existing one cannot drift
 # apart again.
-@router.post("/{alert_id}/acknowledge", summary="Acknowledge Alert")
-@router.post("/{alert_id}/ack", summary="Acknowledge Alert (spec alias)")
+@router.post("/{alert_id}/acknowledge", summary="Acknowledge Alert", dependencies=[Depends(verify_api_key)])
+@router.post("/{alert_id}/ack", summary="Acknowledge Alert (spec alias)", dependencies=[Depends(verify_api_key)])
 def ack_alert(
     alert_id: str,
     notes: Optional[str] = Body(None, embed=True, description="Operator confirmation notes"),
@@ -74,7 +75,7 @@ def ack_alert(
         raise HTTPException(status_code=409, detail=str(e))
 
 
-@router.post("/{alert_id}/resolve", summary="Resolve Alert")
+@router.post("/{alert_id}/resolve", summary="Resolve Alert", dependencies=[Depends(verify_api_key)])
 def res_alert(
     alert_id: str,
     notes: Optional[str] = Body(None, embed=True, description="Resolution notes"),
@@ -90,7 +91,7 @@ def res_alert(
         raise HTTPException(status_code=409, detail=str(e))
 
 
-@router.post("/{alert_id}/dismiss", summary="Dismiss Alert (False Alarm / Controlled Burn)")
+@router.post("/{alert_id}/dismiss", summary="Dismiss Alert (False Alarm / Controlled Burn)", dependencies=[Depends(verify_api_key)])
 def dis_alert(
     alert_id: str,
     reason: str = Body("False alarm or controlled burn", embed=True),

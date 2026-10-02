@@ -33,6 +33,8 @@ from app.gis.boundaries import (
     resolve_admin_boundary
 )
 from app.gis.assets import find_nearest_asset, get_cached_assets
+from app.core.security import verify_api_key, escape_like_pattern
+from app.core.clock import data_reference_time
 import math
 from datetime import datetime, timedelta
 
@@ -41,7 +43,7 @@ router = APIRouter()
 @router.get("/incidents/{incident_id}/history", response_model=Dict[str, Any])
 def get_incident_history_profile(
     incident_id: str,
-    window_days: int = Query(90, description="Historical window in days (e.g. 30, 90, 365)"),
+    window_days: int = Query(90, ge=1, le=365, description="Historical window in days (e.g. 30, 90, 365)"),
     db: Session = Depends(get_db)
 ):
     """
@@ -116,7 +118,8 @@ def get_incident_anomaly_assessment(
         lon=incident.longitude,
         incident_id=incident_id,
         db=db,
-        persistence_score=persistence_score
+        persistence_score=persistence_score,
+        save_record=False
     )
     anomaly["facility_id"] = incident.nearest_asset_id
     anomaly["facility_name"] = incident.asset.name if incident.asset else None
@@ -136,7 +139,7 @@ def get_incident_trend(
         raise HTTPException(status_code=404, detail="Incident not found")
 
     search_radius_km = 3.0
-    now = datetime.utcnow()
+    now = data_reference_time(db)
     window_start = now - timedelta(days=90)
     lat_delta = search_radius_km / 111.0
     lon_delta = search_radius_km / (111.0 * max(0.1, math.cos(math.radians(incident.latitude))))
@@ -167,7 +170,7 @@ from app.core.cache import cache
 @router.get("/industries/{facility_id}/history", response_model=Dict[str, Any])
 def get_facility_history(
     facility_id: str,
-    window_days: int = Query(90, description="Historical window in days"),
+    window_days: int = Query(90, ge=1, le=365, description="Historical window in days"),
     db: Session = Depends(get_db)
 ):
     """
@@ -188,7 +191,7 @@ def get_facility_history(
 @router.get("/industries/{facility_id}/baseline", response_model=Dict[str, Any])
 def get_facility_baseline(
     facility_id: str,
-    window_days: int = Query(90, description="Historical window in days"),
+    window_days: int = Query(90, ge=1, le=365, description="Historical window in days"),
     db: Session = Depends(get_db)
 ):
     """
@@ -219,7 +222,7 @@ def get_facility_trends(
         raise HTTPException(status_code=404, detail="Facility not found")
 
     search_radius_km = (asset.buffer_radius_meters or 1500.0) / 1000.0
-    now = datetime.utcnow()
+    now = data_reference_time(db)
     window_start = now - timedelta(days=90)
     lat_delta = search_radius_km / 111.0
     lon_delta = search_radius_km / (111.0 * max(0.1, math.cos(math.radians(asset.latitude))))
@@ -246,7 +249,7 @@ def get_facility_trends(
     trend["facility_name"] = asset.name
     return trend
 
-@router.post("/history/refresh", response_model=Dict[str, Any])
+@router.post("/history/refresh", response_model=Dict[str, Any], dependencies=[Depends(verify_api_key)])
 def trigger_history_refresh(
     db: Session = Depends(get_db)
 ):
@@ -266,7 +269,7 @@ def search_historical_observations(
     max_frp: Optional[float] = Query(None, description="Maximum FRP in MW"),
     satellite: Optional[str] = Query(None, description="Satellite or sensor filter (VIIRS/MODIS)"),
     limit: int = Query(50, ge=1, le=200, description="Page limit"),
-    offset: int = Query(0, ge=0, description="Page offset"),
+    offset: int = Query(0, ge=0, le=10000, description="Page offset"),
     db: Session = Depends(get_db)
 ):
     """
@@ -355,7 +358,7 @@ def search_historical_observations(
 
     # 3. Satellite filter
     if satellite and satellite.upper() != "ALL":
-        sat_clean = f"%{satellite.strip()}%"
+        sat_clean = f"%{escape_like_pattern(satellite.strip())}%"
         filters.append(
             (Observation.satellite.ilike(sat_clean)) | (Observation.sensor.ilike(sat_clean))
         )

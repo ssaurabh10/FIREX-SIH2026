@@ -12,6 +12,7 @@ import io
 from typing import List, Dict, Any, Optional
 import requests
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app.core.config import settings
 from app.core.logging import logger
 from app.ingestion.validator import RawFIRMSObservation, NormalizedObservation
@@ -124,8 +125,26 @@ class FIRMSClient:
             existing_ids.add(obs.external_id)  # prevent duplicate in same batch
 
         if new_entities:
-            db.bulk_save_objects(new_entities)
-            db.commit()
+            try:
+                db.bulk_save_objects(new_entities)
+                db.commit()
+            except IntegrityError:
+                db.rollback()
+                logger.warning("IntegrityError during bulk_save_objects; falling back to per-row insert.")
+                saved_count = 0
+                for entity in new_entities:
+                    try:
+                        db.add(entity)
+                        db.commit()
+                        saved_count += 1
+                    except IntegrityError:
+                        db.rollback()
+                        skipped += 1
+                return {
+                    "ingested": saved_count,
+                    "skipped_duplicate": skipped,
+                    "total": len(observations)
+                }
 
         logger.info(f"Ingestion committed: {len(new_entities)} new observations, {skipped} duplicates skipped.")
         return {
@@ -137,8 +156,11 @@ class FIRMSClient:
     def ingest_from_file(self, db: Session, file_path: str, product: str = settings.FIRMS_DEFAULT_PRODUCTS[0]) -> Dict[str, int]:
         """
         Deterministic fixture ingestion from a local CSV file.
+        Enforces path containment to prevent arbitrary file reading (Finding H-5).
         """
-        with open(file_path, "r", encoding="utf-8") as f:
+        from app.core.security import validate_fixture_path
+        safe_path = validate_fixture_path(file_path)
+        with open(safe_path, "r", encoding="utf-8") as f:
             content = f.read()
         records = self.parse_csv(content, product=product)
         return self.save_to_db(db, records)

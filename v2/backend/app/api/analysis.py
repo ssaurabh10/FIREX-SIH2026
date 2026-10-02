@@ -30,6 +30,8 @@ from app.orchestration.pipeline import execute_analysis_pipeline
 # the name only existed inside the except branch, so the first real failure became
 # `NameError: name 'logger' is not defined` and the operator got no diagnosis at all.
 from app.core.logging import logger
+from app.core.security import verify_api_key, validate_fixture_path
+from app.core.cache import cache
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 # Top-level alias router for exact blueprint matching: POST /analysis/run
@@ -127,7 +129,7 @@ async def stream_analysis_events(request: Request):
     )
 
 
-@router.post("/run")
+@router.post("/run", dependencies=[Depends(verify_api_key)])
 def run_analysis_pipeline(
     req: Optional[AnalysisRunRequest] = None,
     stream: bool = Query(False, description="Stream SSE events directly"),
@@ -149,6 +151,14 @@ def run_analysis_pipeline(
         )
 
     req_data = req or AnalysisRunRequest()
+    if req_data.file_path:
+        try:
+            validate_fixture_path(req_data.file_path)
+        except ValueError as e:
+            raise HTTPException(
+                status_code=400,
+                detail=str(e)
+            )
 
     if stream:
         # If user requests direct streaming on POST, run in background thread and return SSE stream
@@ -249,7 +259,7 @@ def run_analysis_pipeline(
 # ---------------------------------------------------------------------------
 # TOP-LEVEL BLUEPRINT & V1 COMPATIBILITY ROUTES
 # ---------------------------------------------------------------------------
-@top_router.post("/analysis/run")
+@top_router.post("/analysis/run", dependencies=[Depends(verify_api_key)])
 def root_analysis_run(
     req: Optional[AnalysisRunRequest] = None,
     stream: bool = Query(False),
@@ -284,7 +294,7 @@ def run_sync_worker_pipeline() -> None:
         worker_db.close()
 
 
-@top_router.get("/api/trigger-sync-stream")
+@top_router.get("/api/trigger-sync-stream", dependencies=[Depends(verify_api_key)])
 async def v1_trigger_sync_stream(
     request: Request,
     db: Session = Depends(get_db)
@@ -302,7 +312,7 @@ async def v1_trigger_sync_stream(
     return await stream_analysis_events(request)
 
 
-@top_router.post("/api/trigger-sync")
+@top_router.post("/api/trigger-sync", dependencies=[Depends(verify_api_key)])
 def v1_trigger_sync(db: Session = Depends(get_db)):
     """v1 Dashboard compatibility synchronous trigger."""
     return run_analysis_pipeline(req=None, stream=False, db=db)
@@ -312,7 +322,12 @@ def v1_trigger_sync(db: Session = Depends(get_db)):
 def get_history_stats(db: Session = Depends(get_db)):
     """Returns persistent satellite overpass and run statistics for the console HUD widget."""
     total_runs = db.query(AnalysisRun).count()
-    total_hotspots = db.query(Observation).count()
+    cached_hotspots = cache.get("stats:total_hotspots")
+    if cached_hotspots is None:
+        total_hotspots = db.query(Observation).count()
+        cache.set("stats:total_hotspots", total_hotspots, ttl=120)
+    else:
+        total_hotspots = cached_hotspots
     latest_run = db.query(AnalysisRun).order_by(AnalysisRun.started_at.desc()).first()
     now = datetime.utcnow()
     ist_now = now + timedelta(hours=5, minutes=30)
