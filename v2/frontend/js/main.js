@@ -105,7 +105,7 @@ function loadPrefs() {
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
     Object.entries(PREF_VALID).forEach(([key, valid]) => {
-      if (saved[key] !== undefined && valid(saved[key])) state[key] = saved[key];
+      if (key !== "view" && saved[key] !== undefined && valid(saved[key])) state[key] = saved[key];
     });
     // Basemap defaults to satellite imagery on first visit / update
     if (saved.base_v2_set !== true) {
@@ -119,6 +119,13 @@ function loadPrefs() {
     if (!saved.window || saved.window === "24h") {
       state.window = "all";
     }
+    // Guarantee default landing page is always the Live Map ("map"), unless a URL hash is explicitly passed
+    const hash = (window.location.hash || "").replace(/^#/, "");
+    if (hash && PREF_VALID.view(hash)) {
+      state.view = hash;
+    } else {
+      state.view = "map";
+    }
   } catch { /* first run, or storage blocked */ }
   document.documentElement.setAttribute("data-theme", state.theme);
 }
@@ -126,7 +133,7 @@ function loadPrefs() {
 function savePrefs() {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
-      view: state.view, window: state.window, filter: state.filter,
+      window: state.window, filter: state.filter,
       frpThreshold: state.frpThreshold,
       base: state.base, base_v2_set: true, ambient: state.ambient, ambient_v2_set: true, theme: state.theme,
     }));
@@ -773,7 +780,6 @@ function renderAll() {
   syncControls();
   updateAlerts(win);
   updateInView();
-  renderQueueSummary();
   renderView();
   markSelection();
   refresh();
@@ -1050,77 +1056,7 @@ async function updatePersistenceWidget() {
   } catch { /* graceful fallback */ }
 }
 
-/* --- Published queue roll-up ---------------------------------------------
-   GET /api/console/feed now carries the feed's own roll-up over the queue it
-   just published, which answers what no per-window count can: what tier mix the
-   board actually holds and how many of those are HIGH or CRITICAL. It is
-   optional by design -- the static fallback reads a bare array, and a payload
-   cached before the roll-up existed has neither key -- so an absent summary
-   hides the strip instead of drawing zeroes that read like a finding. The strip
-   describes the published queue, not the current window, so it is written from
-   the feed and not from the filtered list. */
-const QUEUE_TIER_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
-function renderQueueSummary() {
-  const box = document.getElementById("queue-summary");
-  if (!box) return;
-
-  const summary = store.queueSummary;
-  const hist = summary && summary.tier_histogram;
-  if (!hist || typeof hist !== "object") {
-    box.style.display = "none";
-    box.hidden = true;
-    return;
-  }
-
-  const count = (id) => Math.max(0, Number(hist[id]) || 0);
-  const num = (raw, fallback) => (raw === null || raw === undefined || raw === "" || !Number.isFinite(Number(raw))
-    ? fallback
-    : Number(raw));
-  const active = num(summary.active_count, null);
-  const attention = num(summary.attention_count, count("HIGH") + count("CRITICAL"));
-  const statuses = Array.isArray(summary.active_statuses) ? summary.active_statuses.join(", ") : "";
-
-  const tiersEl = document.getElementById("queue-summary-tiers");
-  if (tiersEl) {
-    tiersEl.innerHTML = QUEUE_TIER_ORDER.map((id) => {
-      const n = count(id);
-      const label = id.charAt(0) + id.slice(1).toLowerCase();
-      return `<span class="tag tag--tier" data-tier="${id}"${n ? "" : ' style="opacity:.55"'}
-        title="${fmt.int(n)} ${label} in the published queue">${fmt.int(n)} ${label}</span>`;
-    }).join("");
-  }
-
-  const attentionEl = document.getElementById("queue-summary-attention");
-  if (attentionEl) {
-    attentionEl.textContent = `${fmt.int(attention)} need attention`;
-    attentionEl.title = statuses
-      ? `${Number.isFinite(active) ? `${fmt.int(active)} active. ` : ""}Queue holds statuses: ${statuses}`
-      : "";
-  }
-
-  const closedEl = document.getElementById("queue-summary-closed");
-  if (closedEl) {
-    const closedCount = Number.isFinite(Number(summary.closed_attention_count))
-      ? Number(summary.closed_attention_count)
-      : store.closedAttention.length;
-    if (closedCount > 0) {
-      const codes = store.closedAttention
-        .slice(0, 3)
-        .map((c) => c.incident_code || c.id)
-        .filter(Boolean)
-        .join(", ");
-      closedEl.textContent = `${fmt.int(closedCount)} closed HIGH/CRITICAL ${closedCount === 1 ? "incident still carries" : "incidents still carry"} open alerts`;
-      if (codes) closedEl.title = codes;
-      closedEl.style.display = "";
-    } else {
-      closedEl.style.display = "none";
-    }
-  }
-
-  box.hidden = false;
-  box.style.display = "";
-}
 
 function wirePersistenceSync() {
   const syncBtn = document.getElementById("btn-trigger-sync");
@@ -1541,6 +1477,12 @@ async function boot() {
   renderAll();
   if (state.view === "map") requestAnimationFrame(resize);
   window.addEventListener("resize", debounce(() => { if (state.view === "map") resize(); }, 150));
+  window.addEventListener("hashchange", () => {
+    const hash = (window.location.hash || "").replace(/^#/, "");
+    if (hash && PREF_VALID.view(hash) && hash !== state.view) {
+      setView(hash);
+    }
+  });
 }
 
 boot().catch(fatal);
