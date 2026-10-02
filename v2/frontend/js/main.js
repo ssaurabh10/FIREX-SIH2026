@@ -19,7 +19,7 @@ const state = {
   view: "map",
   window: "all",
   filter: "all",
-  frpThreshold: 0,
+  frpThreshold: 5,
   query: "",
   ambient: false,
   base: "satellite",
@@ -39,8 +39,8 @@ function grab() {
   [
     "brand-window", "map-sub", "rail-counts", "risk-hist", "risk-span", "spine", "spine-count",
     "filterbar", "map-strip", "in-view", "alert-flag", "q", "q-clear", "mapkey-glyphs",
-    "overview-body", "overview-window", "inv-grid", "inv-filters",
-    "industrial-body", "analytics-body", "history-body", "settings-body",
+    "inv-grid", "inv-filters",
+    "industrial-body", "history-body", "settings-body",
   ].forEach((id) => { el[id] = document.getElementById(id); });
 }
 
@@ -84,7 +84,7 @@ const ambientInWindow = () => {
    a layer that does not exist, and a non-boolean ambient flag drove an
    aria-checked attribute that read "1" to a screen reader. */
 const PREF_VALID = {
-  view: (v) => ["map", "overview", "investigations", "industrial", "analytics", "history", "settings"].includes(v),
+  view: (v) => ["map", "investigations", "industrial", "history", "settings"].includes(v),
   window: (v) => Object.prototype.hasOwnProperty.call(WINDOWS, v),
   filter: (v) => FILTERS.some((f) => f.id === v),
   frpThreshold: (v) => typeof v === "number" && v >= 0,
@@ -107,6 +107,10 @@ function loadPrefs() {
     Object.entries(PREF_VALID).forEach(([key, valid]) => {
       if (key !== "view" && saved[key] !== undefined && valid(saved[key])) state[key] = saved[key];
     });
+    // Default FRP threshold to ≥ 5 MW on first visit / update
+    if (saved.frp_v2_set !== true) {
+      state.frpThreshold = 5;
+    }
     // Basemap defaults to satellite imagery on first visit / update
     if (saved.base_v2_set !== true) {
       state.base = "satellite";
@@ -134,7 +138,7 @@ function savePrefs() {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       window: state.window, filter: state.filter,
-      frpThreshold: state.frpThreshold,
+      frpThreshold: state.frpThreshold, frp_v2_set: true,
       base: state.base, base_v2_set: true, ambient: state.ambient, ambient_v2_set: true, theme: state.theme,
     }));
   } catch { /* private mode: preferences last for this session only */ }
@@ -292,14 +296,7 @@ function anchorStamp() {
   return `${day} ${mon}, ${hh}:${mm} UTC`;
 }
 
-/* The window control is repeated above the overview so the totals on that page
-   can never be read against a window the reader cannot see. */
-function windowSeg() {
-  return `<div class="seg" role="radiogroup" aria-label="Detection window">${Object.entries(WINDOWS)
-    .map(([id, w]) => `<button class="seg__opt" type="button" role="radio"
-      aria-checked="${id === state.window}" data-window="${id}">${w.label}</button>`)
-    .join("")}</div>`;
-}
+
 
 /* --- Header state --------------------------------------------------------- */
 
@@ -384,10 +381,8 @@ function syncControls() {
 /* --- Views ---------------------------------------------------------------- */
 
 const VIEW_BODY = {
-  overview: "overview-body",
   investigations: "inv-grid",
   industrial: "industrial-body",
-  analytics: "analytics-body",
   history: "history-body",
   settings: "settings-body",
 };
@@ -681,17 +676,11 @@ function wireHistorySearch() {
 
 const VIEWS = {
   map: () => {},
-  overview: () => {
-    if (el["overview-window"]) el["overview-window"].innerHTML = windowSeg();
-    ui.renderOverview(el["overview-body"],
-      { cases: visible(), ambient: ambientInWindow(), selected: state.selected });
-  },
   investigations: () => ui.renderInvestigations(el["inv-grid"], visible(), state.selected),
   industrial: () => ui.renderIndustrial(el["industrial-body"], windowed(), state.selectedFacility,
     state.facilityQuery, state.facilitySector, state.facilitySort, state.facilityWindow,
     facilityProfile.id === state.selectedFacility ? facilityProfile : null,
     store.registry, state.facilityGroup),
-  analytics: () => ui.renderAnalytics(el["analytics-body"], windowed(), ambientInWindow()),
   history: () => {
     ui.renderHistory(el["history-body"], histState);
     if (!histState.data && !histState.loading) {
@@ -1467,7 +1456,7 @@ async function boot() {
   wireHistorySearch();
 
   /* Skeletons in the real panel geometry, so nothing shifts when data lands. */
-  ["overview-body", "inv-grid", "industrial-body", "analytics-body", "history-body", "settings-body"]
+  ["inv-grid", "industrial-body", "history-body", "settings-body"]
     .forEach((id) => ui.skeleton(el[id], 3));
   setView(state.view);
 

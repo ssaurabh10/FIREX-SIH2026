@@ -23,16 +23,16 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin="anonymous">
 
-<link rel="stylesheet" href="styles/tokens.css?v=2">
-<link rel="stylesheet" href="styles/base.css?v=2">
-<link rel="stylesheet" href="styles/surfaces.css?v=2">
-<link rel="stylesheet" href="styles/layout.css?v=5">
-<link rel="stylesheet" href="styles/components.css?v=7">
-<link rel="stylesheet" href="styles/charts.css?v=2">
-<link rel="stylesheet" href="styles/cards.css?v=5">
-<link rel="stylesheet" href="styles/map.css?v=7">
-<link rel="stylesheet" href="styles/dossier.css?v=3">
-<link rel="stylesheet" href="styles/toggle.css?v=2">
+<link rel="stylesheet" href="styles/tokens.css?v=22">
+<link rel="stylesheet" href="styles/base.css?v=22">
+<link rel="stylesheet" href="styles/surfaces.css?v=22">
+<link rel="stylesheet" href="styles/layout.css?v=22">
+<link rel="stylesheet" href="styles/components.css?v=22">
+<link rel="stylesheet" href="styles/charts.css?v=22">
+<link rel="stylesheet" href="styles/cards.css?v=22">
+<link rel="stylesheet" href="styles/map.css?v=22">
+<link rel="stylesheet" href="styles/dossier.css?v=22">
+<link rel="stylesheet" href="styles/toggle.css?v=22">
 </head>
 <body>
 
@@ -94,12 +94,10 @@
     <nav class="spotlight-nav" id="spotlight-nav" aria-label="Console sections">
       <ul class="spotlight-nav__list">
         <li><button class="spotlight-nav__item tab" type="button" data-view="map" data-index="0" aria-current="page">Live Map</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="overview" data-index="1">Overview</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="investigations" data-index="2">Investigations</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="industrial" data-index="3">Industry</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="analytics" data-index="4">Analytics</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="history" data-index="5">History</button></li>
-        <li><button class="spotlight-nav__item tab" type="button" data-view="settings" data-index="6">Settings</button></li>
+        <li><button class="spotlight-nav__item tab" type="button" data-view="investigations" data-index="1">Investigations</button></li>
+        <li><button class="spotlight-nav__item tab" type="button" data-view="industrial" data-index="2">Industry</button></li>
+        <li><button class="spotlight-nav__item tab" type="button" data-view="history" data-index="3">History</button></li>
+        <li><button class="spotlight-nav__item tab" type="button" data-view="settings" data-index="4">Settings</button></li>
       </ul>
 
       <!-- Moving Spotlight (Follows mouse cursor) -->
@@ -254,23 +252,25 @@
                 </div>
 
                 <div class="seg glass glass--frosted glass--over" role="radiogroup" aria-label="FRP Threshold Filter" id="frp-seg">
-                  <button class="seg__opt" type="button" role="radio" aria-checked="true" data-frp="0" title="Show all detections">All FRP</button>
+                  <button class="seg__opt" type="button" role="radio" aria-checked="false" data-frp="0" title="Show all detections">All FRP</button>
                   <button class="seg__opt" type="button" role="radio" aria-checked="false" data-frp="2" title="Filter thermal sources ≥ 2.0 MW">≥ 2 MW</button>
-                  <button class="seg__opt" type="button" role="radio" aria-checked="false" data-frp="5" title="Filter thermal sources ≥ 5.0 MW">≥ 5 MW</button>
+                  <button class="seg__opt" type="button" role="radio" aria-checked="true" data-frp="5" title="Filter thermal sources ≥ 5.0 MW">≥ 5 MW</button>
                 </div>
 
-                <button class="icon-btn glass glass--frosted glass--over glass--sm" type="button"
-                        id="btn-home" aria-label="Reset the view to India">
-                  <svg class="i" aria-hidden="true"><use href="#i-crosshair"/></svg>
-                </button>
-                <button class="icon-btn glass glass--frosted glass--over glass--sm" type="button"
-                        id="btn-fit" aria-label="Fit all detections in view" title="Fit all detections in view">
-                  <svg class="i" aria-hidden="true"><use href="#i-expand"/></svg>
-                </button>
-                <button class="icon-btn glass glass--frosted glass--over glass--sm" type="button"
-                        id="btn-ambient" aria-pressed="false" aria-label="Toggle background hotspots" title="Toggle background hotspots">
-                  <svg class="i" aria-hidden="true"><use href="#i-satellite"/></svg>
-                </button>
+                <div class="map-actions row" id="map-actions" style="gap:var(--s-2)">
+                  <button class="icon-btn glass glass--frosted glass--over glass--sm" type="button"
+                          id="btn-home" aria-label="Reset the view to India">
+                    <svg class="i" aria-hidden="true"><use href="#i-crosshair"/></svg>
+                  </button>
+                  <button class="icon-btn glass glass--frosted glass--over glass--sm" type="button"
+                          id="btn-fit" aria-label="Fit all detections in view" title="Fit all detections in view">
+                    <svg class="i" aria-hidden="true"><use href="#i-expand"/></svg>
+                  </button>
+                  <button class="icon-btn glass glass--frosted glass--over glass--sm" type="button"
+                          id="btn-ambient" aria-pressed="false" aria-label="Toggle background hotspots" title="Toggle background hotspots">
+                    <svg class="i" aria-hidden="true"><use href="#i-satellite"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -281,17 +281,6 @@
       </div>
     </section>
 
-    <!-- ================= OVERVIEW ================= -->
-    <section class="view view--scroll" id="view-overview" aria-label="Overview">
-      <header class="view__head">
-        <div class="view__title">
-          <h1 class="u-display">Watch floor</h1>
-          <p class="view__sub">Active satellite thermal monitoring overview across India, ranked by priority.</p>
-        </div>
-        <div class="row" id="overview-window"></div>
-      </header>
-      <div class="stack-5" id="overview-body"></div>
-    </section>
 
     <!-- ================= INVESTIGATIONS ================= -->
     <section class="view view--scroll" id="view-investigations" aria-label="Investigations">
@@ -349,16 +338,6 @@
       <div class="stack-5" id="industrial-body"></div>
     </section>
 
-    <!-- ================= ANALYTICS ================= -->
-    <section class="view view--scroll" id="view-analytics" aria-label="Analytics">
-      <header class="view__head">
-        <div class="view__title">
-          <h1 class="u-display">Analytics</h1>
-          <p class="view__sub">Every figure below is derived from the loaded detections at render time. Nothing here is hardcoded.</p>
-        </div>
-      </header>
-      <div class="stack-5" id="analytics-body"></div>
-    </section>
 
     <!-- ================= HISTORY ================= -->
     <section class="view view--scroll" id="view-history" aria-label="Historical observations archive">
@@ -505,7 +484,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin="anonymous"></script>
-<script type="module" src="js/main.js?v=24"></script>
+<script type="module" src="js/main.js?v=33"></script>
 
 </body>
 </html>

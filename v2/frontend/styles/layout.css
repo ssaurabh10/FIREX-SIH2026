@@ -17,7 +17,7 @@
   top: var(--s-4);
   left: 0;
   right: 0;
-  z-index: 50;
+  z-index: var(--z-nav, 900);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -536,6 +536,12 @@
   }
 
   /* --- Mobile Map View & Collapsible Bottom Sheet --- */
+  .mapview {
+    display: block;
+    overflow: hidden;
+    height: 100%;
+  }
+
   .mapview__rail {
     position: fixed;
     top: auto;

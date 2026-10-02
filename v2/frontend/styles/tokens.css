@@ -150,13 +150,13 @@
 
 /* Layer geometry. Declared once so nothing needs an arbitrary z-index. */
 :root {
-  --z-map: 0;
-  --z-map-overlay: 420;   /* above Leaflet panes (400) and controls (800 is ours) */
-  --z-nav: 900;
-  --z-drawer: 1000;
-  --z-modal: 1100;
-  --z-grain: 1200;
-  --z-fatal: 1300;        /* the boot failure notice, over everything including the grain */
+  --z-map: 1;
+  --z-map-overlay: 2000;   /* strictly above all Leaflet panes, markers (1000), popups and controls */
+  --z-nav: 2500;
+  --z-drawer: 3000;
+  --z-modal: 3500;
+  --z-grain: 4000;
+  --z-fatal: 5000;        /* the boot failure notice, over everything including the grain */
 }
 
 /* Respect the OS preference for less transparency: fall back to opaque fills. */

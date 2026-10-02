@@ -12,6 +12,8 @@
   position: absolute;
   inset: 0;
   background: var(--ink-800);
+  z-index: 0;
+  isolation: isolate;
 }
 
 /* What fills the frame when Leaflet never arrived. A grid, so the .state block
@@ -114,14 +116,7 @@
   width: 10px;
   height: 10px;
 }
-.mk[data-frp-scale="sm"] .mk__rank {
-  min-width: 11px;
-  height: 11px;
-  font-size: 7.5px;
-  top: -4px;
-  right: -5px;
-  padding: 0 2px;
-}
+
 
 .mk[data-frp-scale="md"] {
   width: 23px;
@@ -132,13 +127,7 @@
   width: 12px;
   height: 12px;
 }
-.mk[data-frp-scale="md"] .mk__rank {
-  min-width: 13px;
-  height: 13px;
-  font-size: 8.5px;
-  top: -4px;
-  right: -6px;
-}
+
 
 .mk[data-frp-scale="lg"] {
   width: 28px;
@@ -206,21 +195,7 @@
 }
 
 .mk__rank {
-  position: absolute;
-  top: -5px;
-  right: -7px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  display: grid;
-  place-items: center;
-  border-radius: 99px;
-  background: var(--ink-900);
-  box-shadow: 0 0 0 1px var(--line-strong);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 1;
-  color: var(--t-secondary);
+  display: none !important;
 }
 
 /* --- Cluster Marker (Dynamic Map De-cluttering) --------------------------- */
@@ -498,7 +473,16 @@
 
 .ovl {
   position: absolute;
-  z-index: var(--z-map-overlay);
+  z-index: var(--z-map-overlay, 2000) !important;
+  pointer-events: auto !important;
+}
+
+.ovl--tr,
+.ovl--bl,
+.ovl--tl,
+.ovl--br {
+  z-index: var(--z-map-overlay, 2000) !important;
+  pointer-events: auto !important;
 }
 
 .ovl--tl {
@@ -761,55 +745,84 @@
 
 @media (max-width: 768px) {
   .ovl--bl {
-    left: 10px;
-    right: 10px;
-    bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 52px);
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-    gap: 6px;
+    position: static;
+    display: contents;
+  }
+
+  /* FRP Threshold Filter: Center-aligned directly above bottom row */
+  #frp-seg {
+    position: fixed;
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 50px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--z-map-overlay, 2000) !important;
+    pointer-events: auto !important;
+    display: inline-flex;
     align-items: center;
-    pointer-events: none;
-    z-index: 30;
-    padding-bottom: 2px;
-  }
-
-  .ovl--bl::-webkit-scrollbar {
-    display: none;
-  }
-
-  .ovl--bl > * {
-    pointer-events: auto;
-  }
-
-  .ovl--bl .seg {
+    white-space: nowrap;
     padding: 2px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
   }
 
-  .ovl--bl .seg__opt {
+  #frp-seg .seg__opt {
+    padding: 5px 12px;
+    font-size: 0.74rem;
+    min-height: 32px;
+    white-space: nowrap;
+  }
+
+  /* Basemap toggle (Canvas / Imagery): Shifted down to assigned bottom-left position */
+  #base-seg {
+    position: fixed;
+    bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    left: 10px;
+    z-index: var(--z-map-overlay, 2000) !important;
+    pointer-events: auto !important;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+  }
+
+  #base-seg .seg__opt {
     padding: 5px 9px;
     font-size: 0.72rem;
     min-height: 32px;
+    white-space: nowrap;
   }
 
-  .ovl--bl .icon-btn {
+  /* Map Action Buttons (Home, Fit, Ambient): Shifted down to bottom-right position */
+  #map-actions {
+    position: fixed;
+    bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    right: 10px;
+    z-index: var(--z-map-overlay, 2000) !important;
+    pointer-events: auto !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  #map-actions .icon-btn {
     width: 32px;
     height: 32px;
     padding: 6px;
     border-radius: var(--r-sm);
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   }
 
   .ovl--tr {
     top: calc(var(--nav-h, 50px) + 12px);
     right: 12px;
-    z-index: 30;
+    z-index: var(--z-map-overlay, 2000) !important;
+    pointer-events: auto !important;
   }
 
   .ovl--br {
     bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 52px);
     right: 10px;
+    z-index: var(--z-map-overlay, 2000) !important;
   }
 
   .mapkey {

@@ -118,7 +118,6 @@ function markerHtml(c) {
     `<div class="mk" data-tier="${c.risk.tier}" data-frp-scale="${scale}" data-confirmed="${c.confirmed ? 1 : 0}"`,
     ` data-lead="${c.rank === 1 ? 1 : 0}" data-case="${escapeHtml(c.id)}">`,
     icon(c.cls.icon, iconClass),
-    `<span class="mk__rank">${c.rank}</span>`,
     `</div>`,
   ].join("");
 }
