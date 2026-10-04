@@ -749,10 +749,10 @@
     display: contents;
   }
 
-  /* FRP Threshold Filter: Center-aligned directly above bottom row */
+  /* FRP Threshold Filter: Center-aligned on bottom row */
   #frp-seg {
     position: fixed;
-    bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 50px);
+    bottom: max(16px, env(safe-area-inset-bottom, 16px));
     left: 50%;
     transform: translateX(-50%);
     z-index: var(--z-map-overlay, 2000) !important;
@@ -765,9 +765,9 @@
   }
 
   #frp-seg .seg__opt {
-    padding: 5px 12px;
-    font-size: 0.74rem;
-    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 0.71rem;
+    min-height: 30px;
     white-space: nowrap;
   }
 
@@ -810,6 +810,29 @@
     border-radius: var(--r-sm);
     flex-shrink: 0;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+
+  @media (max-width: 400px) {
+    #base-seg {
+      left: 6px;
+    }
+    #base-seg .seg__opt {
+      padding: 4px 7px;
+      font-size: 0.69rem;
+    }
+    #frp-seg .seg__opt {
+      padding: 4px 6px;
+      font-size: 0.68rem;
+    }
+    #map-actions {
+      right: 6px;
+      gap: 2px;
+    }
+    #map-actions .icon-btn {
+      width: 29px;
+      height: 29px;
+      padding: 5px;
+    }
   }
 
   .ovl--tr {

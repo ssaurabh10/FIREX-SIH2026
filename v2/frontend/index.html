@@ -26,13 +26,14 @@
 <link rel="stylesheet" href="styles/tokens.css?v=22">
 <link rel="stylesheet" href="styles/base.css?v=22">
 <link rel="stylesheet" href="styles/surfaces.css?v=22">
-<link rel="stylesheet" href="styles/layout.css?v=22">
+<link rel="stylesheet" href="styles/layout.css?v=26">
 <link rel="stylesheet" href="styles/components.css?v=22">
 <link rel="stylesheet" href="styles/charts.css?v=22">
 <link rel="stylesheet" href="styles/cards.css?v=22">
-<link rel="stylesheet" href="styles/map.css?v=22">
+<link rel="stylesheet" href="styles/map.css?v=26">
 <link rel="stylesheet" href="styles/dossier.css?v=22">
 <link rel="stylesheet" href="styles/toggle.css?v=22">
+<link rel="stylesheet" href="styles/chat.css?v=6">
 </head>
 <body>
 
@@ -83,6 +84,8 @@
 <symbol id="i-database" viewBox="0 0 24 24"><path d="M4 6.8c0-1.6 3.6-2.9 8-2.9s8 1.3 8 2.9-3.6 2.9-8 2.9-8-1.3-8-2.9Z"/><path d="M4 6.8v10.4c0 1.6 3.6 2.9 8 2.9s8-1.3 8-2.9V6.8M4 12c0 1.6 3.6 2.9 8 2.9s8-1.3 8-2.9"/></symbol>
 <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.4 19 6.3v5.4c0 4.5-3 7.7-7 9.5-4-1.8-7-5-7-9.5V6.3Z"/></symbol>
 <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M2.5 12 21 3.5 12 21.5l-2.5-6.5Z"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11A8 8 0 0 0 6.3 5.3L3 8.5M4 13a8 8 0 0 0 13.7 5.7L21 15.5"/><path d="M3 3v5.5h5.5M21 21v-5.5h-5.5"/></symbol>
 </svg>
 
 <a class="u-skip" href="#stage">Skip to console</a>
@@ -477,13 +480,88 @@
 
 <div class="vignette" aria-hidden="true"></div>
 
+<!-- ================= FIREX AI CHATBOT ASSISTANT ================= -->
+<div class="chat-trigger-wrap" id="chat-trigger-wrap">
+  <button class="chatBtn glass glass--frosted glass--over" id="btn-toggle-chat" type="button" aria-expanded="false" aria-label="Toggle FIREX AI Assistant">
+    <svg class="i i--sm chatBtn__icon" aria-hidden="true"><use href="#i-crosshair"/></svg>
+    <span class="chatBtn__label">AI CHAT</span>
+    <span class="chat-ping" aria-hidden="true"></span>
+  </button>
+</div>
+
+<!-- Chat Widget Modal / Card -->
+<div class="chat-widget glass glass--frosted glass--over" id="chat-widget" data-open="false" aria-label="FIREX AI Assistant">
+  <div class="chat-header">
+    <div class="chat-header__info">
+      <div class="chat-header__avatar">
+        <svg class="i i--sm" aria-hidden="true" style="width:15px;height:15px;"><use href="#i-pulse"/></svg>
+      </div>
+      <div>
+        <h3 class="chat-header__title">FIREX AI Assistant</h3>
+        <span class="chat-header__status">
+          <span class="chat-header__dot"></span>
+          Online · OpenRouter (dots-3-note)
+        </span>
+      </div>
+    </div>
+    <div class="chat-header__actions">
+      <button class="chat-btn-action" id="btn-clear-chat" type="button" title="Clear conversation" aria-label="Clear conversation">
+        <svg class="i i--sm" aria-hidden="true" style="width:14px;height:14px;"><use href="#i-refresh"/></svg>
+      </button>
+      <button class="chat-btn-action" id="btn-close-chat" type="button" title="Close" aria-label="Close chat">
+        <svg class="i i--sm" aria-hidden="true" style="width:14px;height:14px;"><use href="#i-x"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="chat-body" id="chat-body">
+    <div class="chat-suggestions" id="chat-suggestions">
+      <span class="chat-suggestions__label">Common Questions</span>
+      <button class="chat-chip" type="button">
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-shield"/></svg>
+        <span>How does FIREX eliminate false alarms?</span>
+      </button>
+      <button class="chat-chip" type="button">
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-pulse"/></svg>
+        <span>Explain the 365-day P95 diurnal baseline</span>
+      </button>
+      <button class="chat-chip" type="button">
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-sliders"/></svg>
+        <span>How is the priority score calculated?</span>
+      </button>
+      <button class="chat-chip" type="button">
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-satellite"/></svg>
+        <span>What satellites and sensors are used?</span>
+      </button>
+      <button class="chat-chip" type="button">
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-layers"/></svg>
+        <span>How does the 10-stage pipeline work?</span>
+      </button>
+      <button class="chat-chip" type="button">
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-flame"/></svg>
+        <span>What are the top thermal targets right now?</span>
+      </button>
+    </div>
+  </div>
+
+  <form class="chat-foot" id="chat-form">
+    <div class="chat-input-wrap">
+      <textarea class="chat-input" id="chat-input" rows="1" placeholder="Ask any question about FIREX, detections, or how it works..." aria-label="Message FIREX AI Assistant"></textarea>
+    </div>
+    <button class="chat-send-btn" id="chat-send-btn" type="submit" aria-label="Send message" title="Send message">
+      <svg class="i i--sm" aria-hidden="true" style="width:16px;height:16px;"><use href="#i-send"/></svg>
+    </button>
+  </form>
+</div>
+
 <!-- Micro Toast Notifications Container -->
 <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin="anonymous"></script>
-<script type="module" src="js/main.js?v=34"></script>
+<script type="module" src="js/main.js?v=37"></script>
+<script type="module" src="js/chat.js?v=11"></script>
 
 </body>
 </html>

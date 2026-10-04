@@ -557,7 +557,7 @@
     border: 1px solid var(--line-strong);
     border-bottom: none;
     box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.88);
-    z-index: 45;
+    z-index: var(--z-drawer, 3000);
     transform: translateY(calc(100% + 24px));
     transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: none;
@@ -615,10 +615,10 @@
     align-items: center;
     gap: 8px;
     position: fixed;
-    bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 16px)) + 48px);
     left: 50%;
     transform: translateX(-50%);
-    z-index: 35;
+    z-index: var(--z-map-overlay, 2000) !important;
     padding: 9px 18px;
     border-radius: 9999px;
     background: rgba(18, 22, 26, 0.92);
@@ -680,7 +680,7 @@
     background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    z-index: 40;
+    z-index: calc(var(--z-drawer, 3000) - 1);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.28s ease;

@@ -279,7 +279,13 @@ function drawerHtml(c) {
           ${icon("i-x")}
         </button>
       </div>
-      <div class="row row--wrap">${tierTag(c)}${confTag(c)}${statusTag(c)}</div>
+      <div class="row row--wrap">
+        ${tierTag(c)}${confTag(c)}${statusTag(c)}
+        <button class="tag" type="button" data-act="ask-copilot" style="background:rgba(249,115,22,0.18);border:1px solid rgba(249,115,22,0.4);color:#f97316;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:600;padding:2px 8px;border-radius:12px;" title="Ask AI Tactical Copilot about this incident">
+          ${icon("i-pulse", "i i--sm")}
+          <span>Ask Copilot</span>
+        </button>
+      </div>
     </div>
 
     <div class="drawer__body u-scroll">
@@ -552,6 +558,11 @@ function handleClick(event) {
       break;
     case "open-modal":
       if (c) showModal(c);
+      break;
+    case "ask-copilot":
+      if (c && window.FIREX_ASK_COPILOT) {
+        window.FIREX_ASK_COPILOT(`Analyze incident #${c.id.slice(0, 8)} in detail. Evaluate its FRP against historical baseline.`);
+      }
       break;
     case "mode":
       dossier.mode = hit.dataset.mode === "raw" ? "raw" : "annotated";

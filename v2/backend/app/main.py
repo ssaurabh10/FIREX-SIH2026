@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import logger
 from app.storage.database import engine, Base
-from app.api import health, observations, industries, incidents, history, selection, imagery, investigation, severity, alerts, analysis
+from app.api import health, observations, industries, incidents, history, selection, imagery, investigation, severity, alerts, analysis, chat
 
 # Auto-create tables on startup (in development / SQLite fallback)
 try:
@@ -95,6 +95,8 @@ app.include_router(alerts.router, tags=["Alert Engine"])
 app.include_router(alerts.router, prefix="/api", tags=["Alert Engine"])
 app.include_router(analysis.router, tags=["Analysis & Orchestration"])
 app.include_router(analysis.top_router, tags=["Analysis & Orchestration"])
+app.include_router(chat.router, tags=["AI Copilot"])
+app.include_router(chat.router, prefix="/api", tags=["AI Copilot"])
 
 # Static files for UI and Crops
 import os

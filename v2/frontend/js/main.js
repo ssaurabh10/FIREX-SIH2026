@@ -276,6 +276,47 @@ function pick(id, { modal = false, fly = true } = {}) {
   revealSelected();
 }
 
+// Global API bridge for AI Copilot & Interactive Widgets
+window.FIREX_SELECT_INCIDENT = (id) => pick(id, { fly: true });
+window.FIREX_FLY_TO = (lat, lon, zoom = 14) => {
+  if (state.view !== "map") setView("map");
+  mapState.map?.flyTo([lat, lon], zoom, { duration: 1.2 });
+};
+window.FIREX_SET_BASE = (baseId) => {
+  setBase(baseId);
+  state.base = baseId;
+  savePrefs();
+  syncControls();
+};
+window.FIREX_SET_FILTER = (filterId) => {
+  state.filter = filterId;
+  savePrefs();
+  renderAll();
+};
+window.FIREX_SET_VIEW = (viewId) => {
+  setView(viewId);
+};
+window.FIREX_RESET_MAP = () => {
+  if (state.view !== "map") setView("map");
+  home();
+};
+window.FIREX_SET_FRP_THRESHOLD = (threshold) => {
+  state.frpThreshold = Number(threshold) || 0;
+  savePrefs();
+  syncControls();
+  renderAll();
+};
+window.FIREX_FIT_ALL = () => {
+  if (state.view !== "map") setView("map");
+  fitAll();
+};
+window.FIREX_TOGGLE_AMBIENT = () => {
+  state.ambient = !state.ambient;
+  savePrefs();
+  syncControls();
+  renderAll();
+};
+
 function step(delta) {
   const list = visible();
   if (!list.length) return;

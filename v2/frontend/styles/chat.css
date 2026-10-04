@@ -1,0 +1,558 @@
+/* ==========================================================================
+   FIREX AI Tactical Copilot — Tactical Military GIS Styles
+   Aligned with FIREX Tactical Command / Operations Room Prototype
+   - Tactical Orange (#f97316) for alerts, targets, and active focus
+   - Telemetry Cyan (#06b6d4) for basemaps and geospatial navigation
+   - Verification Green (#22c55e) for system heartbeat and live telemetry
+   - JetBrains Mono for all IDs, telemetry numbers, and action tags
+   - Frosted dark glass (#090d16) matching the dossier and console panels
+   - Zero emojis across all interface surfaces
+   ========================================================================== */
+
+/* --- Floating Chat Trigger Button (Tactical HUD Pill) --------------------- */
+
+.chat-trigger-wrap {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: var(--z-nav, 2500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chatBtn {
+  height: 40px;
+  padding: 0 16px 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 99px;
+  border: 1px solid rgba(249, 115, 22, 0.38);
+  background: linear-gradient(148deg, rgba(20, 26, 38, 0.90) 0%, rgba(10, 14, 22, 0.95) 100%);
+  cursor: pointer;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08),
+              0 0 16px rgba(249, 115, 22, 0.12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  position: relative;
+  transition: border-color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              background-color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              box-shadow var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              transform var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1));
+}
+
+.chatBtn__icon {
+  width: 17px;
+  height: 17px;
+  color: #f97316;
+  flex-shrink: 0;
+  transition: transform var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1));
+}
+
+.chatBtn__label {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t-primary, rgba(255, 255, 255, 0.92));
+}
+
+.chatBtn:hover {
+  border-color: rgba(249, 115, 22, 0.7);
+  background: linear-gradient(148deg, rgba(28, 35, 52, 0.92) 0%, rgba(14, 19, 30, 0.96) 100%);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.65),
+              inset 0 1px 0 rgba(255, 255, 255, 0.12),
+              0 0 24px rgba(249, 115, 22, 0.22);
+  transform: translateY(-2px);
+}
+.chatBtn:hover .chatBtn__icon {
+  transform: rotate(45deg);
+}
+.chatBtn:active {
+  transform: scale(0.97) translateY(0);
+}
+
+/* Live Telemetry Heartbeat Dot */
+.chat-ping {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 99px;
+  background: #22c55e;
+  border: 2px solid var(--ink-900, #06080a);
+}
+.chat-ping::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 99px;
+  background: #22c55e;
+  opacity: 0.55;
+  animation: copilot-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes copilot-ping {
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* --- Chat Widget Shell (Tactical Glass Drawer) ---------------------------- */
+
+.chat-widget {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  height: 600px;
+  max-height: calc(100vh - 110px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(9, 13, 22, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--r-lg, 16px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06),
+              0 0 24px rgba(249, 115, 22, 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  z-index: var(--z-drawer, 3000);
+  opacity: 0;
+  transform: translateY(14px) scale(0.98);
+  pointer-events: none;
+  transition: opacity var(--d-base, 220ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              transform var(--d-base, 220ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1));
+  overflow: hidden;
+}
+.chat-widget[data-open="true"] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* --- Chat Header ----------------------------------------------------------- */
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--s-4, 16px);
+  height: 52px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.chat-header__info {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3, 12px);
+}
+
+.chat-header__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm, 8px);
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  display: grid;
+  place-items: center;
+  color: #f97316;
+}
+
+.chat-header__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--t-primary, rgba(255, 255, 255, 0.92));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.chat-header__status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: var(--fs-micro, 0.625rem);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--t-tertiary, rgba(255, 255, 255, 0.38));
+  margin-top: 1px;
+}
+.chat-header__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: #22c55e;
+  flex-shrink: 0;
+}
+
+.chat-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-btn-action {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm, 8px);
+  background: none;
+  color: var(--t-tertiary, rgba(255, 255, 255, 0.38));
+  cursor: pointer;
+  transition: color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              background-color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              border-color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1));
+}
+.chat-btn-action:hover {
+  color: var(--t-primary, rgba(255, 255, 255, 0.92));
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* --- Chat Body ------------------------------------------------------------ */
+
+.chat-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--s-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3, 12px);
+  scroll-behavior: smooth;
+}
+.chat-body::-webkit-scrollbar { width: 4px; }
+.chat-body::-webkit-scrollbar-track { background: transparent; }
+.chat-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
+}
+
+/* --- Suggestion Directives (Tactical Inquiries) --------------------------- */
+
+.chat-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2, 8px);
+  margin-top: var(--s-1, 4px);
+}
+
+.chat-suggestions__label {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: var(--fs-micro, 0.625rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--t-tertiary, rgba(255, 255, 255, 0.42));
+}
+
+.chat-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-family: var(--font-sans, "Geist", system-ui, sans-serif);
+  font-weight: 400;
+  color: var(--t-secondary, rgba(255, 255, 255, 0.72));
+  background: rgba(16, 22, 34, 0.60);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--r-sm, 8px);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              background-color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              border-color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              transform var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1));
+}
+.chat-chip:hover {
+  color: var(--t-primary, rgba(255, 255, 255, 0.95));
+  background: rgba(249, 115, 22, 0.12);
+  border-color: rgba(249, 115, 22, 0.38);
+  transform: translateX(2px);
+}
+.chat-chip:active {
+  transform: scale(0.99) translateX(0);
+}
+
+.chat-chip__icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #06b6d4;
+  transition: color var(--d-fast, 140ms);
+}
+.chat-chip:hover .chat-chip__icon {
+  color: #f97316;
+}
+
+/* --- Message Bubbles ------------------------------------------------------- */
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 92%;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  animation: chat-in var(--d-base, 220ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1));
+}
+@keyframes chat-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.chat-msg--user { align-self: flex-end; }
+.chat-msg--bot  { align-self: flex-start; }
+
+/* User: Tactical amber/orange accent */
+.chat-msg--user .chat-msg__bubble {
+  background: rgba(249, 115, 22, 0.14);
+  border: 1px solid rgba(249, 115, 22, 0.38);
+  color: var(--t-primary, rgba(255, 255, 255, 0.94));
+  border-radius: var(--r-md, 12px) var(--r-md, 12px) 2px var(--r-md, 12px);
+  padding: 8px 13px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  word-break: break-word;
+}
+
+/* Bot: Sleek dark operations panel surface */
+.chat-msg--bot .chat-msg__bubble {
+  background: rgba(14, 19, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--t-primary, rgba(255, 255, 255, 0.92));
+  border-radius: 2px var(--r-md, 12px) var(--r-md, 12px) var(--r-md, 12px);
+  padding: 10px 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  word-break: break-word;
+}
+
+.chat-msg__bubble p { margin: 0 0 8px; }
+.chat-msg__bubble p:last-child { margin-bottom: 0; }
+
+.chat-bullet-list {
+  margin: 4px 0 8px 16px;
+  padding: 0;
+  list-style-type: square;
+}
+.chat-bullet-list li {
+  margin-bottom: 4px;
+  color: var(--t-secondary, rgba(255, 255, 255, 0.75));
+}
+.chat-bullet-list li::marker {
+  color: #f97316;
+}
+
+/* Tactical Heading Styling */
+.chat-heading {
+  display: block;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f97316;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(249, 115, 22, 0.2);
+  padding-bottom: 3px;
+}
+
+/* Monospace Measurement Highlight */
+.val-mono {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  color: #38bdf8;
+  font-weight: 500;
+  font-size: 0.75rem;
+}
+
+/* Inline Code */
+.chat-inline-code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.75rem;
+  color: #38bdf8;
+}
+
+/* Incident ID Token Link (#xxxxxxxx) */
+.incident-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(249, 115, 22, 0.16);
+  border: 1px solid rgba(249, 115, 22, 0.45);
+  color: #f97316;
+  border-radius: 4px;
+  padding: 0 5px;
+  height: 18px;
+  font-size: var(--fs-micro, 0.625rem);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background-color var(--d-fast, 140ms), border-color var(--d-fast, 140ms);
+}
+.incident-link-btn:hover {
+  background: rgba(249, 115, 22, 0.32);
+  border-color: #f97316;
+}
+
+/* Meta Row (Timestamp + Copy Sitrep) */
+.chat-msg__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 0 2px;
+}
+.chat-msg--user .chat-msg__meta { justify-content: flex-end; }
+
+.chat-msg__time {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: var(--fs-micro, 0.625rem);
+  color: var(--t-tertiary, rgba(255, 255, 255, 0.38));
+}
+
+/* Copy Sitrep Button (Military Intelligence Grade) */
+.chat-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--t-tertiary, rgba(255, 255, 255, 0.38));
+  cursor: pointer;
+  padding: 1px 6px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: var(--fs-micro, 0.625rem);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1)),
+              border-color var(--d-fast, 140ms) var(--ease-out, cubic-bezier(0.16,1,0.30,1));
+}
+.chat-copy-btn:hover {
+  color: var(--t-primary, rgba(255, 255, 255, 0.92));
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.chat-copy-btn.copied {
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+/* --- Typing Indicator ----------------------------------------------------- */
+
+.chat-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(14, 19, 28, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 2px var(--r-md, 12px) var(--r-md, 12px) var(--r-md, 12px);
+  width: fit-content;
+}
+.chat-typing__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--t-tertiary, rgba(255, 255, 255, 0.38));
+  animation: typing-pulse 1.2s infinite ease-in-out;
+}
+.chat-typing__dot:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing__dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-pulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+  40% { transform: scale(1.1); opacity: 1; background: #f97316; }
+}
+
+/* --- Footer / Tactical Input Well ----------------------------------------- */
+
+.chat-foot {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2, 8px);
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(6, 9, 14, 0.65);
+  flex-shrink: 0;
+}
+.chat-input-wrap { flex: 1; position: relative; display: flex; }
+
+.chat-input {
+  width: 100%;
+  background: rgba(12, 16, 24, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--r-sm, 8px);
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-family: var(--font-sans, "Geist", system-ui, sans-serif);
+  color: var(--t-primary, rgba(255, 255, 255, 0.92));
+  resize: none;
+  max-height: 90px;
+  min-height: 36px;
+  line-height: 1.45;
+  outline: none;
+  transition: border-color var(--d-fast, 140ms), background-color var(--d-fast, 140ms);
+}
+.chat-input::placeholder {
+  color: var(--t-quiet, rgba(255, 255, 255, 0.3));
+  font-size: 0.75rem;
+}
+.chat-input:focus {
+  border-color: rgba(249, 115, 22, 0.48);
+  background: rgba(12, 16, 24, 0.95);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.22);
+}
+
+.chat-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm, 8px);
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.40);
+  color: #f97316;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--d-fast, 140ms),
+              border-color var(--d-fast, 140ms),
+              transform var(--d-fast, 140ms);
+}
+.chat-send-btn:hover {
+  background: rgba(249, 115, 22, 0.28);
+  border-color: #f97316;
+  transform: scale(1.04);
+}
+.chat-send-btn:active { transform: scale(0.96); }
+.chat-send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+/* --- Mobile Responsive --------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .chat-trigger-wrap { bottom: 56px; right: 12px; }
+  .chatBtn { height: 36px; padding: 0 12px 0 10px; }
+  .chatBtn__icon { width: 15px; height: 15px; }
+  .chatBtn__label { font-size: 0.625rem; }
+  .chat-widget {
+    inset: auto 0 0 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 80dvh;
+    max-height: 80dvh;
+    border-radius: var(--r-xl, 20px) var(--r-xl, 20px) 0 0;
+    border-bottom: none;
+    z-index: var(--z-modal, 3500);
+  }
+}
