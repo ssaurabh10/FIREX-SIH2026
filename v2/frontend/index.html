@@ -480,10 +480,10 @@
 
 <div class="vignette" aria-hidden="true"></div>
 
-<!-- ================= FIREX AI CHATBOT ASSISTANT ================= -->
+<!-- ================= FIREX AI ASSISTANT ================= -->
 <div class="chat-trigger-wrap" id="chat-trigger-wrap">
   <button class="chatBtn glass glass--frosted glass--over" id="btn-toggle-chat" type="button" aria-expanded="false" aria-label="Toggle FIREX AI Assistant">
-    <svg class="i i--sm chatBtn__icon" aria-hidden="true"><use href="#i-crosshair"/></svg>
+    <svg class="i i--sm chatBtn__icon" aria-hidden="true"><use href="#i-pulse"/></svg>
     <span class="chatBtn__label">AI CHAT</span>
     <span class="chat-ping" aria-hidden="true"></span>
   </button>
@@ -497,10 +497,10 @@
         <svg class="i i--sm" aria-hidden="true" style="width:15px;height:15px;"><use href="#i-pulse"/></svg>
       </div>
       <div>
-        <h3 class="chat-header__title">FIREX AI Assistant</h3>
+        <h3 class="chat-header__title">FIREX Assistant</h3>
         <span class="chat-header__status">
           <span class="chat-header__dot"></span>
-          Online · OpenRouter (dots-3-note)
+          Online
         </span>
       </div>
     </div>
@@ -515,38 +515,37 @@
   </div>
 
   <div class="chat-body" id="chat-body">
+    <div class="chat-msg chat-msg--bot">
+      <div class="chat-msg__bubble">
+        <p>Hi! I'm the FIREX assistant. Ask me anything about current fire hotspots, industrial flaring, or how our fire detection system works.</p>
+      </div>
+      <span class="chat-msg__time">FIREX</span>
+    </div>
+
     <div class="chat-suggestions" id="chat-suggestions">
-      <span class="chat-suggestions__label">Common Questions</span>
+      <span class="chat-suggestions__label">Suggested questions</span>
       <button class="chat-chip" type="button">
-        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-shield"/></svg>
-        <span>How does FIREX eliminate false alarms?</span>
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-flame"/></svg>
+        <span>What are the biggest fires right now?</span>
       </button>
       <button class="chat-chip" type="button">
         <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-pulse"/></svg>
-        <span>Explain the 365-day P95 diurnal baseline</span>
+        <span>How does FIREX detect fires?</span>
       </button>
       <button class="chat-chip" type="button">
-        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-sliders"/></svg>
-        <span>How is the priority score calculated?</span>
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-warning"/></svg>
+        <span>How do you avoid false alarms?</span>
       </button>
       <button class="chat-chip" type="button">
-        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-satellite"/></svg>
-        <span>What satellites and sensors are used?</span>
-      </button>
-      <button class="chat-chip" type="button">
-        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-layers"/></svg>
-        <span>How does the 10-stage pipeline work?</span>
-      </button>
-      <button class="chat-chip" type="button">
-        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-flame"/></svg>
-        <span>What are the top thermal targets right now?</span>
+        <svg class="i i--sm chat-chip__icon" aria-hidden="true"><use href="#i-question"/></svg>
+        <span>What is SIH Problem Statement 162?</span>
       </button>
     </div>
   </div>
 
   <form class="chat-foot" id="chat-form">
     <div class="chat-input-wrap">
-      <textarea class="chat-input" id="chat-input" rows="1" placeholder="Ask any question about FIREX, detections, or how it works..." aria-label="Message FIREX AI Assistant"></textarea>
+      <textarea class="chat-input" id="chat-input" rows="1" placeholder="Ask a question..." aria-label="Message FIREX AI Assistant"></textarea>
     </div>
     <button class="chat-send-btn" id="chat-send-btn" type="submit" aria-label="Send message" title="Send message">
       <svg class="i i--sm" aria-hidden="true" style="width:16px;height:16px;"><use href="#i-send"/></svg>
@@ -561,7 +560,7 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin="anonymous"></script>
 <script type="module" src="js/main.js?v=37"></script>
-<script type="module" src="js/chat.js?v=11"></script>
+<script type="module" src="js/chat.js?v=9"></script>
 
 </body>
 </html>

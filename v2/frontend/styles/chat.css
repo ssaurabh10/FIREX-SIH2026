@@ -450,6 +450,78 @@
   border-color: rgba(34, 197, 94, 0.35);
 }
 
+/* --- Action Confirmation Badges (Tactical HUD Indicators) ----------------- */
+
+.chat-action-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.chat-action-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid rgba(249, 115, 22, 0.40);
+  border-radius: 4px;
+  background: rgba(249, 115, 22, 0.12);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: var(--fs-micro, 0.625rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f97316;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--d-fast, 140ms), border-color var(--d-fast, 140ms);
+}
+.chat-action-badge:hover {
+  background: rgba(249, 115, 22, 0.25);
+  border-color: #f97316;
+}
+
+.chat-action-badge .act-tag {
+  color: var(--t-tertiary, rgba(255, 255, 255, 0.45));
+}
+
+/* Target Focus Badge (Tactical Orange) */
+.chat-action-badge--target {
+  color: #f97316;
+  border-color: rgba(249, 115, 22, 0.45);
+  background: rgba(249, 115, 22, 0.15);
+}
+.chat-action-badge--target:hover {
+  background: rgba(249, 115, 22, 0.28);
+  border-color: #f97316;
+}
+
+/* Geospatial Camera & Basemap (Telemetry Cyan) */
+.chat-action-badge--geo {
+  color: #06b6d4;
+  border-color: rgba(6, 182, 212, 0.40);
+  background: rgba(6, 182, 212, 0.12);
+}
+.chat-action-badge--geo:hover {
+  background: rgba(6, 182, 212, 0.24);
+  border-color: #06b6d4;
+}
+
+/* Surge Filter & FRP (Tactical Red/Critical) */
+.chat-action-badge--surge {
+  color: var(--tier-critical, #f04438);
+  border-color: rgba(240, 68, 56, 0.45);
+  background: rgba(240, 68, 56, 0.14);
+}
+.chat-action-badge--surge:hover {
+  background: rgba(240, 68, 56, 0.26);
+  border-color: var(--tier-critical, #f04438);
+}
+
 /* --- Typing Indicator ----------------------------------------------------- */
 
 .chat-typing {

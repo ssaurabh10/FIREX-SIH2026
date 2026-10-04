@@ -150,25 +150,41 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
         )
     top_summary = "\n".join(top_lines)
 
-    system_prompt = f"""You are the FIREX AI Tactical Copilot — an operational airspace and thermal anomaly intelligence assistant for SIH 2026 Problem Statement 162.
-You monitor NASA VIIRS/MODIS infrared satellite detections across India, evaluated against 365-day diurnal historical P95 operational baselines and primary SQLite databases.
+    system_prompt = f"""You are the FIREX Assistant — the dedicated AI helper for the FIREX Prototype (SIH 2026 Problem Statement 162: Autonomous Thermal Anomaly Detection & Monitoring Platform for India).
 
-ACTIVE TELEMETRY (Current Orbit Pass):
-Total Qualified Thermal Targets: {total_count}
-Critical Surge Targets Flagged: {surge_count}
-Top Thermal Anomalies:
+CORE PROTOTYPE DOMAIN KNOWLEDGE (Use these definitions in your answers):
+1. What is FRP?
+   - FRP stands for "Fire Radiative Power", measured in Megawatts (MW).
+   - It quantifies the rate of radiant heat energy emitted by a thermal anomaly, detected by satellite infrared sensors (NASA VIIRS 375m band I4 at 3.9 μm).
+   - In FIREX, FRP indicates fire intensity, fuel combustion rate, and is compared against the 365-day historical baseline to detect surges. Higher FRP = more intense fire.
+
+2. What is the 365-Day Diurnal P95 Baseline?
+   - For every 0.02° grid cell across India (~2.2 km), FIREX maintains a 365-day historical baseline of FRP percentiles (P50, P90, P95) separated by Day passes (~13:30 IST) and Night passes (~01:30 IST).
+   - This eliminates false alarms on routine industrial sources (petroleum refineries in Jamnagar/Vadodara, steel plants like JSW Steel Vijayanagar, blast furnaces, brick kilns) because their normal heat stays within their historical P95 baseline.
+
+3. What is a Critical Surge?
+   - An anomaly where detected FRP exceeds 2.5 times (>2.5x) the location's historical 365-day P95 envelope. This flags uncontrolled wildfires, crop burn spikes, or industrial flaring blowouts.
+
+4. Multi-Factor Priority Score (0–100):
+   - Combines FRP anomaly surge ratio, proximity (<5 km) to monitored industrial assets/refineries, diurnal pass timing, and AI optical validation. High score = higher investigation priority.
+
+5. Prototype Features & UI:
+   - Live Map: Leaflet GIS displaying active thermal hotspots, basemap switcher (Canvas vs Satellite Imagery), and FRP filters (All, ≥2 MW, ≥5 MW).
+   - Left Sidebar (Priority Incidents): Queue of ranked incidents with category badges (Agricultural, Industrial, Flare, Wildfire, Mining, Surge).
+   - Tactical Dossier: Slide-out panel showing optical Sentinel-2 crop, thermal bounding box, diurnal FRP comparison graph, and nearest monitored industrial asset.
+
+6. Current Live Satellite Pass Telemetry:
+   - Active Qualified Hotspots: {total_count} across India
+   - Critical Surge Hotspots: {surge_count}
+   - Top Detected Hotspots Right Now:
 {top_summary}
 
-{tool_context}
-
-CORE DIRECTIVES:
-1. Provide concise, highly accurate, intelligence-grade tactical answers.
-2. Ground your answers strictly on the verified database, climatology, and telemetry evidence above.
-3. ALWAYS format incident IDs with a leading '#' symbol (e.g., #{top_incidents[0]['id'][:8] if top_incidents else '0640ce6d'}) so the interface renders them as interactive map-navigation tokens.
-4. Differentiate between routine industrial flaring (within historical P95 baseline) versus uncontained wildfire or surge anomalies.
-5. If multimodal vision findings, threat severity, or proximity to critical infrastructure are available, explain them clearly.
-6. Keep answers brief (2-4 clear bullet points).
-7. You have direct control over the interactive frontend GIS console via autonomous tool actions. When the user requests a basemap switch, view change, target focus, or filter, acknowledge and confirm that the action has been executed on the map (e.g., 'Switching basemap to High-Resolution Satellite imagery...'). Never state that you cannot display or change the map.
+CONVERSATION GUIDELINES:
+- Ground your answers around the FIREX prototype, its metrics (FRP in MW, P95 baseline, false alarm suppression), and live telemetry.
+- When asked "what is frp?", explain clearly that it stands for Fire Radiative Power (MW), measures radiant heat energy, and is used in FIREX to measure fire intensity and detect surges against historical baselines.
+- Keep answers clear, natural, and concise (2 to 4 sentences).
+- Do not use robotic military prefixes (e.g. do not say "SITREP").
+- Do not offer options or buttons to edit/filter the map.
 """
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -177,17 +193,18 @@ CORE DIRECTIVES:
         messages.append({"role": role, "content": h.content})
     messages.append({"role": "user", "content": user_msg})
 
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     candidate_models = [
-        "dots-studio/dots-3-note-preview:free",
-        "liquid/lfm-2.5-2.6b:free",
-        "qwen/qwen3.8-27b:free",
-        "google/gemma-4-26b-a4b-it:free"
+        "meta-llama/llama-3.1-8b-instruct",
+        "meta-llama/llama-3.2-3b-instruct",
+        "mistralai/mistral-small-24b-instruct-2501",
+        "meta-llama/llama-3.2-1b-instruct"
     ]
 
     import requests
 
     reply_text = None
+    last_err = None
     for model_name in candidate_models:
         try:
             res = requests.post(
@@ -196,13 +213,13 @@ CORE DIRECTIVES:
                     "Authorization": f"Bearer {openrouter_key}",
                     "Content-Type": "application/json",
                     "HTTP-Referer": "https://firex-mission.internal",
-                    "X-Title": "FIREX Tactical Copilot"
+                    "X-Title": "FIREX Assistant"
                 },
                 json={
                     "model": model_name,
                     "messages": messages,
-                    "temperature": 0.3,
-                    "max_tokens": 550
+                    "temperature": 0.4,
+                    "max_tokens": 250
                 },
                 timeout=12
             )
@@ -213,17 +230,18 @@ CORE DIRECTIVES:
                 if reply_text:
                     logger.info(f"[ChatAPI] Model {model_name} answered successfully.")
                     break
+            else:
+                last_err = f"HTTP {res.status_code}: {res.text[:100]}"
         except Exception as e:
+            last_err = str(e)
             logger.debug(f"[ChatAPI] Model {model_name} attempt error: {e}")
 
-    # Deterministic fallback if API unavailable
     if not reply_text:
-        target_inc = find_matching_incident(user_msg, all_incidents)
-        reply_text = generate_tactical_offline_reply(user_msg, telemetry, target_inc)
+        reply_text = f"API Error: Unable to retrieve response from AI model ({last_err}). Please check your connection or key."
 
     return ChatResponse(
         reply=reply_text,
-        actions=actions,
+        actions=[],
         telemetry={
             "total_targets": total_count,
             "surge_targets": surge_count
@@ -233,41 +251,44 @@ CORE DIRECTIVES:
 
 
 def generate_tactical_offline_reply(query: str, telemetry: Dict[str, Any], target_inc: Optional[Dict[str, Any]] = None) -> str:
-    """Deterministic intelligence response when external model calls are unavailable."""
-    q = query.lower()
+    """Deterministic conversational response when external model calls are unavailable."""
+    q = query.lower().strip()
+    tokens = [w.strip(".,!?:;\"'()[]{}") for w in q.split()]
+    greetings = {"hi", "hello", "hey", "hii", "heyy", "namaste", "hola", "yo"}
+
+    if any(t in greetings for t in tokens) and len(tokens) <= 3:
+        return "Hello! How can I help you today? You can ask me about current fire hotspots across India, our detection pipeline, or how we prevent false alarms."
+
+    if "how are you" in q:
+        return "I'm doing well, thank you! Ready to help you with any questions about fire monitoring or the FIREX platform."
+
+    if "who are you" in q or "what are you" in q:
+        return "I'm the FIREX Assistant, an AI helper for India's thermal anomaly and wildfire monitoring platform. I can explain our detection system, active hotspots, and false-alarm suppression."
+
+    if "thank" in q:
+        return "You're very welcome! Let me know if you have any other questions."
 
     if target_inc:
-        return f"""**Tactical Dossier Analysis: #{target_inc['id'][:8]}**
+        return f"Hotspot #{target_inc['id'][:8]} in {target_inc['location']} is classified as {target_inc['classification']}. It has a radiative power of {target_inc['frp']:.1f} MW and is operating within its {target_inc['pattern']} baseline."
 
-- **Location:** {target_inc['location']} ({target_inc['lat']:.3f}°N, {target_inc['lon']:.3f}°E)
-- **Classification:** {target_inc['classification']}
-- **Peak Fire Radiative Power:** {target_inc['frp']:.1f} MW
-- **Operational Baseline Status:** {target_inc['pattern']} (Evaluated against 365-day P95 Diurnal Climatology).
-- Map camera automatically focused on target."""
+    if "surge" in q or "critical" in q or "biggest" in q or "top" in q:
+        top = telemetry.get("top_incidents", [])
+        s_str = ", ".join([f"{s['location']} ({s['frp']:.1f} MW)" for s in top[:3]])
+        return f"Currently, there are {telemetry.get('surge_count', 0)} critical surge fires detected out of {telemetry.get('total_count', 58)} active hotspots. The most intense detections are in {s_str}."
+
+    if "ps162" in q or "problem statement" in q or "sih" in q:
+        return "SIH Problem Statement 162 focuses on autonomous thermal anomaly detection across India. Traditional satellite alerts cause thousands of false alarms on routine industrial sites like refineries and kilns. FIREX solves this by comparing live detections against a 365-day historical baseline to filter out routine flaring and flag real fires."
+
+    if "how it works" in q or "detect" in q or "pipeline" in q:
+        return "FIREX ingests twice-daily NASA VIIRS satellite data over India, checks if the heat exceeds the 365-day normal baseline for that spot, checks nearby industrial sites, and runs AI visual checks to quickly separate controlled flares from dangerous wildfires."
+
+    if "false alarm" in q or "accuracy" in q:
+        return "We avoid false alarms by checking historical thermal data (the 365-day P95 baseline) for every coordinate. Known refinery flare stacks and brick kilns operate within predictable heat levels. If a flare is within its normal range, it's marked as routine rather than triggering an emergency alert."
 
     if "gujarat" in q or "refinery" in q or "jamnagar" in q:
-        return """**Western Sector Industrial Intelligence:**
-
-- Petroleum refining & petrochemical flaring signatures observed in Jamnagar/Vadodara corridors.
-- Average radiative intensity: ~7.9 - 14.2 MW.
-- Operational Assessment: Detections match historical facility operating envelopes. No uncontained secondary wildfire observed."""
+        return "In Gujarat, detected hotspots around Jamnagar and Vadodara correspond to monitored petroleum refineries and industrial flares, which are operating within expected baseline limits."
 
     if "punjab" in q or "crop" in q or "agriculture" in q:
-        return """**Agrarian Biomass Plume Survey:**
+        return "Thermal hotspots detected in Punjab are primarily agricultural residue burns from seasonal stubble clearing, typically ranging between 10 and 35 MW."
 
-- Agricultural residue burn clusters tracked across Bathinda, Sangrur, and Patiala corridors.
-- Active FRP spectrum: 12.0 MW to 34.7 MW.
-- Multi-pixel signatures verified against diurnal pass timing."""
-
-    top = telemetry.get("top_incidents", [])
-    top_bullets = []
-    for it in top[:4]:
-        top_bullets.append(f"- **#{it['id'][:8]}** ({it['location']}) | FRP: {it['frp']:.1f} MW | {it['classification']}")
-
-    return f"""**FIREX Tactical Mission Sitrep:**
-
-- **Active Qualified Hotspots:** {telemetry.get('total_count', 58)}
-- **Critical Surge Hotspots:** {telemetry.get('surge_count', 0)}
-- **Top Priority Signatures:**
-{chr(10).join(top_bullets)}
-- Click any **#incident-id** to zoom to target on map and view optical verification."""
+    return f"FIREX is currently tracking {telemetry.get('total_count', 58)} active hotspots across India, including {telemetry.get('surge_count', 0)} critical surge events. Feel free to ask how our detection works, how we filter false alarms, or about specific regions."

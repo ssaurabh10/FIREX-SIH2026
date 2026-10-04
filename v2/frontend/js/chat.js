@@ -17,13 +17,8 @@ function formatMarkdown(text) {
   if (!text) return "";
   let html = escapeHtml(text);
 
-  // Bold **text** — handle tactical headers specially
-  html = html.replace(/\*\*(.*?)\*\*/g, (match, content) => {
-    if (/^[A-Z0-9_\s\/:—\-\/]+$/.test(content.trim()) || content.includes("SITREP") || content.includes("TACTICAL") || content.includes("DIRECTIVE") || content.includes("TELEMETRY")) {
-      return `<strong class="chat-heading">${content}</strong>`;
-    }
-    return `<strong>${content}</strong>`;
-  });
+  // Bold **text**
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
   // Italic *text*
   html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
@@ -31,21 +26,16 @@ function formatMarkdown(text) {
   // Code `code`
   html = html.replace(/`(.*?)`/g, "<code class=\"chat-inline-code\">$1</code>");
 
-  // Highlight Incident IDs (#xxxxxxxx) into clickable tactical tokens
+  // Highlight Incident IDs (#xxxxxxxx) into clickable tokens
   html = html.replace(/#([a-f0-9]{8}(?:-[a-f0-9]{3,})?)/gi, (match, id) => {
-    return `<button class="incident-link-btn" data-incident-id="${id}" title="Inspect incident #${id.slice(0, 8)}">#${id.slice(0, 8)}</button>`;
+    return `<button class="incident-link-btn" data-incident-id="${id}" title="View target #${id.slice(0, 8)}">#${id.slice(0, 8)}</button>`;
   });
-
-  // Highlight coordinates and physical measurements in monospace
-  html = html.replace(/\b(\d+(?:\.\d+)?\s*(?:MW|km|hPa|K))\b/gi, '<span class="val-mono">$1</span>');
-  html = html.replace(/\b(\d{1,2}\.\d{2,4}°[NS],\s*\d{1,3}\.\d{2,4}°[EW])\b/gi, '<span class="val-mono">$1</span>');
 
   // Convert newlines to paragraphs / line breaks
   const paragraphs = html.split(/\n\n+/);
   return paragraphs
     .map(p => {
       const lines = p.split(/\n/);
-      // Check for bullet list
       if (lines.every(l => l.trim().startsWith("- ") || l.trim().startsWith("* "))) {
         const items = lines.map(l => `<li>${l.replace(/^[-*]\s+/, "")}</li>`).join("");
         return `<ul class="chat-bullet-list">${items}</ul>`;
@@ -105,32 +95,12 @@ export function initChatWidget() {
     timeSpan.textContent = timeStr;
     meta.appendChild(timeSpan);
 
-    if (role === "bot") {
-      const copyBtn = document.createElement("button");
-      copyBtn.type = "button";
-      copyBtn.className = "chat-copy-btn";
-      copyBtn.innerHTML = `<svg class="i i--sm" style="width:11px;height:11px;" aria-hidden="true"><use href="#i-mark"/></svg><span>COPY</span>`;
-      copyBtn.title = "Copy response";
-      copyBtn.addEventListener("click", () => {
-        const cleanText = text.replace(/[*`#]/g, "").replace(/\n\s*\n/g, "\n\n").trim();
-        navigator.clipboard.writeText(cleanText).then(() => {
-          copyBtn.classList.add("copied");
-          copyBtn.innerHTML = `<svg class="i i--sm" style="width:11px;height:11px;color:#22c55e;" aria-hidden="true"><use href="#i-check"/></svg><span>COPIED</span>`;
-          setTimeout(() => {
-            copyBtn.classList.remove("copied");
-            copyBtn.innerHTML = `<svg class="i i--sm" style="width:11px;height:11px;" aria-hidden="true"><use href="#i-mark"/></svg><span>COPY</span>`;
-          }, 2000);
-        }).catch(() => {});
-      });
-      meta.appendChild(copyBtn);
-    }
-
     msgDiv.appendChild(bubble);
     msgDiv.appendChild(meta);
     body.appendChild(msgDiv);
     scrollToBottom();
 
-    // Allow clicking incident IDs to view dossier
+    // Wire up any incident buttons
     bubble.querySelectorAll(".incident-link-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const incId = btn.getAttribute("data-incident-id");
@@ -195,14 +165,14 @@ export function initChatWidget() {
       }
 
       const data = await resp.json();
-      const reply = data.reply || data.response || "I received your message, but no additional details are available.";
+      const reply = data.reply || data.response || "I received your message. Let me know if you have any questions about fire monitoring or the prototype.";
+
       appendMessage("bot", reply);
     } catch (err) {
       removeTypingIndicator();
-      console.warn("[FIREX Copilot] Live chat error:", err);
-      // Fallback response with live telemetry context
-      const fallback = generateOfflineReport(text);
-      appendMessage("bot", fallback);
+      console.warn("[FIREX Assistant] Chat error:", err);
+      const fallbackReply = generateOfflineReport(text);
+      appendMessage("bot", fallbackReply);
     } finally {
       sendBtn.disabled = false;
       input.focus();
@@ -218,20 +188,38 @@ export function initChatWidget() {
   }
 
   function generateOfflineReport(query) {
-    const q = query.toLowerCase();
+    const q = query.toLowerCase().trim();
+    const tokens = q.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, ""));
+    const greetings = ["hi", "hello", "hey", "hii", "heyy", "namaste", "hola", "yo"];
+
+    if (tokens.some(t => greetings.includes(t)) && tokens.length <= 3) {
+      return "Hello! How can I help you today? You can ask me about current fire hotspots across India, our detection pipeline, or how we prevent false alarms.";
+    }
+    if (q.includes("how are you")) {
+      return "I'm doing well, thank you! Ready to help you with any questions about fire monitoring or the FIREX platform.";
+    }
+    if (q.includes("who are you") || q.includes("what are you")) {
+      return "I'm the FIREX Assistant, an AI helper for India's thermal anomaly and wildfire monitoring platform. I can explain our detection system, active hotspots, and false-alarm suppression.";
+    }
+    if (q.includes("thank")) {
+      return "You're very welcome! Let me know if you have any other questions.";
+    }
     if (q.includes("gujarat") || q.includes("refinery") || q.includes("jamnagar")) {
-      return "In Sector West (Gujarat), routine industrial and refinery flaring is active around Jamnagar. Continuous heat emissions range from 7.9 MW to 14.2 MW, which is within the normal 365-day historical baseline envelope. No uncontained wildfires are detected.";
+      return "In Gujarat, detected hotspots around Jamnagar and Vadodara correspond to monitored petroleum refineries and industrial flares, which are operating within expected baseline limits.";
     }
-    if (q.includes("punjab") || q.includes("agricultural") || q.includes("crop")) {
-      return "Seasonal agricultural residue burn clusters are detected in Punjab (Bathinda, Sangrur, and Patiala corridors), with heat outputs up to 34.7 MW verified by NASA VIIRS satellite daytime passes.";
+    if (q.includes("punjab") || q.includes("crop") || q.includes("agriculture")) {
+      return "Hotspots detected in Punjab are seasonal agricultural residue burns from stubble clearing, with fire radiative power usually between 10 and 35 MW.";
     }
-    if (q.includes("surge") || q.includes("critical")) {
-      return "A critical surge occurs when an observed hotspot emits heat more than 2.5 times higher than that location's normal 365-day P95 historical baseline. These hotspots are flagged with highest priority for emergency forest response.";
+    if (q.includes("surge") || q.includes("critical") || q.includes("biggest") || q.includes("top")) {
+      return "Currently, active hotspots across India are monitored for surges. An anomaly is flagged as a critical surge when its heat output spikes to more than 2.5 times its historical 365-day baseline.";
     }
-    if (q.includes("p95") || q.includes("baseline")) {
-      return "The 365-day P95 baseline represents the 95th percentile of heat emissions observed at each coordinate over the past year. Comparing new satellite observations against this baseline allows FIREX to filter out routine industrial heat from factories and power plants.";
+    if (q.includes("false alarm") || q.includes("avoid")) {
+      return "We avoid false alarms using a 365-day historical baseline for every coordinate in India. If a known factory or flare stack operates within its expected heat range, it is marked as routine.";
     }
-    return "FIREX is currently monitoring active thermal hotspots across India, cross-referencing satellite detections with historical baselines to filter out routine industrial flaring. Feel free to ask any question about the platform.";
+    if (q.includes("how") || q.includes("detect")) {
+      return "FIREX takes live NASA VIIRS satellite data over India twice daily, compares the heat with 365-day historical baselines, checks nearby industrial assets, and verifies images with AI vision.";
+    }
+    return "FIREX monitors thermal anomalies across India using satellite data and historical baselines. Feel free to ask how our detection works or about specific regions.";
   }
 
   // Event Listeners

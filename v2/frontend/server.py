@@ -25,6 +25,23 @@ BASE_DIR = os.path.dirname(GIS_DIR)
 CROPS_DIR = os.path.join(BASE_DIR, "pipeline", "03_imagery", "crops")
 DATA_DIR = os.path.join(GIS_DIR, "data")
 
+# Safely load local .env if present (gitignored)
+def _load_env():
+    for path in [os.path.join(BASE_DIR, ".env"), os.path.join(os.path.dirname(BASE_DIR), ".env")]:
+        if os.path.isfile(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            k, v = k.strip(), v.strip().strip("'\"")
+                            if k not in os.environ:
+                                os.environ[k] = v
+            except Exception:
+                pass
+_load_env()
+
 
 class FIREXMapHandler(http.server.SimpleHTTPRequestHandler):
     extensions_map = dict(http.server.SimpleHTTPRequestHandler.extensions_map)
@@ -225,35 +242,42 @@ Top Thermal Anomalies:
                 except Exception:
                     live_context = "Telemetry DB online. Incident tracking active."
 
-                # Step 3: Database Grounding & Tool Execution
-                # Database Grounding for Telemetry Knowledge
-                tool_context = ""
-                try:
-                    backend_dir = os.path.join(os.path.dirname(GIS_DIR), "backend")
-                    if backend_dir not in sys.path:
-                        sys.path.insert(0, backend_dir)
-                    from app.intelligence.db_grounding import execute_tool_grounding
-                    tool_res = execute_tool_grounding(user_msg)
-                    tool_context = tool_res.get("grounding_context", "")
-                except Exception as dbg_err:
-                    print("[ServerChat] db_grounding fallback:", dbg_err)
+                # Embed full FIREX prototype knowledge so the LLM answers revolve around this prototype
+                system_prompt = f"""You are the FIREX Assistant — the dedicated AI helper for the FIREX Prototype (SIH 2026 Problem Statement 162: Autonomous Thermal Anomaly Detection & Monitoring Platform for India).
 
-                system_prompt = f"""You are the FIREX Assistant — a helpful, clear, and friendly AI chatbot for the FIREX Thermal Anomaly Monitoring Platform (developed for SIH 2026 Problem Statement 162).
-You explain how the platform detects thermal anomalies, forest fires, and industrial flaring across India using NASA VIIRS/MODIS satellites, 365-day diurnal P95 historical baselines, and optical satellite imagery.
+CORE PROTOTYPE DOMAIN KNOWLEDGE (Use these definitions in your answers):
+1. What is FRP?
+   - FRP stands for "Fire Radiative Power", measured in Megawatts (MW).
+   - It quantifies the rate of radiant heat energy emitted by a thermal anomaly, detected by satellite infrared sensors (NASA VIIRS 375m band I4 at 3.9 μm).
+   - In FIREX, FRP indicates fire intensity, fuel combustion rate, and is compared against the 365-day historical baseline to detect surges. Higher FRP = more intense fire.
 
-CURRENT LIVE MISSION TELEMETRY:
-{live_context}
+2. What is the 365-Day Diurnal P95 Baseline?
+   - For every 0.02° grid cell across India (~2.2 km), FIREX maintains a 365-day historical baseline of FRP percentiles (P50, P90, P95) separated by Day passes (~13:30 IST) and Night passes (~01:30 IST).
+   - This eliminates false alarms on routine industrial sources (petroleum refineries in Jamnagar/Vadodara, steel plants like JSW Steel Vijayanagar, blast furnaces, brick kilns) because their normal heat stays within their historical P95 baseline.
 
-CONTEXT & KNOWLEDGE:
-{tool_context}
+3. What is a Critical Surge?
+   - An anomaly where detected FRP exceeds 2.5 times (>2.5x) the location's historical 365-day P95 envelope. This flags uncontrolled wildfires, crop burn spikes, or industrial flaring blowouts.
 
-Guidelines:
-1. Act like a usual, friendly AI chatbot (like ChatGPT or Claude).
-2. Answer the user's questions in simple, plain, easy-to-understand English.
-3. Be concise and well-structured: use short paragraphs or clean bullet points.
-4. Explain technical concepts simply (for example: explain FRP as the heat intensity of a fire, and explain the diurnal baseline as normal day/night temperature cycles so factory chimneys are not mistaken for wildfires).
-5. DO NOT provide command tags, edit options, filter options, or map control tags (no [FILTER], no [TARGET], etc.). You are purely a conversational chat assistant.
-6. ABSOLUTE CONSTRAINT: DO NOT USE ANY EMOJIS in your responses. Zero emojis.
+4. Multi-Factor Priority Score (0–100):
+   - Combines FRP anomaly surge ratio, proximity (<5 km) to monitored industrial assets/refineries, diurnal pass timing, and AI optical validation. High score = higher investigation priority.
+
+5. Prototype Features & UI:
+   - Live Map: Leaflet GIS displaying active thermal hotspots, basemap switcher (Canvas vs Satellite Imagery), and FRP filters (All, ≥2 MW, ≥5 MW).
+   - Left Sidebar (Priority Incidents): Queue of ranked incidents with category badges (Agricultural, Industrial, Flare, Wildfire, Mining, Surge).
+   - Tactical Dossier: Slide-out panel showing optical Sentinel-2 crop, thermal bounding box, diurnal FRP comparison graph, and nearest monitored industrial asset.
+
+6. Current Live Satellite Pass Telemetry:
+   - Active Qualified Hotspots: {total_inc} across India
+   - Critical Surge Hotspots: {len(surges)}
+   - Top Detected Hotspots Right Now:
+{chr(10).join(sample_lines)}
+
+CONVERSATION GUIDELINES:
+- Ground your answers around the FIREX prototype, its metrics (FRP in MW, P95 baseline, false alarm suppression), and live telemetry.
+- When asked "what is frp?", explain clearly that it stands for Fire Radiative Power (MW), measures radiant heat energy, and is used in FIREX to measure fire intensity and detect surges against historical baselines.
+- Keep answers clear, natural, and concise (2 to 4 sentences).
+- Do not use robotic military prefixes (e.g. do not say "SITREP").
+- Do not offer options or buttons to edit/filter the map.
 """
 
                 messages = [{"role": "system", "content": system_prompt}]
@@ -263,87 +287,47 @@ Guidelines:
                 messages.append({"role": "user", "content": user_msg})
 
                 reply_text = None
-                openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
-                offline_mode = os.environ.get("FIREX_OFFLINE", "0") == "1"
+                openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
-                if not offline_mode and openrouter_key:
-                    candidate_models = [
-                        "dots-studio/dots-3-note-preview:free",
-                        "liquid/lfm-2.5-2.6b:free",
-                        "nvidia/nemotron-3.5-lightning:free",
-                        "qwen/qwen3.8-27b:free"
-                    ]
-                    for model_name in candidate_models:
-                        try:
-                            payload = json.dumps({
-                                "model": model_name,
-                                "messages": messages,
-                                "temperature": 0.4,
-                                "max_tokens": 400
-                            }).encode("utf-8")
-                            req = urllib.request.Request(
-                                "https://openrouter.ai/api/v1/chat/completions",
-                                data=payload,
-                                headers={
-                                    "Authorization": f"Bearer {openrouter_key}",
-                                    "Content-Type": "application/json",
-                                    "HTTP-Referer": "http://127.0.0.1:8000",
-                                    "X-Title": "FIREX Assistant"
-                                }
-                            )
-                            with urllib.request.urlopen(req, timeout=12) as resp:
-                                res = json.loads(resp.read().decode("utf-8"))
-                                choice = res.get("choices", [{}])[0].get("message", {})
-                                raw_content = choice.get("content") or choice.get("reasoning") or ""
-                                raw_content = raw_content.strip()
-                                if raw_content:
-                                    reply_text = raw_content
-                                    break
-                        except Exception as api_err:
-                            print(f"[ServerChat] OpenRouter model {model_name} failed: {api_err}")
-                            continue
+                candidate_models = [
+                    "meta-llama/llama-3.1-8b-instruct",
+                    "meta-llama/llama-3.2-3b-instruct",
+                    "mistralai/mistral-small-24b-instruct-2501",
+                    "meta-llama/llama-3.2-1b-instruct"
+                ]
+
+                last_error = None
+                for model_name in candidate_models:
+                    try:
+                        payload = json.dumps({
+                            "model": model_name,
+                            "messages": messages,
+                            "temperature": 0.4,
+                            "max_tokens": 250
+                        }).encode("utf-8")
+                        req = urllib.request.Request(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            data=payload,
+                            headers={
+                                "Authorization": f"Bearer {openrouter_key}",
+                                "Content-Type": "application/json",
+                                "HTTP-Referer": "http://127.0.0.1:8000",
+                                "X-Title": "FIREX Assistant"
+                            }
+                        )
+                        with urllib.request.urlopen(req, timeout=12.0) as resp:
+                            res = json.loads(resp.read().decode("utf-8"))
+                            reply_text = res["choices"][0]["message"]["content"]
+                            if reply_text and reply_text.strip():
+                                print(f"[ServerChat] Live response generated by {model_name}")
+                                break
+                    except Exception as err:
+                        last_error = str(err)
+                        print(f"[ServerChat] Model {model_name} failed: {err}")
+                        continue
 
                 if not reply_text:
-                    q_lower = user_msg.lower()
-                    if "surge" in q_lower or "critical" in q_lower:
-                        top_surges = surges[:3] if surges else top_by_frp[:3]
-                        s_lines = [f"- Hotspot #{s.get('id', '')[:8]} in {s.get('location', 'India')}: {float(s.get('frp', 0)):.1f} MW heat output (Status: Critical Surge)" for s in top_surges]
-                        reply_text = f"There are currently {len(surges)} critical surge hotspots detected across India out of {total_inc} monitored locations.\n\nKey hotspots:\n" + "\n".join(s_lines) + "\n\nA critical surge means the detected thermal heat is more than 2.5 times higher than the location's normal historical baseline."
-                    elif "ps162" in q_lower or "problem statement" in q_lower or "sih" in q_lower or "objective" in q_lower or "what is firex" in q_lower:
-                        reply_text = """FIREX is an autonomous thermal anomaly monitoring system developed for Smart India Hackathon (SIH 2026 Problem Statement 162).
-
-Its primary goals are:
-- Detect potential forest fires and thermal hotspots across India in near real-time using NASA satellites.
-- Eliminate false alarms caused by industrial sites, like refinery flare stacks, power plants, and brick kilns.
-- Provide emergency response teams and forest departments with verified fire incidents ranked by severity."""
-                    elif "false alarm" in q_lower or "accuracy" in q_lower or "precision" in q_lower:
-                        reply_text = """FIREX prevents false alarms using historical baselines and geospatial mapping:
-
-1. Diurnal Historical Baseline: The system tracks 365 days of temperature data for every location. If an industrial chimney routinely radiates heat, FIREX marks it as normal.
-2. Anomaly Ratio: An alert is only triggered if heat spikes significantly above normal levels (more than 2.5 times the 95th percentile).
-3. Industrial Asset Mapping: Hotspots are cross-checked with known refineries and factories so routine industrial activity isn't mistaken for a forest fire."""
-                    elif "p95" in q_lower or "baseline" in q_lower:
-                        reply_text = """The 365-day P95 baseline is a statistical threshold that represents the normal heat level for a specific coordinate:
-
-- P95 stands for the 95th percentile of heat observations over the past year.
-- 95% of normal daily readings fall below this line.
-- If a new satellite observation exceeds this baseline significantly, FIREX flags it as a true anomaly or potential wildfire rather than everyday background heat."""
-                    elif "score" in q_lower or "severity" in q_lower or "priority" in q_lower or "formula" in q_lower:
-                        reply_text = """FIREX calculates a composite priority score from 0 to 100 based on four factors:
-
-- Fire Radiative Power (35%): How intense the heat emission is compared to normal.
-- Infrastructure Proximity (30%): How close the fire is to hazardous sites or communities.
-- Day vs. Night Timing (20%): Nighttime anomalies receive higher priority because forest fires at night are more dangerous.
-- Multimodal AI Inspection (15%): Computer vision analysis confirming active fire or smoke plumes."""
-                    elif "satellite" in q_lower or "sensor" in q_lower or "viirs" in q_lower or "firms" in q_lower:
-                        reply_text = """FIREX uses NASA VIIRS and MODIS satellite instruments:
-
-- VIIRS (Visible Infrared Imaging Radiometer Suite): Flown on Suomi-NPP and NOAA-20 satellites, offering 375-meter thermal resolution.
-- Pass Schedule: Satellites pass over India twice a day (daytime around 1:30 PM IST and nighttime around 2:00 AM IST).
-- Optical Imagery: Sentinel-2 and high-resolution optical surface imagery are also used to visually verify flagged areas."""
-                    else:
-                        top_lines = [f"- Hotspot #{i.get('id', '')[:8]} in {i.get('location', 'India')}: {float(i.get('frp', 0)):.1f} MW" for i in top_by_frp[:3]]
-                        reply_text = f"Currently, FIREX is monitoring {total_inc} active thermal locations across India, including {len(surges)} critical surge detections.\n\nTop heat locations:\n" + "\n".join(top_lines) + "\n\nFeel free to ask any question about how FIREX detects fires, satellite passes, or how false alarms are filtered."
+                    reply_text = f"API Error: Unable to retrieve response from AI model ({last_error}). Please check your connection."
 
                 resp_payload = json.dumps({
                     "reply": reply_text,
