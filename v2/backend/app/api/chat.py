@@ -195,6 +195,7 @@ CONVERSATION GUIDELINES:
 
     openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     candidate_models = [
+        "dots-studio/dots-3-note-preview:free",
         "meta-llama/llama-3.1-8b-instruct",
         "meta-llama/llama-3.2-3b-instruct",
         "mistralai/mistral-small-24b-instruct-2501",
