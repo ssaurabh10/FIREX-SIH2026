@@ -18,7 +18,9 @@ from app.ingestion.firms import FIRMSClient
 
 client = TestClient(app)
 
-_fixture_path = os.path.join(os.path.dirname(__file__), "..", "..", "archive", "v1", "pipeline", "01_firms", "raw_responses", "VIIRS_NOAA20_NRT_20260903T141217Z.csv")
+_fixture_path = os.path.join(os.path.dirname(__file__), "fixtures", "sample_viirs.csv")
+if not os.path.exists(_fixture_path):
+    _fixture_path = os.path.join(os.path.dirname(__file__), "..", "..", "archive", "v1", "pipeline", "01_firms", "raw_responses", "VIIRS_NOAA20_NRT_20260903T141217Z.csv")
 if not os.path.exists(_fixture_path):
     _fixture_path = os.path.join(os.path.dirname(__file__), "..", "..", "v1", "pipeline", "01_firms", "raw_responses", "VIIRS_NOAA20_NRT_20260903T141217Z.csv")
 FIXTURE_VIIRS = os.path.abspath(_fixture_path)

@@ -100,7 +100,11 @@ def run_v1_script(rel_path, extra_args=()):
     """Run an archived v1 script from the repository root."""
     script = os.path.join(BASE_DIR, rel_path)
     if not os.path.exists(script):
-        print(f"[ERROR] Script not found at: {script}")
+        print(f"[FIREX] The v1 prototype has been archived and tagged under git tag 'v1.0-legacy'.")
+        print(f"[FIREX] All active operations run on v2:")
+        print(f"        python run.py serve      # Launch v2 console + API")
+        print(f"        python run.py pipeline   # Run v2 analysis pipeline")
+        print(f"[FIREX] To checkout the historical v1 prototype, run: git checkout v1.0-legacy")
         return 1
     print(BANNER)
     print(f"[FIREX v1] Executing archived script: {rel_path}")
@@ -113,6 +117,14 @@ def run_v1_script(rel_path, extra_args=()):
 
 def cmd_legacy(args):
     """Launch the archived v1 prototype UI."""
+    script = os.path.join(BASE_DIR, V1_LEGACY_SERVER)
+    if not os.path.exists(script):
+        print(f"[FIREX] The v1 legacy UI has been archived and tagged under git tag 'v1.0-legacy'.")
+        print(f"[FIREX] All active operations run on the v2 console:")
+        print(f"        python run.py serve      # Launch v2 console + API (port 8000)")
+        print(f"[FIREX] To checkout the historical v1 prototype, run: git checkout v1.0-legacy")
+        sys.exit(0)
+
     port = args.port or 8002
     print(BANNER)
     print(f"[FIREX v1] Launching Archived Legacy Prototype on port {port}...")
@@ -120,24 +132,12 @@ def cmd_legacy(args):
     print("-" * 75)
 
     env = os.environ.copy()
-    # The legacy server binds FIREX_LEGACY_PORT (v1/archive/legacy_ui/server.py:7).
-    # The name set here used to be FIREX_PORT, which only the v1 dashboard and the
-    # v2 static server read -- neither of which is launched from here -- so
-    # `legacy --port N` printed the requested port and then bound 8002 anyway.
     env["FIREX_LEGACY_PORT"] = str(port)
     if args.open:
-        # This used to set FIREX_AUTO_OPEN, which nothing in the repository reads,
-        # so --open was a silent no-op. cmd_serve opens the console itself
-        # (run.py:81-84); the prototype gets the same treatment.
         import threading
         import webbrowser
-
         threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}/")).start()
 
-    script = os.path.join(BASE_DIR, V1_LEGACY_SERVER)
-    if not os.path.exists(script):
-        print(f"[ERROR] Legacy server script not found at: {script}")
-        sys.exit(1)
     subprocess.run([sys.executable, script], cwd=os.path.dirname(script), env=env)
 
 

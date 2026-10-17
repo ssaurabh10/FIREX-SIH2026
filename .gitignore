@@ -18,8 +18,15 @@ build/
 data/*.db
 History data/
 **/imagery_cache/
+**/crops/
+**/raw_responses/
+**/dashboard/data/*.json
 .pytest_cache/
 **/.pytest_cache/
+
+# Deprecated v1 Archive (preserved under Git tag v1.0-legacy)
+archive/
+v1/
 
 # API keys / secrets - NEVER commit active keys
 #
