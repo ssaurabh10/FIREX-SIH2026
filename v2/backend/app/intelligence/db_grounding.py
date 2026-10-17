@@ -148,17 +148,72 @@ def query_incidents_tool(
     return results[:limit]
 
 
-def get_incident_dossier_tool(incident_id: str) -> Optional[Dict[str, Any]]:
+def get_incident_dossier_tool(incident_id: str, db: Optional[Any] = None) -> Optional[Dict[str, Any]]:
     """
     Tool 2: Get exhaustive ground-truth dossier for an incident.
     Returns physical parameters, climatology baseline, nearest facility, and AI vision findings.
     """
     clean_id = incident_id.replace("#", "").strip().lower()
-    conn = get_db_connection()
     dossier = None
 
-    # First check live JSON
-    if os.path.exists(INCIDENTS_JSON_PATH):
+    # First try direct SQLAlchemy query if db session provided
+    if db:
+        try:
+            from app.storage.models import Incident as DBIncident, IndustrialAsset as DBAsset, AIInvestigation as DBAIVision, ThermalClimatology as DBClim
+            row = db.query(DBIncident).filter(
+                (DBIncident.id.ilike(f"{clean_id}%")) | (DBIncident.incident_code.ilike(f"%{clean_id}%"))
+            ).first()
+            if row:
+                loc_name = getattr(row, "display_name", "") or getattr(row, "place_name", "") or getattr(row, "site_name", "")
+                if not loc_name:
+                    loc_name = f"{row.district}, {row.state}" if getattr(row, "district", "") else f"{row.latitude:.3f}°N, {row.longitude:.3f}°E"
+                dossier = {
+                    "id": row.id,
+                    "location": loc_name,
+                    "lat": row.latitude,
+                    "lon": row.longitude,
+                    "frp": float(getattr(row, "current_max_frp", 0.0) or 0.0),
+                    "classification": str(getattr(row, "classification", "") or "UNKNOWN"),
+                    "pattern": str(getattr(row, "status", "NORMAL")),
+                    "priority": getattr(row, "investigation_priority", 50),
+                    "explanation": f"Investigation priority score: {getattr(row, 'investigation_priority', 50):.1f}/100"
+                }
+                if getattr(row, "asset", None):
+                    dossier["nearest_asset"] = {
+                        "name": row.asset.name,
+                        "operator": getattr(row.asset, "operator", "N/A"),
+                        "distance_km": round(float(row.distance_to_asset_km or 0.0), 2),
+                        "hazard_category": getattr(row.asset, "hazard_category", "industrial")
+                    }
+                if getattr(row, "investigations", None):
+                    latest_inv = row.investigations[-1]
+                    dossier["ai_vision"] = {
+                        "classification": latest_inv.classification,
+                        "confidence": int(latest_inv.confidence * 100) if latest_inv.confidence <= 1 else int(latest_inv.confidence),
+                        "reasoning": latest_inv.reasoning or ""
+                    }
+                if getattr(row, "severity_score", None) is not None:
+                    dossier["severity"] = {
+                        "score": round(float(row.severity_score), 1),
+                        "level": row.severity_level or "LOW"
+                    }
+                lat_cell = round(row.latitude / 0.02) * 0.02
+                lon_cell = round(row.longitude / 0.02) * 0.02
+                spatial_key = f"GRID_{lat_cell:.2f}_{lon_cell:.2f}"
+                clim = db.query(DBClim).filter(DBClim.spatial_key == spatial_key).first()
+                if clim:
+                    dossier["db_climatology"] = {
+                        "p50_median": float(clim.median_frp or 0),
+                        "p90": float(clim.p90_frp or 0),
+                        "p95": float(clim.p95_frp or 0),
+                        "annual_flare_days": clim.active_days or 0,
+                        "is_routine_flare": bool(clim.is_routine_flare)
+                    }
+        except Exception as e:
+            logger.debug(f"[get_incident_dossier_tool] SQLAlchemy lookup error: {e}")
+
+    # Check live JSON if still None or missing details
+    if not dossier and os.path.exists(INCIDENTS_JSON_PATH):
         try:
             with open(INCIDENTS_JSON_PATH, "r", encoding="utf-8") as f:
                 cases = json.load(f)
@@ -166,24 +221,50 @@ def get_incident_dossier_tool(incident_id: str) -> Optional[Dict[str, Any]]:
                 if str(c.get("id", "")).lower().startswith(clean_id):
                     dossier = {
                         "id": c.get("id"),
-                        "location": c.get("location", c.get("place", "India")),
+                        "location": c.get("location", c.get("place", c.get("display_name", "India"))),
                         "lat": float(c.get("lat") or c.get("latitude") or 0),
                         "lon": float(c.get("lon") or c.get("longitude") or 0),
                         "frp": float(c.get("frp", 0)),
-                        "classification": c.get("classification", "UNKNOWN"),
-                        "pattern": c.get("pattern", "NORMAL"),
-                        "priority": c.get("investigationPriority", 50),
-                        "explanation": c.get("priorityExplanation", ""),
+                        "classification": c.get("classification", c.get("ai_classification", "UNKNOWN")),
+                        "pattern": c.get("pattern", c.get("persistence_pattern", "NORMAL")),
+                        "priority": c.get("investigationPriority", c.get("investigation_priority", 50)),
+                        "explanation": c.get("priorityExplanation", c.get("priority_explanation", "")),
                         "climatology": c.get("climatology", {})
                     }
+                    if c.get("nearest_facility_name"):
+                        dossier["nearest_asset"] = {
+                            "name": c.get("nearest_facility_name"),
+                            "operator": c.get("operator", "N/A"),
+                            "distance_km": round(float(c.get("facility_distance_km") or 0.0), 2),
+                            "hazard_category": c.get("facility_type", "industrial")
+                        }
+                    if c.get("baseline_p95") is not None:
+                        dossier["db_climatology"] = {
+                            "p50_median": float(c.get("baseline_median", 0)),
+                            "p90": float(c.get("baseline_p90", 0)),
+                            "p95": float(c.get("baseline_p95", 0)),
+                            "annual_flare_days": c.get("days_active", c.get("active_days_365d", 0)),
+                            "is_routine_flare": bool(c.get("is_routine_flare", False))
+                        }
+                    if c.get("ai_classification"):
+                        dossier["ai_vision"] = {
+                            "classification": c.get("ai_classification"),
+                            "confidence": int(float(c.get("ai_confidence", 0.5)) * 100),
+                            "reasoning": c.get("ai_reasoning", "")
+                        }
+                    if c.get("severity_score") is not None:
+                        dossier["severity"] = {
+                            "score": float(c.get("severity_score", 0)),
+                            "level": c.get("severity_level", "LOW")
+                        }
                     break
         except Exception:
             pass
 
-    # Query DB for depth (nearest industrial infrastructure & AI investigation)
-    if conn:
+    conn = get_db_connection()
+    if conn and not dossier:
         try:
-            # Match DB incident
+            # Match DB incident via raw connection
             row = conn.execute(
                 "SELECT * FROM incidents WHERE id LIKE ? OR incident_code LIKE ? LIMIT 1",
                 (f"{clean_id}%", f"%{clean_id}%")
@@ -358,7 +439,7 @@ def get_regional_breakdown_tool(region_name: str) -> Dict[str, Any]:
     }
 
 
-def execute_tool_grounding(user_query: str) -> Dict[str, Any]:
+def execute_tool_grounding(user_query: str, db: Optional[Any] = None) -> Dict[str, Any]:
     """
     Autonomous Intent Classifier & Tool Execution Dispatcher.
     Inspects user prompt, runs the required database tools, and produces:
@@ -373,7 +454,7 @@ def execute_tool_grounding(user_query: str) -> Dict[str, Any]:
     id_match = re.search(r"#?([a-f0-9]{8}(?:-[a-f0-9]{4,})?)", q)
     if id_match:
         target_id = id_match.group(1)
-        dossier = get_incident_dossier_tool(target_id)
+        dossier = get_incident_dossier_tool(target_id, db=db)
         if dossier:
             context_blocks.append(f"""
 === VERIFIED DATABASE DOSSIER: #{dossier['id'][:8]} ===

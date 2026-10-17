@@ -104,21 +104,39 @@ def get_live_telemetry_snapshot(db: Optional[Session] = None) -> Dict[str, Any]:
     }
 
 
-def find_matching_incident(query: str, incidents: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def find_matching_incident(query: str, incidents: List[Dict[str, Any]], db: Optional[Session] = None) -> Optional[Dict[str, Any]]:
     """Identifies if the query targets a specific incident ID, city, or coordinate."""
     q = query.lower()
 
     # Match ID pattern like #0640ce6d or 0640ce6d
-    id_match = re.search(r"#?([a-f0-9]{8})", q)
+    id_match = re.search(r"#?([a-f0-9]{8}(?:-[a-f0-9]{4,})?)", q)
     if id_match:
-        target_prefix = id_match.group(1)
+        target_prefix = id_match.group(1).replace("#", "").strip().lower()
         for inc in incidents:
-            if inc["id"].lower().startswith(target_prefix):
+            if str(inc.get("id", "")).lower().startswith(target_prefix):
                 return inc
+        if db:
+            try:
+                db_inc = db.query(Incident).filter(Incident.id.ilike(f"{target_prefix}%")).first()
+                if db_inc:
+                    loc = getattr(db_inc, "display_name", "") or getattr(db_inc, "place_name", "") or getattr(db_inc, "site_name", "") or (f"{db_inc.district}, {db_inc.state}" if getattr(db_inc, "district", "") else f"{db_inc.latitude:.3f}°N, {db_inc.longitude:.3f}°E")
+                    frp_val = float(getattr(db_inc, "current_max_frp", 0.0) or getattr(db_inc, "max_frp", 0.0) or getattr(db_inc, "frp", 0.0) or 0.0)
+                    return {
+                        "id": db_inc.id,
+                        "location": loc,
+                        "lat": db_inc.latitude,
+                        "lon": db_inc.longitude,
+                        "frp": frp_val,
+                        "classification": str(getattr(db_inc, "classification", "") or "UNKNOWN"),
+                        "pattern": str(getattr(db_inc, "status", "NORMAL")),
+                        "state": getattr(db_inc, "state", "") or "India"
+                    }
+            except Exception as e:
+                logger.debug(f"[find_matching_incident] DB query fallback: {e}")
 
     # Match location keyword
     for inc in incidents:
-        loc = inc.get("location", "").lower()
+        loc = str(inc.get("location", "")).lower()
         if len(loc) > 3 and loc in q:
             return inc
 
@@ -144,11 +162,51 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     all_incidents = telemetry["all_incidents"]
 
     # Step 3: Autonomous Database Grounding & Tool Execution
-    tool_grounding = execute_tool_grounding(user_msg)
+    tool_grounding = execute_tool_grounding(user_msg, db=db)
     tool_context = tool_grounding.get("grounding_context", "")
     actions = tool_grounding.get("actions", [])
 
-    # Prepare ground-truth context
+    # Check if user query targets a specific incident ID
+    target_match = find_matching_incident(user_msg, all_incidents, db=db)
+    target_dossier_block = ""
+    if target_match:
+        target_id = target_match["id"]
+        if not any(a.get("type") == "select_incident" for a in actions):
+            actions.append({
+                "type": "select_incident",
+                "payload": {
+                    "id": target_id,
+                    "lat": target_match.get("lat"),
+                    "lon": target_match.get("lon")
+                }
+            })
+        if f"#{target_id[:8]}" not in tool_context:
+            doss = get_incident_dossier_tool(target_id, db=db)
+            if doss:
+                target_dossier_block = f"""
+=== VERIFIED TARGET INCIDENT DOSSIER: #{doss['id'][:8]} ===
+Target: #{doss['id'][:8]} (Full ID: {doss['id']})
+Location: {doss['location']} (GPS: {doss['lat']:.4f}°N, {doss['lon']:.4f}°E)
+Radiative Power (FRP): {doss['frp']:.1f} MW
+Classification: {doss['classification']}
+Status & Pattern: {doss['pattern']}
+Priority Rank / Score: {doss.get('priority', 'N/A')}/100
+""" + (f"Nearest Monitored Industrial Asset: {doss['nearest_asset']['name']} ({doss['nearest_asset']['distance_km']} km away, Operator: {doss['nearest_asset']['operator']})\n" if 'nearest_asset' in doss else "") \
++ (f"Historical Heat Baseline: P50={doss['db_climatology']['p50_median']:.1f} MW, P90={doss['db_climatology']['p90']:.1f} MW, Surge P95 Ceiling={doss['db_climatology']['p95']:.1f} MW (Routine: {doss['db_climatology']['is_routine_flare']})\n" if 'db_climatology' in doss else "") \
++ (f"Multimodal Vision Verdict: {doss['ai_vision']['classification']} (Confidence: {doss['ai_vision']['confidence']}%) - Reasoning: {doss['ai_vision']['reasoning']}\n" if 'ai_vision' in doss else "") \
++ (f"Threat Severity: Level {doss['severity']['level']} (Score: {doss['severity']['score']}/100)\n" if 'severity' in doss else "")
+
+    # Grounding context blocks injected into LLM prompt
+    grounding_blocks = []
+    if target_dossier_block:
+        grounding_blocks.append(target_dossier_block.strip())
+    if tool_context:
+        grounding_blocks.append(tool_context.strip())
+    grounding_section = ""
+    if grounding_blocks:
+        grounding_section = "\n7. VERIFIED GROUND-TRUTH DATABASE DOSSIER & TARGET TELEMETRY:\n" + "\n\n".join(grounding_blocks) + "\n"
+
+    # Prepare general telemetry summary
     top_lines = []
     for it in top_incidents:
         top_lines.append(
@@ -184,9 +242,11 @@ CORE PROTOTYPE DOMAIN KNOWLEDGE (Use these definitions in your answers):
    - Critical Surge Hotspots: {surge_count}
    - Top Detected Hotspots Right Now:
 {top_summary}
-
+{grounding_section}
 CONVERSATION GUIDELINES:
 - Ground your answers around the FIREX prototype, its metrics (FRP in MW, P95 baseline, false alarm suppression), and live telemetry.
+- When the user asks to analyze, explain, or evaluate an incident, ALWAYS use the verified ground-truth dossier and telemetry provided in Section 7 above. Provide specific values for observed FRP (MW), 365-day P95 baseline comparison, classification, and nearby industrial facility.
+- Never state that incident data is missing or restricted to top cases when the dossier or telemetry for that incident is provided in your context.
 - When asked "what is frp?", explain clearly that it stands for Fire Radiative Power (MW), measures radiant heat energy, and is used in FIREX to measure fire intensity and detect surges against historical baselines.
 - Keep answers clear, natural, and concise (2 to 4 sentences).
 - Do not use robotic military prefixes (e.g. do not say "SITREP").
@@ -244,11 +304,11 @@ CONVERSATION GUIDELINES:
             logger.debug(f"[ChatAPI] Model {model_name} attempt error: {e}")
 
     if not reply_text:
-        reply_text = f"API Error: Unable to retrieve response from AI model ({last_err}). Please check your connection or key."
+        reply_text = generate_tactical_offline_reply(user_msg, telemetry, target_inc=target_match)
 
     return ChatResponse(
         reply=reply_text,
-        actions=[],
+        actions=actions,
         telemetry={
             "total_targets": total_count,
             "surge_targets": surge_count
