@@ -172,6 +172,31 @@ async def _keep_alive_loop(ping_url: str):
             logger.debug(f"[KeepAlive] Self-ping cycle note: {e}")
         await asyncio.sleep(480)
 
+async def _auto_sync_loop(interval_hours: int):
+    """
+    Background worker that runs the FIREX analysis pipeline at a recurring interval.
+    Controlled by settings.AUTO_SYNC_INTERVAL_HOURS (default 0 / disabled).
+    """
+    import asyncio
+    import threading
+    from app.api.analysis import run_sync_worker_pipeline
+    from app.orchestration.lock import pipeline_lock
+
+    logger.info(f"[AutoSync] Background auto-sync schedule active every {interval_hours} hours")
+    await asyncio.sleep(60)
+    interval_seconds = interval_hours * 3600
+    while True:
+        try:
+            if not pipeline_lock.is_locked():
+                logger.info("[AutoSync] Triggering scheduled FIREX data sync in worker thread...")
+                thread = threading.Thread(target=run_sync_worker_pipeline, daemon=True, name="AutoSyncWorker")
+                thread.start()
+            else:
+                logger.info("[AutoSync] Pipeline already running; skipping scheduled cycle.")
+        except Exception as e:
+            logger.error(f"[AutoSync] Scheduled sync cycle error: {e}")
+        await asyncio.sleep(interval_seconds)
+
 @app.on_event("startup")
 async def on_startup():
     import asyncio
@@ -183,6 +208,9 @@ async def on_startup():
         if not ping_url.endswith("/health"):
             ping_url = ping_url.rstrip("/") + "/health"
         asyncio.create_task(_keep_alive_loop(ping_url))
+
+    if settings.AUTO_SYNC_INTERVAL_HOURS > 0:
+        asyncio.create_task(_auto_sync_loop(settings.AUTO_SYNC_INTERVAL_HOURS))
 
 @app.on_event("shutdown")
 async def on_shutdown():

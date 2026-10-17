@@ -19,6 +19,8 @@ services:
         fromDatabase:
           name: firex-postgres
           property: connectionString
+      - key: AUTO_SYNC_INTERVAL_HOURS
+        value: "0"
 
 databases:
   - name: firex-postgres

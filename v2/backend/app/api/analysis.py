@@ -313,8 +313,29 @@ async def v1_trigger_sync_stream(
 
 
 @top_router.post("/api/trigger-sync", dependencies=[Depends(verify_api_key)])
-def v1_trigger_sync(db: Session = Depends(get_db)):
-    """v1 Dashboard compatibility synchronous trigger."""
+def v1_trigger_sync(
+    background: bool = Query(False, description="Execute pipeline asynchronously in background worker"),
+    db: Session = Depends(get_db)
+):
+    """
+    v1 Dashboard compatibility trigger.
+    If background=True, starts a background worker thread and immediately returns.
+    Otherwise runs synchronously and returns the full pipeline summary.
+    """
+    if background:
+        if pipeline_lock.is_locked():
+            return {
+                "status": "already_running",
+                "message": "Analysis pipeline is currently running.",
+                "active_run": pipeline_lock.get_status()
+            }
+        import threading
+        thread = threading.Thread(target=run_sync_worker_pipeline, daemon=True, name="PipelineSyncWorker")
+        thread.start()
+        return {
+            "status": "initiated",
+            "message": "FIREX live pipeline initiated in background thread."
+        }
     return run_analysis_pipeline(req=None, stream=False, db=db)
 
 

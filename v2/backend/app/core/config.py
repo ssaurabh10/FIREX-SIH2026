@@ -94,6 +94,9 @@ class Settings(BaseSettings):
     CACHE_ENABLED: bool = True
     CACHE_DEFAULT_TTL_SECONDS: int = 60
 
+    # Automated Background Ingestion & Pipeline Sync
+    AUTO_SYNC_INTERVAL_HOURS: int = 0  # 0 = disabled (managed via external cron/workflow), >0 = auto-sync every N hours
+
     @field_validator("OPENROUTER_API_KEYS", mode="before")
     @classmethod
     def _parse_openrouter_keys(cls, value: Any) -> List[str]:

@@ -16,3 +16,5 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      - key: AUTO_SYNC_INTERVAL_HOURS
+        value: "0"

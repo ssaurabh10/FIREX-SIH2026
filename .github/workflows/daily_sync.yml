@@ -1,0 +1,69 @@
+name: FIREX Daily Satellite Data Sync
+
+on:
+  schedule:
+    # Synchronized with NASA VIIRS & MODIS satellite overpasses of India:
+    # 08:30 UTC = 14:00 IST (Day Pass)
+    # 21:00 UTC = 02:30 IST (Night Pass)
+    - cron: "30 8 * * *"
+    - cron: "0 21 * * *"
+  workflow_dispatch: # Allows manual on-demand trigger from GitHub Actions UI
+
+jobs:
+  satellite_sync:
+    name: Sync Live NASA Telemetry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake / Verify FIREX Backend Health
+        run: |
+          echo "Verifying FIREX backend health..."
+          SUCCESS=0
+          for attempt in 1 2 3 4; do
+            echo "Healthcheck attempt $attempt..."
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -m 45 "https://firex-sih2026.onrender.com/health" || echo "000")
+            echo "HTTP Status: $STATUS"
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+              echo "FIREX is healthy and ready."
+              SUCCESS=1
+              break
+            fi
+            sleep 15
+          done
+
+          if [ $SUCCESS -ne 1 ]; then
+            echo "ERROR: FIREX backend failed to respond with healthy status."
+            exit 1
+          fi
+
+      - name: Trigger Live Satellite Ingestion Pipeline
+        run: |
+          echo "Triggering live satellite data ingestion pipeline..."
+          
+          AUTH_HEADER=""
+          if [ -n "${{ secrets.FIREX_API_KEY }}" ]; then
+            AUTH_HEADER="-H \"X-FIREX-KEY: ${{ secrets.FIREX_API_KEY }}\""
+          fi
+
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            ${AUTH_HEADER} \
+            "https://firex-sih2026.onrender.com/api/trigger-sync?background=true")
+          
+          BODY=$(echo "$RESPONSE" | sed -e '$d')
+          HTTP_STATUS=$(echo "$RESPONSE" | tail -n 1 | cut -d: -f2)
+
+          echo "Status Code: $HTTP_STATUS"
+          echo "Response Body: $BODY"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Pipeline trigger accepted successfully!"
+          else
+            echo "ERROR: Failed to trigger sync. Status: $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Inspect Pipeline Active Run Status
+        run: |
+          sleep 5
+          echo "Checking active pipeline status..."
+          curl -s "https://firex-sih2026.onrender.com/api/analysis/status" | jq . || echo "Status checked."
