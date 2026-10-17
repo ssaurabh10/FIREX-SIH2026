@@ -15,16 +15,16 @@
 
 ---
 
-## 🗂️ The v1 / v2 Split
+## 🗂️ The v1 / v2 Architecture
 
-This repository holds the active production platform in `v2/`, and the archived prototype in `archive/v1/`.
+This repository holds the active production platform in `v2/`. The historical prototype is preserved under Git tag `v1.0-legacy`.
 
 | Tree | Status | Entry point |
 |---|---|---|
 | `v2/` | **The live platform (PRIMARY).** FastAPI backend, the operator console, the test suite, spatial clustering, and multi-key AI intelligence. | `python run.py serve`, `pipeline`, `data`, `severity-sweep`, `migrate` |
-| `archive/v1/` | **Archived prototype.** The original script-per-stage pipeline, historical GIS dashboard, and benchmark reference fixtures. | `python run.py legacy`, `v1-pipeline`, `v1-daemon` |
+| `v1.0-legacy` (Git Tag) | **Archived prototype.** The original script-per-stage pipeline, historical GIS dashboard, and benchmark reference fixtures. | `git checkout v1.0-legacy` |
 
-`run.py` at the repository root is a dispatcher with `v2/` as its primary target. Commands `serve`, `pipeline`, `data`, `severity-sweep`, and `migrate` operate strictly on `v2/`. The `archive/v1/` tree is preserved for historical provenance.
+`run.py` at the repository root is a unified dispatcher targeting `v2/`. Commands `serve`, `pipeline`, `data`, `severity-sweep`, and `migrate` operate strictly on `v2/`.
 
 ---
 
@@ -86,26 +86,19 @@ The SSE event names on the wire are the constants in `v2/backend/app/orchestrati
 
 ```text
 PS162/
-├── run.py                     # Dispatcher: v2 subcommands + named archived v1 entrypoints
-├── requirements.txt           # Union dependency list for both trees
+├── run.py                     # Dispatcher: v2 subcommands (serve, pipeline, data, severity-sweep, migrate)
+├── requirements.txt           # Union dependency list
+├── render.yaml                # Render deployment blueprint (pointing to v2 backend & frontend)
 ├── run_firex.bat              # Windows helper: `python run.py serve --open`
 ├── .gitignore                 # Runtime cache and secret exclusions (.env, *.db, imagery_cache/)
 │
-├── docs/                      # Repository-level documentation
+├── docs/                      # Repository-level documentation & master specifications
 │   ├── FIREX_Architecture_and_Codebase.md
 │   ├── PS162_FIREX_Project_Master_Brief.md
-│   └── assets/Inspiration/    # Reference image + pixel-accurate dashboard spec
+│   ├── firex_v2_comprehensive_codebase_audit_analysis.md
+│   └── assets/                # Reference architecture and dashboard assets
 │
-├── History data/              # Downloaded FIRMS archives (gitignored)
-│
-├── v1/                        # ARCHIVED prototype — not the product
-│   ├── dashboard/             # v1 GIS command UI + its own static server.py
-│   ├── pipeline/              # 01_firms … 07_persistence (script-per-stage)
-│   │   └── 07_persistence/firex_history.db
-│   ├── archive/legacy_ui/     # Earliest prototype UI (port 8002)
-│   └── scratch/
-│
-└── v2/                        # LIVE platform
+└── v2/                        # LIVE platform (FastAPI, Leaflet Console, Test Suite)
     ├── V2_LOGIC_SPECIFICATION.md    # Master logic & algorithmic specification
     ├── README.md                    # v2-scoped notes
     ├── md/                          # SIH 2026 complete project blueprint (REVISED2)
