@@ -15,10 +15,21 @@
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: var(--z-nav, 2500);
+  z-index: 1500; /* Stays below drawer (z-index 3000) */
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: opacity var(--d-fast, 140ms) ease, transform var(--d-fast, 140ms) ease;
+}
+
+/* When the detail dossier drawer is open, keep the copilot trigger button behind the drawer and inert */
+body[data-drawer-open="1"] .chat-trigger-wrap,
+body:has(#drawer[data-open="1"]) .chat-trigger-wrap,
+#view-map:has(#drawer[data-open="1"]) ~ #chat-trigger-wrap {
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.95);
 }
 
 .chatBtn {

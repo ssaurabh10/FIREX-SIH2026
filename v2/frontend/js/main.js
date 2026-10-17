@@ -11,13 +11,13 @@ import {
   select, clearSelection, hover, fitAll, home, zoomBy, resize, countInView,
 } from "./map.js?v=5";
 import * as ui from "./render.js?v=19";
-import { initDossier, showDrawer, showModal, isModalOpen, refresh } from "./dossier.js?v=15";
+import { initDossier, showDrawer, showModal, isModalOpen, refresh } from "./dossier.js?v=16";
 
 const PREFS_KEY = "firex_prefs";
 
 const state = {
   view: "map",
-  window: "all",
+  window: "24h",
   filter: "all",
   frpThreshold: 5,
   query: "",
@@ -119,9 +119,9 @@ function loadPrefs() {
     if (saved.ambient_v2_set !== true) {
       state.ambient = false;
     }
-    // In v2, default window to 'all' so detections are never silently filtered out
-    if (!saved.window || saved.window === "24h") {
-      state.window = "all";
+    // Default Detection window to 24 hours ('24h')
+    if (saved.window_v2_24h_set !== true || !saved.window || !PREF_VALID.window(saved.window)) {
+      state.window = "24h";
     }
     // Guarantee default landing page is always the Live Map ("map"), unless a URL hash is explicitly passed
     const hash = (window.location.hash || "").replace(/^#/, "");
@@ -137,7 +137,7 @@ function loadPrefs() {
 function savePrefs() {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
-      window: state.window, filter: state.filter,
+      window: state.window, window_v2_24h_set: true, filter: state.filter,
       frpThreshold: state.frpThreshold, frp_v2_set: true,
       base: state.base, base_v2_set: true, ambient: state.ambient, ambient_v2_set: true, theme: state.theme,
     }));

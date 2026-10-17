@@ -428,6 +428,7 @@ export function showDrawer(c) {
   dossier.current = c;
   dossier.drawer.innerHTML = drawerHtml(c);
   dossier.drawer.setAttribute("data-open", "1");
+  document.body.setAttribute("data-drawer-open", "1");
   restoreScroll(dossier.drawer, ".drawer__body", top);
   wireThumbs(dossier.drawer);
   if (isModalOpen()) showModal(c);
@@ -443,6 +444,7 @@ export function hideDrawer() {
     dossier.drawer.innerHTML = drawerEmptyHtml();
     dossier.drawer.setAttribute("data-open", "0");
   }
+  document.body.setAttribute("data-drawer-open", "0");
   dossier.current = null;
   dossier.rendered = "";
   dossier.onClose();
@@ -631,6 +633,7 @@ export function initDossier({ onTriage, onStep, onClose } = {}) {
   /* Written here rather than by calling hideDrawer, which would fire onClose
      and ask the app to re-render before the feed has landed. */
   dossier.drawer.innerHTML = drawerEmptyHtml();
+  document.body.setAttribute("data-drawer-open", "0");
 
   dossier.drawer.addEventListener("click", handleClick);
   dossier.modal.addEventListener("click", handleClick);
