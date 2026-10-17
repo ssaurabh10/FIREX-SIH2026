@@ -13,26 +13,41 @@ from typing import Optional, Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
+from app.core.config import settings
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_PATH = os.path.join(BASE_DIR, "data", "firex_v2.db")
 FRONTEND_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend", "data")
 INCIDENTS_JSON_PATH = os.path.join(FRONTEND_DATA_DIR, "incidents.json")
 
 
-def get_db_connection() -> Optional[sqlite3.Connection]:
-    """Establishes read-only connection to primary firex_v2.db."""
+def get_db_path() -> str:
+    """Resolves actual SQLite database path from settings or default data location."""
+    db_url = getattr(settings, "DATABASE_URL", "")
+    if db_url.startswith("sqlite:///"):
+        path = db_url[len("sqlite:///"):]
+        if os.path.exists(path):
+            return path
     if os.path.exists(DB_PATH):
+        return DB_PATH
+    return os.path.join(BASE_DIR, "data", "firex_v2.db")
+
+
+def get_db_connection() -> Optional[sqlite3.Connection]:
+    """Establishes read-only connection to primary database."""
+    target_path = get_db_path()
+    if os.path.exists(target_path):
         try:
-            conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+            conn = sqlite3.connect(f"file:{target_path}?mode=ro", uri=True)
             conn.row_factory = sqlite3.Row
             return conn
         except Exception:
             try:
-                conn = sqlite3.connect(DB_PATH)
+                conn = sqlite3.connect(target_path)
                 conn.row_factory = sqlite3.Row
                 return conn
             except Exception as e:
-                logger.error(f"[DBGrounding] Failed to connect to {DB_PATH}: {e}")
+                logger.error(f"[DBGrounding] Failed to connect to {target_path}: {e}")
     return None
 
 

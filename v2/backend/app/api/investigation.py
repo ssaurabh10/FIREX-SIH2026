@@ -66,12 +66,12 @@ def get_investigation_history(
     return get_incident_investigations(incident_id, db)
 
 
-@router.post("/{incident_id}/reinvestigate", summary="Force Re-investigation")
+@router.post("/{incident_id}/reinvestigate", summary="Force Re-investigation", dependencies=[Depends(verify_api_key)])
 def reinvestigate_incident(
     incident_id: str,
     custom_radius_meters: Optional[float] = Query(None, ge=100.0, le=10000.0, description="Optional new viewport radius"),
     db: Session = Depends(get_db)
-) -> Dict[str, Any]:
+):
     """
     Forces a fresh AI investigation run (e.g. after satellite imagery refresh or operator review).
     """

@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 from app.storage.database import get_db
 from app.storage.models import Incident
 from app.core.config import settings
+from app.core.security import verify_api_key
+from app.intelligence.key_pool import key_pool
 from app.intelligence.db_grounding import execute_tool_grounding, get_incident_dossier_tool, search_facility_assets_tool
 
 logger = logging.getLogger(__name__)
@@ -52,15 +54,16 @@ def get_live_telemetry_snapshot(db: Optional[Session] = None) -> Dict[str, Any]:
             db_cases = db.query(Incident).all()
             if db_cases:
                 for c in db_cases:
+                    frp_val = float(getattr(c, "current_max_frp", 0.0) or getattr(c, "max_frp", 0.0) or getattr(c, "frp", 0.0) or 0.0)
                     incidents.append({
                         "id": c.id,
                         "location": getattr(c, "place_name", "") or getattr(c, "site_name", "") or f"{c.latitude:.3f}, {c.longitude:.3f}",
                         "lat": c.latitude,
                         "lon": c.longitude,
-                        "frp": float(c.max_frp or c.frp or 0),
+                        "frp": frp_val,
                         "classification": str(getattr(c, "classification", "") or "UNKNOWN"),
                         "pattern": str(getattr(c, "pattern", "") or "NORMAL"),
-                        "state": getattr(c, "state_name", "") or "India"
+                        "state": getattr(c, "state", "") or getattr(c, "state_name", "") or "India"
                     })
         except Exception as e:
             logger.debug(f"[ChatTelemetry] DB query fallback: {e}")
@@ -68,7 +71,10 @@ def get_live_telemetry_snapshot(db: Optional[Session] = None) -> Dict[str, Any]:
     # 2. Try JSON file fallback
     if not incidents:
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        json_path = os.path.join(base_dir, "data", "incidents.json")
+        frontend_data = os.path.join(os.path.dirname(base_dir), "frontend", "data")
+        json_path = os.path.join(frontend_data, "incidents.json")
+        if not os.path.exists(json_path):
+            json_path = os.path.join(base_dir, "data", "incidents.json")
         if os.path.exists(json_path):
             try:
                 with open(json_path, "r", encoding="utf-8") as f:
@@ -119,7 +125,7 @@ def find_matching_incident(query: str, incidents: List[Dict[str, Any]]) -> Optio
     return None
 
 
-@router.post("", response_model=ChatResponse, summary="Send message to FIREX AI Tactical Copilot")
+@router.post("", response_model=ChatResponse, summary="Send message to FIREX AI Tactical Copilot", dependencies=[Depends(verify_api_key)])
 def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     """
     Step 2 Tactical Copilot Endpoint:
@@ -193,7 +199,7 @@ CONVERSATION GUIDELINES:
         messages.append({"role": role, "content": h.content})
     messages.append({"role": "user", "content": user_msg})
 
-    openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    openrouter_key = key_pool.get_current_key() or os.environ.get("OPENROUTER_API_KEY", "").strip()
     candidate_models = [
         "dots-studio/dots-3-note-preview:free",
         "meta-llama/llama-3.1-8b-instruct",

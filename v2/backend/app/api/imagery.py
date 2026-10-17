@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.storage.database import get_db
 from app.imagery.service import get_or_create_incident_imagery, CACHE_DIR
 from app.imagery.package import build_investigation_package
+from app.core.security import verify_api_key
 
 router = APIRouter(prefix="/imagery", tags=["Visual Context & Imagery"])
 
@@ -33,7 +34,7 @@ def get_incident_imagery_endpoint(
         raise HTTPException(status_code=404, detail=res["error"])
     return res
 
-@router.post("/incident/{incident_id}", summary="Generate optical crop and render tactical reticle overlay")
+@router.post("/incident/{incident_id}", summary="Generate optical crop and render tactical reticle overlay", dependencies=[Depends(verify_api_key)])
 def post_incident_imagery_endpoint(
     incident_id: str,
     radius: Optional[float] = Query(None, description="Custom ground radius in meters (250 - 5000)"),
@@ -85,7 +86,7 @@ def get_incident_package_endpoint(
 def serve_cached_image(incident_id: str, filename: str):
     file_path = os.path.abspath(os.path.join(CACHE_DIR, incident_id, filename))
     # Security path check
-    if not file_path.startswith(CACHE_DIR) or not os.path.exists(file_path):
+    if os.path.commonpath([file_path, CACHE_DIR]) != CACHE_DIR or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Image not found")
 
     media_type = "image/jpeg"

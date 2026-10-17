@@ -17,6 +17,7 @@ from app.severity.state_machine import determine_lifecycle_state
 from app.incidents.state import transition_incident_state
 from app.alerts.engine import evaluate_and_emit_alert
 from app.gis.landcover import resolve_landcover
+from app.gis.spatial import climatology_cell
 
 logger = logging.getLogger(__name__)
 
@@ -71,12 +72,12 @@ def evaluate_incident_severity(incident_id: str, db: Session) -> Dict[str, Any]:
         if facility_id:
             prof = db.query(BehaviorProfile).filter(BehaviorProfile.facility_id == facility_id).first()
         if not prof:
-            spatial_key = f"GRID_{round(incident.latitude, 2)}_{round(incident.longitude, 2)}"
+            _, _, spatial_key = climatology_cell(incident.latitude, incident.longitude)
             prof = db.query(BehaviorProfile).filter(BehaviorProfile.spatial_reference == spatial_key).first()
         if prof and prof.active_days:
             active_days = prof.active_days
         else:
-            spatial_key = f"GRID_{round(incident.latitude, 2)}_{round(incident.longitude, 2)}"
+            _, _, spatial_key = climatology_cell(incident.latitude, incident.longitude)
             clim = db.query(ThermalClimatology).filter(ThermalClimatology.spatial_key == spatial_key).first()
             if clim and clim.active_days:
                 active_days = clim.active_days
