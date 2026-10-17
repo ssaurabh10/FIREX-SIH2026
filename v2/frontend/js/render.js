@@ -277,7 +277,13 @@ export function renderFilterBar(el, base, active) {
    four of the six classes. Markup cannot be checked against config.js. */
 
 export function renderMapKey(el) {
-  set(el, Object.values(CLASSES).map((c) => `
+  const seen = new Set();
+  const uniqueClasses = Object.values(CLASSES).filter((c) => {
+    if (seen.has(c.short)) return false;
+    seen.add(c.short);
+    return true;
+  });
+  set(el, uniqueClasses.map((c) => `
     <span class="mapkey__row">
       <span class="mapkey__mk mapkey__mk--glyph">${icon(c.icon, "i")}</span>${escapeHtml(c.short)}
     </span>`).join(""));

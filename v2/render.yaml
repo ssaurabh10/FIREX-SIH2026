@@ -18,3 +18,5 @@ services:
         sync: false
       - key: AUTO_SYNC_INTERVAL_HOURS
         value: "0"
+      - key: DEBUG
+        value: "false"

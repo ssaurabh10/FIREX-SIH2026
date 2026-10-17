@@ -321,7 +321,10 @@ function step(delta) {
   const list = visible();
   if (!list.length) return;
   const at = list.findIndex((c) => c.id === state.selected);
-  const next = list[(at + delta + list.length) % list.length] || list[0];
+  const targetIdx = at === -1
+    ? (delta > 0 ? 0 : list.length - 1)
+    : (at + delta + list.length) % list.length;
+  const next = list[targetIdx] || list[0];
   pick(next.id, { modal: isModalOpen() });
 }
 
@@ -752,7 +755,8 @@ function renderView() {
 let ambientKey = "";
 
 function drawAmbientIfChanged(points) {
-  const key = `${state.window}|${state.ambient}|${state.frpThreshold}|${points.length}`;
+  const anchorTs = store.anchor instanceof Date ? store.anchor.getTime() : (store.anchor || "");
+  const key = `${state.window}|${state.ambient}|${state.frpThreshold}|${points.length}|${anchorTs}`;
   if (key === ambientKey) return;
   ambientKey = key;
   drawAmbient(points, state.ambient);
@@ -1075,6 +1079,8 @@ function wirePersistenceSync() {
 
   let activeEvtSource = null;
   let activeTimerInterval = null;
+  let origSyncHtml = syncBtn ? syncBtn.innerHTML : "";
+  let origRunHtml = runBtn ? runBtn.innerHTML : "";
 
   function closeModal() {
     scrim.setAttribute("data-open", "0");
@@ -1086,7 +1092,11 @@ function wirePersistenceSync() {
       clearInterval(activeTimerInterval);
       activeTimerInterval = null;
     }
-    triggerButtons.forEach((b) => { b.disabled = false; });
+    triggerButtons.forEach((b) => {
+      b.disabled = false;
+      if (syncBtn && origSyncHtml) syncBtn.innerHTML = origSyncHtml;
+      if (runBtn && origRunHtml) runBtn.innerHTML = origRunHtml;
+    });
   }
 
   if (closeBtn) {
@@ -1120,8 +1130,8 @@ function wirePersistenceSync() {
 
   const startPipelineSync = () => {
     triggerButtons.forEach((b) => { b.disabled = true; });
-    const origSyncHtml = syncBtn ? syncBtn.innerHTML : "";
-    const origRunHtml = runBtn ? runBtn.innerHTML : "";
+    origSyncHtml = syncBtn ? syncBtn.innerHTML : origSyncHtml;
+    origRunHtml = runBtn ? runBtn.innerHTML : origRunHtml;
     if (syncBtn) syncBtn.innerHTML = `<span class="tag__dot" style="background:#38bdf8"></span> Syncing...`;
     if (runBtn) runBtn.innerHTML = `<span class="tag__dot" style="background:#38bdf8"></span> Running...`;
 

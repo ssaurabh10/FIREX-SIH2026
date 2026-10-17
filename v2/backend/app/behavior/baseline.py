@@ -309,6 +309,7 @@ def get_or_create_location_baseline(
         return {
             "spatial_key": spatial_key,
             "window_days": window_days,
+            "climatology_window_days": 365,
             "observation_count": count,
             "active_days": active_days,
             "active_days_365d": active_days,

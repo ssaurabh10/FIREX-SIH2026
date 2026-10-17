@@ -6,7 +6,7 @@
 
 import { TRIAGE_ACTIONS, triageOf, fmt, icon, escapeHtml } from "./config.js";
 import { getTriage, setTriage } from "./data.js";
-import { wireThumbs } from "./render.js";
+import { wireThumbs } from "./render.js?v=19";
 
 export const dossier = {
   drawer: null,

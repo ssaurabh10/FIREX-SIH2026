@@ -1584,22 +1584,25 @@ def execute_analysis_pipeline(
                 skipped_dup = save_res["skipped_duplicate"]
                 total_fetched = save_res["total"]
             else:
-                # Attempt live NASA fetch
-                # NASA's area/csv API serves products as satellite+latency pairs
-                # (VIIRS_NOAA20_NRT, VIIRS_SNPP_NRT, MODIS_NRT ...). The literal that
-                # used to stand here, "VIIRS_NRT", is not one of them, so the request
-                # asked for a product FIRMS does not serve, fetch_live_csv returned
-                # None on every run, and the live branch always fell through to the
-                # database. FIRMS_DEFAULT_PRODUCTS is exactly that served list.
-                live_product = settings.FIRMS_DEFAULT_PRODUCTS[0]
-                live_csv = firms_client.fetch_live_csv(live_product, days=1)
-                if live_csv:
-                    normalized_records = firms_client.parse_csv(live_csv, product=live_product)
-                    save_res = firms_client.save_to_db(db, normalized_records)
-                    new_obs_count = save_res["ingested"]
-                    skipped_dup = save_res["skipped_duplicate"]
-                    total_fetched = save_res["total"]
-                else:
+                # Attempt live NASA fetch across configured satellite products (F-133 & F-134)
+                days_to_fetch = getattr(settings, "FIRMS_DAYS", 2) or 1
+                products = settings.FIRMS_DEFAULT_PRODUCTS or ["VIIRS_NOAA20_NRT"]
+                fetched_any = False
+
+                for product in products:
+                    try:
+                        live_csv = firms_client.fetch_live_csv(product, days=days_to_fetch)
+                        if live_csv:
+                            normalized_records = firms_client.parse_csv(live_csv, product=product)
+                            save_res = firms_client.save_to_db(db, normalized_records)
+                            new_obs_count += save_res.get("ingested", 0)
+                            skipped_dup += save_res.get("skipped_duplicate", 0)
+                            total_fetched += save_res.get("total", 0)
+                            fetched_any = True
+                    except Exception as pe:
+                        logger.warning(f"[Pipeline] FIRMS product {product} fetch note: {pe}")
+
+                if not fetched_any:
                     logger.info("[Pipeline] No live FIRMS payload fetched; proceeding with existing active observations.")
         except Exception as fe:
             logger.warning(f"[Pipeline] FIRMS ingestion warning: {fe}. Proceeding with active database observations.")

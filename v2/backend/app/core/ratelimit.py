@@ -20,6 +20,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._clients: Dict[str, List[float]] = defaultdict(list)
         self._last_cleanup = time.time()
 
+    def get_client_ip(self, request: Request) -> str:
+        client_host = request.client.host if request.client else "127.0.0.1"
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for and client_host in ("127.0.0.1", "::1", "localhost"):
+            return forwarded_for.split(",")[0].strip()
+        return client_host
+
     async def dispatch(self, request: Request, call_next) -> Response:
         if not settings.RATE_LIMIT_ENABLED:
             return await call_next(request)
@@ -31,12 +38,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path.startswith(("/console", "/docs", "/redoc", "/openapi.json")):
             return await call_next(request)
 
-        # Determine client identifier (respecting X-Forwarded-For if available behind proxies, M-4)
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            client_ip = forwarded_for.split(",")[0].strip()
-        else:
-            client_ip = request.client.host if request.client else "127.0.0.1"
+        # Determine client identifier (respecting X-Forwarded-For only when behind a proxy, N-07)
+        client_ip = self.get_client_ip(request)
         now = time.time()
         window_start = now - 60.0
 

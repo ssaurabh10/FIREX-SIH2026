@@ -14,14 +14,11 @@ export const SOURCES = {
 export const MAP_HOME = { center: [22.4, 79.5], zoom: 5 };
 
 /* Risk tiers exactly as the scoring engine defines them. The engine is the
-   authority and it lives in section10_risk_engine/risk_scorer.py, which cuts at
-   >= 81 critical, >= 61 high, >= 36 medium, and low below that. These bands had
-   medium starting at 31, so a case scoring 31 to 35 was low to the engine and
-   medium in the browser: the same record wore two tiers depending on which
-   surface you read it from. Anything published in the feed is trusted over these
-   numbers now (see normaliseCase), and a disagreement is reported rather than
-   quietly resolved, but the bands still have to be right for the cases the feed
-   leaves untiered. */
+   authority and it lives in backend/app/severity/scoring.py, which cuts at
+   >= 75 critical, >= 50 high, >= 25 medium, and low below that. Anything
+   published in the feed is trusted over these numbers now (see normaliseCase),
+   and a disagreement is reported rather than quietly resolved, but the bands
+   still have to be right for the cases the feed leaves untiered. */
 export const TIERS = [
   { id: "CRITICAL", min: 75, max: 100, label: "Critical" },
   { id: "HIGH", min: 50, max: 74, label: "High" },

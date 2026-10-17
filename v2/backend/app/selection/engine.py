@@ -68,7 +68,7 @@ def _anomaly_table_score(eval_res: Dict[str, Any]) -> float:
         value = eval_res.get("anomaly_score", 0.0)
     return float(value or 0.0)
 
-def evaluate_incident_selection(incident_id: str, db: Session) -> Dict[str, Any]:
+def evaluate_incident_selection(incident_id: str, db: Session, persist: bool = False) -> Dict[str, Any]:
     """
     Evaluates selection priority for a single incident.
     Fetches its historical baseline, persistence, and confidence to calculate investigation priority.
@@ -131,7 +131,8 @@ def evaluate_incident_selection(incident_id: str, db: Session) -> Dict[str, Any]
             lat=incident.latitude,
             lon=incident.longitude,
             persistence_score=persistence_score,
-            baseline_override=baseline_data
+            baseline_override=baseline_data,
+            save_record=False
         )
         anomaly_score = _anomaly_table_score(eval_res)
 
@@ -161,9 +162,10 @@ def evaluate_incident_selection(incident_id: str, db: Session) -> Dict[str, Any]
     priority = priority_result["investigation_priority"]
     should_investigate = priority >= 40.0 or priority_result["is_override_triggered"]
 
-    # Update incident investigation_priority field in DB
-    incident.investigation_priority = priority
-    db.commit()
+    # Update incident investigation_priority field only when persistence is requested (N-04)
+    if persist:
+        incident.investigation_priority = priority
+        db.commit()
 
     facility_name = None
     dist_m = None
